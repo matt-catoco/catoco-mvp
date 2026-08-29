@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -34,13 +35,12 @@ export default async function Home() {
         </span>
       </div>
 
-      <p className="max-w-md text-sm text-zinc-500 dark:text-zinc-500">
-        Next step: create database tables in Supabase and read them from{" "}
-        <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-          lib/supabase
-        </code>
-        .
-      </p>
+      <Link
+        href="/sign-in"
+        className="h-11 rounded-lg bg-foreground px-5 text-sm font-medium leading-[2.75rem] text-background transition-opacity hover:opacity-90"
+      >
+        Get started
+      </Link>
     </div>
   );
 }
