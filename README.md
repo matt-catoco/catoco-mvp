@@ -1,5 +1,8 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+> **First time here?** See [SETUP.md](./SETUP.md) for environment variables, Supabase
+> Auth config, database migrations, email/SMTP, and Vercel setup.
+
 ## Getting Started
 
 First, run the development server:
