@@ -64,9 +64,34 @@ Supabase → SQL Editor → paste each file's contents and run, oldest first:
    to authenticated`. Required: new Supabase projects do **not** auto-grant table
    privileges, and RLS policies alone leave the client with
    "permission denied for table profiles".
+3. `20260830000000_trip_elements.sql` — promotes the `trips` stub (adds `icon`,
+   `organizer_id`, `status`) and adds `trip_elements`, `element_options`,
+   `element_participants`, `votes`; organizer-scoped RLS + grants on the first
+   three; `create_trip(jsonb)` RPC for atomic trip creation; storage policies for
+   the `trip-icons` bucket. Deletes any pre-existing organizer-less `trips` rows
+   (flow-1 test data). Run once.
+   - If the `storage.objects` policy statements at the end fail with *"must be
+     owner of table objects"*, delete those four statements and instead add the
+     equivalent policies from **Storage → Policies** on the `trip-icons` bucket:
+     public `SELECT`, and `INSERT`/`UPDATE`/`DELETE` for `authenticated` where
+     `(storage.foldername(name))[1] = auth.uid()::text`.
 
-Verify afterwards: `profiles` and `trips` exist, and completing a sign-in creates
-a matching `profiles` row automatically.
+Verify afterwards: `profiles` and `trips` exist, `trips` has the new columns,
+`trip_elements` / `element_options` / `element_participants` / `votes` exist, and
+completing a sign-in creates a matching `profiles` row automatically.
+
+### Storage bucket (for trip icons)
+
+Dashboard → **Storage → New bucket**:
+- Name: `trip-icons`
+- **Public** bucket: on
+- File size limit: `2 MB`
+- Allowed MIME types: `image/png, image/jpeg, image/webp, image/svg+xml`
+
+The access policies come from migration 3 (or the Storage → Policies fallback
+above). `NEXT_PUBLIC_SUPABASE_URL` is also used to build the public icon URL, and
+its host is allowlisted in `next.config.ts` under `images.remotePatterns` — update
+that host if the Supabase project ref ever changes.
 
 ## 5. Supabase Auth configuration
 
@@ -137,13 +162,32 @@ Other scripts: `npm run build`, `npm start`, `npm run lint`.
 | `/sign-in/check-email` | "Check your email" confirmation. |
 | `/auth/callback` | Exchanges the `?code=` for a session; routes to onboarding or `next`. |
 | `/onboarding/profile` | Display-name capture, first login only. |
-| `/trips` | "My Trips" — authed empty state. |
-| `/trips/[tripId]` | Stub trip landing (does not query `trips` — no RLS policy yet). |
+| `/trips` | "My Trips" — lists the caller's trips; entry to the create wizard. |
+| `/trips/[tripId]` | Stub trip landing. |
 | `/trip/[tripId]/join` | Invite entry point, redirect-only. |
 | `proxy.ts` | Refreshes the Supabase session cookie on every request. |
 
 `invited_via_trip_id` is set exactly once, at account creation, by the
 `handle_new_user` trigger reading `raw_user_meta_data`. Re-invites never change it.
+
+## 9a. Trip creation flow (as of flow #2)
+
+`/trips/new` is a 5-step client wizard (start → name+icon → macro → micro →
+review). Nothing is written until **Create trip**, which calls the `createTrip`
+server action → `create_trip(jsonb)` RPC (one transaction).
+
+- Elements are **Skip** (no row), **Lock** (one fixed `element_options` row), or
+  **Open** (0+ seeded options, optional voting `deadline`).
+- `trip_elements.status` is stamped at creation: locked → `settled`,
+  open+options → `add`, open+empty → `null`. Later stages (`vote`, `collecting`,
+  …) are future tickets.
+- `trips.status` is always `planning` on create — a coarse 3-stage field
+  (`planning`/`financing`/`going`), not a rollup.
+- Wizard progress is mirrored to `sessionStorage` (`catoco:new-trip-draft:v1`)
+  so a refresh doesn't lose it; cleared on successful create.
+- `element_options.value` shapes are defined in `lib/trip-elements.ts` and
+  re-validated in SQL by `validate_option_value()`.
+- `votes` and `element_participants` exist but are inert (no policies, no UI).
 
 ## 10. Gotchas hit during setup
 

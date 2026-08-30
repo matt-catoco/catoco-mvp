@@ -1,5 +1,36 @@
+import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveIcon } from "@/lib/trip-icons";
+
+type TripRow = {
+  id: string;
+  name: string;
+  icon: string | null;
+  status: string;
+  created_at: string;
+};
+
+function TripIcon({ icon }: { icon: string | null }) {
+  const resolved = resolveIcon(icon);
+  return (
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-black/[.1] text-lg dark:border-white/[.14]">
+      {resolved?.kind === "preset" && <span>{resolved.emoji}</span>}
+      {resolved?.kind === "image" && (
+        <Image
+          src={resolved.url}
+          alt=""
+          width={40}
+          height={40}
+          className="h-full w-full object-cover"
+          unoptimized
+        />
+      )}
+      {!resolved && <span className="text-zinc-400">🧳</span>}
+    </div>
+  );
+}
 
 export default async function TripsPage() {
   const supabase = await createClient();
@@ -11,19 +42,52 @@ export default async function TripsPage() {
     redirect("/sign-in");
   }
 
+  const { data: trips } = await supabase
+    .from("trips")
+    .select("id, name, icon, status, created_at")
+    .order("created_at", { ascending: false })
+    .returns<TripRow[]>();
+
+  const hasTrips = (trips?.length ?? 0) > 0;
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
-      <div className="w-full max-w-md">
+    <div className="mx-auto w-full max-w-xl flex-1 px-6 py-16">
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
           My Trips
         </h1>
-        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-          You don&apos;t have any trips yet.
-        </p>
-        <p className="mt-1 text-xs text-zinc-500">
-          Trip creation is coming in a later update.
-        </p>
+        <Link
+          href="/trips/new"
+          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+        >
+          New trip
+        </Link>
       </div>
+
+      {!hasTrips ? (
+        <p className="mt-8 rounded-lg border border-black/[.1] p-6 text-center text-sm text-zinc-500 dark:border-white/[.14]">
+          You don&apos;t have any trips yet. Create your first one.
+        </p>
+      ) : (
+        <ul className="mt-8 flex flex-col gap-2">
+          {trips!.map((trip) => (
+            <li key={trip.id}>
+              <Link
+                href={`/trips/${trip.id}`}
+                className="flex items-center gap-3 rounded-lg border border-black/[.1] p-3 transition-colors hover:bg-black/[.03] dark:border-white/[.14] dark:hover:bg-white/[.05]"
+              >
+                <TripIcon icon={trip.icon} />
+                <span className="flex-1 truncate text-sm font-medium text-black dark:text-zinc-50">
+                  {trip.name}
+                </span>
+                <span className="rounded-full border border-black/[.12] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-white/[.16]">
+                  {trip.status}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
