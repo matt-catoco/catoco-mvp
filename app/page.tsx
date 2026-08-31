@@ -20,29 +20,32 @@ export const metadata: Metadata = {
     "Cataco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.",
 };
 
+// Exact markup from design-handoff/cataco-mark.svg (the finalized "Element
+// Tile" mark) — public/brand/cataco-mark.svg is the same file, kept there for
+// any future non-inline use (dark/mono variants live alongside it).
 function LogoMark() {
   return (
-    <svg viewBox="0 0 100 100" aria-hidden>
-      <rect width="100" height="100" rx="22" fill="#2DD4BF" />
+    <svg viewBox="0 0 512 512" aria-hidden>
+      <rect width="512" height="512" rx="113" fill="#2DD4BF" />
       <rect
-        x="15"
-        y="15"
-        width="70"
-        height="70"
-        rx="12"
+        x="77"
+        y="77"
+        width="358"
+        height="358"
+        rx="61"
         fill="none"
         stroke="#0D2020"
-        strokeWidth="3"
-        strokeDasharray="3,4"
+        strokeWidth="15"
+        strokeDasharray="15,20"
       />
       <rect
-        x="36"
-        y="36"
-        width="28"
-        height="28"
-        rx="6"
+        x="184"
+        y="184"
+        width="144"
+        height="144"
+        rx="31"
         fill="#0D2020"
-        transform="rotate(45 50 50)"
+        transform="rotate(45 256 256)"
       />
     </svg>
   );
