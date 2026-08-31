@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
 import "./globals.css";
+import { SiteNav } from "@/components/site-nav";
 
 // Brand type system (design-handoff/cataco-brand-toolkit.md), applied
 // platform-wide: Bricolage Grotesque for display/headings, Inter for
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${bricolage.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <SiteNav />
+        {children}
+      </body>
     </html>
   );
 }

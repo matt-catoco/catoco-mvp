@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "./page.module.css";
 import { TallyEmbedScript } from "./tally-embed-script";
+import { LogoMark } from "@/components/logo-mark";
 
 // Bricolage Grotesque + Inter are now loaded once, platform-wide, in
 // app/layout.tsx — page.module.css's --font-display/--font-body already
@@ -13,37 +14,6 @@ export const metadata: Metadata = {
   description:
     "Cataco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.",
 };
-
-// Exact markup from design-handoff/cataco-mark.svg (the finalized "Element
-// Tile" mark) — public/brand/cataco-mark.svg is the same file, kept there for
-// any future non-inline use (dark/mono variants live alongside it).
-function LogoMark() {
-  return (
-    <svg viewBox="0 0 512 512" aria-hidden>
-      <rect width="512" height="512" rx="113" fill="#2DD4BF" />
-      <rect
-        x="77"
-        y="77"
-        width="358"
-        height="358"
-        rx="61"
-        fill="none"
-        stroke="#0D2020"
-        strokeWidth="15"
-        strokeDasharray="15,20"
-      />
-      <rect
-        x="184"
-        y="184"
-        width="144"
-        height="144"
-        rx="31"
-        fill="#0D2020"
-        transform="rotate(45 256 256)"
-      />
-    </svg>
-  );
-}
 
 function CheckIcon() {
   return (
