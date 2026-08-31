@@ -80,6 +80,41 @@ export function initialElementStatus(
   return optionCount >= 1 ? "add" : null;
 }
 
+// ---- Participants: a status lifecycle separate from the base element
+// status above. Driven by the locked {min,max} range, the invites_sent flag
+// (set explicitly by the organizer sharing the link), and the opted-in count
+// from element_participants — never stored, always computed from those.
+
+export type ParticipantsStatus =
+  | "range_set"
+  | "invites_sent"
+  | "minimum_met"
+  | "group_full";
+
+export const PARTICIPANTS_STATUS_LABELS: Record<ParticipantsStatus, string> = {
+  range_set: "Range set",
+  invites_sent: "Invites sent",
+  minimum_met: "Minimum met",
+  group_full: "Group full",
+};
+
+export function computeParticipantsStatus({
+  min,
+  max,
+  invitesSent,
+  optedInCount,
+}: {
+  min: number | null;
+  max: number | null;
+  invitesSent: boolean;
+  optedInCount: number;
+}): ParticipantsStatus {
+  if (max != null && optedInCount >= max) return "group_full";
+  if (min != null && optedInCount >= min) return "minimum_met";
+  if (invitesSent) return "invites_sent";
+  return "range_set";
+}
+
 // ---- value shapes (one per element type) -----------------------------------
 
 export type DatesValue = {
@@ -92,7 +127,13 @@ export type DestinationValue = { name: string };
 export type BudgetValue =
   | { mode: "single"; amount: number; currency: string }
   | { mode: "range"; min: number; max: number; currency: string };
-export type ParticipantsValue = { count: number };
+// `invited` is reserved for a future per-person-tracked invite mechanism —
+// the one built now is a generic copy/paste link, so this stays empty.
+export type ParticipantsValue = {
+  min: number | null;
+  max: number | null;
+  invited?: string[];
+};
 // `cost` (optional) is in the trip's budget currency; used later by financing.
 export type TravelValue = { mode: string; note?: string; cost?: number };
 export type PlaceValue = { name: string; link?: string; cost?: number };
@@ -128,7 +169,7 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
     case "budget":
       return { mode: "single", amount: "", min: "", max: "", currency: "USD" };
     case "participants":
-      return { count: "" };
+      return { min: "", max: "" };
     case "travel":
       return { mode: "", note: "", cost: "" };
     default:
@@ -189,9 +230,13 @@ export function validateOptionValue(
       return null;
     }
     case "participants": {
-      const n = num("count");
-      if (!str("count") || !Number.isInteger(n) || n <= 0)
-        return "Enter a whole number above 0";
+      if (!str("min") && !str("max")) return "Set a minimum or maximum group size";
+      if (str("min") && (!Number.isInteger(num("min")) || num("min") <= 0))
+        return "Minimum must be a whole number above 0";
+      if (str("max") && (!Number.isInteger(num("max")) || num("max") <= 0))
+        return "Maximum must be a whole number above 0";
+      if (str("min") && str("max") && num("max") < num("min"))
+        return "Maximum is below the minimum";
       return null;
     }
     case "travel":
@@ -233,8 +278,13 @@ export function normalizeOptionValue(
       }
       return { mode: "single", amount: Number(value.amount), currency };
     }
-    case "participants":
-      return { count: Number(value.count) };
+    case "participants": {
+      const out: ParticipantsValue = {
+        min: str("min") ? Number(value.min) : null,
+        max: str("max") ? Number(value.max) : null,
+      };
+      return out;
+    }
     case "travel": {
       const out: TravelValue = { mode: str("mode") };
       if (str("note")) out.note = str("note");
@@ -268,8 +318,14 @@ export function summarizeOptionValue(
       if (str("mode") === "range") return `${cur} ${str("min") || "?"}–${str("max") || "?"}`;
       return `${cur} ${str("amount") || "?"}`;
     }
-    case "participants":
-      return `${str("count") || "?"} people`;
+    case "participants": {
+      const min = str("min");
+      const max = str("max");
+      if (min && max) return `${min}–${max} people`;
+      if (min) return `${min}+ people`;
+      if (max) return `Up to ${max} people`;
+      return "?";
+    }
     case "travel": {
       const base = [str("mode"), str("note")].filter(Boolean).join(" — ") || "?";
       return str("cost") ? `${base} · ${str("cost")}` : base;

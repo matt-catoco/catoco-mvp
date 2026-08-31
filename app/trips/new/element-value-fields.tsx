@@ -158,15 +158,32 @@ export function ElementValueFields({
 
     case "participants":
       return (
-        <input
-          type="number"
-          min={1}
-          step={1}
-          className={field}
-          placeholder="Number of people"
-          value={str("count")}
-          onChange={(e) => set("count", e.target.value)}
-        />
+        <div className="flex gap-3">
+          <label className="flex flex-1 flex-col gap-1">
+            <span className={label}>Minimum</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              className={field}
+              placeholder="e.g. 4"
+              value={str("min")}
+              onChange={(e) => set("min", e.target.value)}
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1">
+            <span className={label}>Maximum (optional)</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              className={field}
+              placeholder="e.g. 8"
+              value={str("max")}
+              onChange={(e) => set("max", e.target.value)}
+            />
+          </label>
+        </div>
       );
 
     case "travel":
