@@ -86,8 +86,16 @@ export type DatesValue = { start: string; end: string };
 export type DestinationValue = { name: string };
 export type BudgetValue = { amount: number; currency: string };
 export type ParticipantsValue = { count: number };
-export type TravelValue = { mode: string; note?: string };
-export type PlaceValue = { name: string; link?: string };
+// `cost` (optional) is in the trip's budget currency; used later by financing.
+export type TravelValue = { mode: string; note?: string; cost?: number };
+export type PlaceValue = { name: string; link?: string; cost?: number };
+
+export const COST_BEARING_TYPES: ElementType[] = [
+  "travel",
+  "accommodation",
+  "experience",
+  "dining",
+];
 
 export type OptionValue =
   | DatesValue
@@ -110,10 +118,19 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
     case "participants":
       return { count: "" };
     case "travel":
-      return { mode: "", note: "" };
+      return { mode: "", note: "", cost: "" };
     default:
-      return { name: "", link: "" };
+      return { name: "", link: "", cost: "" };
   }
+}
+
+/** Error message if the optional `cost` field is present but not a number >= 0. */
+function costError(value: Record<string, unknown>): string | null {
+  const raw = value.cost;
+  if (raw === undefined || raw === null || String(raw).trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return "Cost must be 0 or more";
+  return null;
 }
 
 /**
@@ -150,11 +167,13 @@ export function validateOptionValue(
       return null;
     }
     case "travel":
-      return str("mode") ? null : "Enter a travel mode";
+      if (!str("mode")) return "Enter a travel mode";
+      return costError(value);
     case "accommodation":
     case "experience":
     case "dining":
-      return str("name") ? null : "Enter a name";
+      if (!str("name")) return "Enter a name";
+      return costError(value);
     default:
       return "Unknown element type";
   }
@@ -180,11 +199,13 @@ export function normalizeOptionValue(
     case "travel": {
       const out: TravelValue = { mode: str("mode") };
       if (str("note")) out.note = str("note");
+      if (str("cost")) out.cost = Number(value.cost);
       return out;
     }
     default: {
       const out: PlaceValue = { name: str("name") };
       if (str("link")) out.link = str("link");
+      if (str("cost")) out.cost = Number(value.cost);
       return out;
     }
   }
@@ -202,9 +223,13 @@ export function summarizeOptionValue(
       return `${str("currency") || "USD"} ${str("amount") || "?"}`;
     case "participants":
       return `${str("count") || "?"} people`;
-    case "travel":
-      return [str("mode"), str("note")].filter(Boolean).join(" — ") || "?";
-    default:
-      return [str("name"), str("link")].filter(Boolean).join(" — ") || "?";
+    case "travel": {
+      const base = [str("mode"), str("note")].filter(Boolean).join(" — ") || "?";
+      return str("cost") ? `${base} · ${str("cost")}` : base;
+    }
+    default: {
+      const base = [str("name"), str("link")].filter(Boolean).join(" — ") || "?";
+      return str("cost") ? `${base} · ${str("cost")}` : base;
+    }
   }
 }

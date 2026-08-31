@@ -75,6 +75,9 @@ Supabase → SQL Editor → paste each file's contents and run, oldest first:
      equivalent policies from **Storage → Policies** on the `trip-icons` bucket:
      public `SELECT`, and `INSERT`/`UPDATE`/`DELETE` for `authenticated` where
      `(storage.foldername(name))[1] = auth.uid()::text`.
+4. `20260831000000_option_cost.sql` — `create or replace` of
+   `validate_option_value()` to allow an optional numeric `cost` on
+   travel / accommodation / experience / dining options. Safe to re-run.
 
 Verify afterwards: `profiles` and `trips` exist, `trips` has the new columns,
 `trip_elements` / `element_options` / `element_participants` / `votes` exist, and

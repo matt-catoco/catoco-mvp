@@ -114,6 +114,7 @@ export function ElementValueFields({
             value={str("note")}
             onChange={(e) => set("note", e.target.value)}
           />
+          <CostField value={str("cost")} onChange={(v) => set("cost", v)} />
         </div>
       );
 
@@ -134,7 +135,31 @@ export function ElementValueFields({
             value={str("link")}
             onChange={(e) => set("link", e.target.value)}
           />
+          <CostField value={str("cost")} onChange={(v) => set("cost", v)} />
         </div>
       );
   }
+}
+
+function CostField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className={label}>Estimated cost (optional)</span>
+      <input
+        type="number"
+        min={0}
+        step="any"
+        className={`${field} max-w-[160px]`}
+        placeholder="0"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
 }
