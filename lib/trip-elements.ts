@@ -82,9 +82,16 @@ export function initialElementStatus(
 
 // ---- value shapes (one per element type) -----------------------------------
 
-export type DatesValue = { start: string; end: string };
+export type DatesValue = {
+  start_date: string;
+  duration_nights?: number;
+  end_date?: string;
+  flexibility_days?: 0 | 1 | 2 | 3;
+};
 export type DestinationValue = { name: string };
-export type BudgetValue = { amount: number; currency: string };
+export type BudgetValue =
+  | { mode: "single"; amount: number; currency: string }
+  | { mode: "range"; min: number; max: number; currency: string };
 export type ParticipantsValue = { count: number };
 // `cost` (optional) is in the trip's budget currency; used later by financing.
 export type TravelValue = { mode: string; note?: string; cost?: number };
@@ -110,11 +117,16 @@ export const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
 export function emptyValueFor(type: ElementType): Record<string, unknown> {
   switch (type) {
     case "dates":
-      return { start: "", end: "" };
+      return {
+        start_date: "",
+        end_date: "",
+        duration_nights: "",
+        flexibility_days: "",
+      };
     case "destination":
       return { name: "" };
     case "budget":
-      return { amount: "", currency: "USD" };
+      return { mode: "single", amount: "", min: "", max: "", currency: "USD" };
     case "participants":
       return { count: "" };
     case "travel":
@@ -148,16 +160,32 @@ export function validateOptionValue(
 
   switch (type) {
     case "dates": {
-      if (!str("start") || !str("end")) return "Pick a start and end date";
-      if (str("end") < str("start")) return "End date is before the start date";
+      if (!str("start_date")) return "Pick a start date";
+      if (str("end_date") && str("end_date") < str("start_date"))
+        return "End date is before the start date";
+      if (str("duration_nights")) {
+        const n = num("duration_nights");
+        if (!Number.isInteger(n) || n <= 0)
+          return "Nights must be a whole number above 0";
+      }
+      if (str("flexibility_days") && !["0", "1", "2", "3"].includes(str("flexibility_days")))
+        return "Flexibility must be 0–3 days";
       return null;
     }
     case "destination":
       return str("name") ? null : "Enter a destination";
     case "budget": {
+      if (!str("currency")) return "Pick a currency";
+      if (str("mode") === "range") {
+        if (!str("min") || !Number.isFinite(num("min")) || num("min") <= 0)
+          return "Enter a minimum above 0";
+        if (!str("max") || !Number.isFinite(num("max")) || num("max") <= 0)
+          return "Enter a maximum above 0";
+        if (num("max") < num("min")) return "Maximum is below the minimum";
+        return null;
+      }
       if (!str("amount") || !Number.isFinite(num("amount")) || num("amount") <= 0)
         return "Enter an amount above 0";
-      if (!str("currency")) return "Pick a currency";
       return null;
     }
     case "participants": {
@@ -188,12 +216,23 @@ export function normalizeOptionValue(
 ): OptionValue {
   const str = (k: string) => String(value[k] ?? "").trim();
   switch (type) {
-    case "dates":
-      return { start: str("start"), end: str("end") };
+    case "dates": {
+      const out: DatesValue = { start_date: str("start_date") };
+      if (str("end_date")) out.end_date = str("end_date");
+      if (str("duration_nights")) out.duration_nights = Number(value.duration_nights);
+      if (str("flexibility_days"))
+        out.flexibility_days = Number(value.flexibility_days) as 0 | 1 | 2 | 3;
+      return out;
+    }
     case "destination":
       return { name: str("name") };
-    case "budget":
-      return { amount: Number(value.amount), currency: str("currency") || "USD" };
+    case "budget": {
+      const currency = str("currency") || "USD";
+      if (str("mode") === "range") {
+        return { mode: "range", min: Number(value.min), max: Number(value.max), currency };
+      }
+      return { mode: "single", amount: Number(value.amount), currency };
+    }
     case "participants":
       return { count: Number(value.count) };
     case "travel": {
@@ -217,10 +256,18 @@ export function summarizeOptionValue(
 ): string {
   const str = (k: string) => String(value[k] ?? "").trim();
   switch (type) {
-    case "dates":
-      return `${str("start") || "?"} → ${str("end") || "?"}`;
-    case "budget":
-      return `${str("currency") || "USD"} ${str("amount") || "?"}`;
+    case "dates": {
+      const flex = str("flexibility_days");
+      let base = str("start_date") || "?";
+      if (str("end_date")) base += ` → ${str("end_date")}`;
+      else if (str("duration_nights")) base += ` (${str("duration_nights")} nights)`;
+      return flex ? `${base} · ±${flex}d` : base;
+    }
+    case "budget": {
+      const cur = str("currency") || "USD";
+      if (str("mode") === "range") return `${cur} ${str("min") || "?"}–${str("max") || "?"}`;
+      return `${cur} ${str("amount") || "?"}`;
+    }
     case "participants":
       return `${str("count") || "?"} people`;
     case "travel": {

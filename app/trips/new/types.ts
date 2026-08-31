@@ -10,8 +10,9 @@ export type OptionDraft = {
 
 export type ElementDraft = {
   choice: ElementChoice;
-  // only meaningful when choice === "open"
-  deadline: string;
+  // only meaningful when choice === "open"; both editable any time up to lock
+  optionsDeadline: string;
+  votingDeadline: string;
   // locked  -> exactly one entry (the fixed value)
   // open    -> zero or more seeded candidates
   options: OptionDraft[];

@@ -107,17 +107,38 @@ export function ElementCard({
 
       {draft.choice === "open" && (
         <div className="mt-4 flex flex-col gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              Voting deadline (optional)
-            </span>
-            <input
-              type="date"
-              className="h-10 w-full max-w-[220px] rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]"
-              value={draft.deadline}
-              onChange={(e) => onChange({ ...draft, deadline: e.target.value })}
-            />
-          </label>
+          <div className="flex gap-3">
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Options deadline (optional)
+              </span>
+              <input
+                type="date"
+                className="h-10 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]"
+                value={draft.optionsDeadline}
+                onChange={(e) =>
+                  onChange({ ...draft, optionsDeadline: e.target.value })
+                }
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Voting deadline (optional)
+              </span>
+              <input
+                type="date"
+                className="h-10 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]"
+                value={draft.votingDeadline}
+                min={draft.optionsDeadline || undefined}
+                onChange={(e) =>
+                  onChange({ ...draft, votingDeadline: e.target.value })
+                }
+              />
+            </label>
+          </div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-500">
+            Both can be changed later, any time before this element locks.
+          </p>
 
           {draft.options.length === 0 && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400">

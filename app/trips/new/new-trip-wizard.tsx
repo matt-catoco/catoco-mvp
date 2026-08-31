@@ -13,7 +13,7 @@ const STORAGE_KEY = "catoco:new-trip-draft:v1";
 const NUMBERED: WizardStep[] = ["name", "macro", "micro", "review"];
 
 function emptyElement(): ElementDraft {
-  return { choice: "skip", deadline: "", options: [] };
+  return { choice: "skip", optionsDeadline: "", votingDeadline: "", options: [] };
 }
 
 function emptyDraft(): WizardDraft {
@@ -40,7 +40,10 @@ function loadDraft(): WizardDraft {
       if (el && el.choice && Array.isArray(el.options)) {
         base.elements[t] = {
           choice: el.choice,
-          deadline: typeof el.deadline === "string" ? el.deadline : "",
+          optionsDeadline:
+            typeof el.optionsDeadline === "string" ? el.optionsDeadline : "",
+          votingDeadline:
+            typeof el.votingDeadline === "string" ? el.votingDeadline : "",
           options: el.options,
         };
       }

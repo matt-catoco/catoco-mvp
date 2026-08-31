@@ -94,11 +94,14 @@ export function ReviewStep({
                   </div>
                 </div>
 
-                {el.choice === "open" && el.deadline && (
-                  <p className="mt-1 text-xs text-zinc-500">
-                    Vote by {el.deadline}
-                  </p>
-                )}
+                {el.choice === "open" &&
+                  (el.optionsDeadline || el.votingDeadline) && (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {el.optionsDeadline && `Options by ${el.optionsDeadline}`}
+                      {el.optionsDeadline && el.votingDeadline && " · "}
+                      {el.votingDeadline && `Vote by ${el.votingDeadline}`}
+                    </p>
+                  )}
 
                 {el.options.length > 0 ? (
                   <ul className="mt-2 flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400">

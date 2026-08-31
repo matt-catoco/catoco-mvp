@@ -34,7 +34,8 @@ export async function createTrip(
     category: "macro" | "micro";
     type: ElementType;
     state: "locked" | "open";
-    deadline: string | null;
+    options_deadline: string | null;
+    voting_deadline: string | null;
     options: Array<{ value: unknown }>;
   }> = [];
 
@@ -59,8 +60,10 @@ export async function createTrip(
       category: categoryOf(type),
       type,
       state: el.choice,
-      deadline:
-        el.choice === "open" && el.deadline ? el.deadline : null,
+      options_deadline:
+        el.choice === "open" && el.optionsDeadline ? el.optionsDeadline : null,
+      voting_deadline:
+        el.choice === "open" && el.votingDeadline ? el.votingDeadline : null,
       options: rawOptions.map((o) => ({
         value: normalizeOptionValue(type, o.value),
       })),
