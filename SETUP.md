@@ -34,13 +34,16 @@ Create `.env.local` in the repo root (it is gitignored — never commit it):
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://gxdpphgqdmdjwvnhvgsa.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxxxxxx
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase → Project Settings → API → Project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase → Project Settings → API → Project API keys →
   the **publishable** key (`sb_publishable_…`). Safe to expose to the browser.
+- `RESEND_API_KEY` — Resend → API Keys. Used server-side only (never exposed to
+  the browser) for the flow #3 tie/empty-options notification emails — see §6.
 
-The same two variables must also be set in **Vercel** (see §7).
+The same variables must also be set in **Vercel** (see §7).
 
 ## 4. Database
 
@@ -140,6 +143,14 @@ Dashboard → **Authentication**.
    Note: the host is `smtp.resend.com` (not "respond") and the port is `465`
    (not `45`).
 
+4. **App-triggered emails (separate from the SMTP above)** — flow #3's tie/
+   empty-options notifications call Resend's REST API directly from app code
+   (`lib/email.ts`), not through Supabase. Add the same `re_…` API key from
+   step 2 (or a new one — either works, both are on the verified `catoco.co`
+   domain) as `RESEND_API_KEY` in `.env.local` and in Vercel → Project →
+   Settings → Environment Variables. Without it, those two notification
+   emails silently no-op (logged as an error, doesn't break the page).
+
 ## 7. Vercel
 
 - Import `matt-catoco/catoco-mvp`. Framework auto-detects as Next.js; leave build
@@ -191,6 +202,39 @@ server action → `create_trip(jsonb)` RPC (one transaction).
 - `element_options.value` shapes are defined in `lib/trip-elements.ts` and
   re-validated in SQL by `validate_option_value()`.
 - `votes` and `element_participants` exist but are inert (no policies, no UI).
+
+## 9b. Collaboration flow (as of flow #3, batches 1–2)
+
+`/trips/[tripId]` is the shared trip page for organizer and participants —
+`trips`/`trip_elements`/`element_options` RLS was widened in batch 1 so any
+trip member (not just the organizer) can read this data and propose
+candidate options on `open` elements before `options_deadline`
+(`is_trip_member()` helper, additive RLS policies).
+
+Batch 2 adds actual voting:
+- Tap-to-rank up to 3 options per element (`app/trips/[tripId]/voting-section.tsx`
+  → `castVotes` → `cast_votes(element_id, option_ids[])` RPC, full
+  replace-semantics so editing a ranking is just resubmitting it). Editable
+  anytime up to `voting_deadline`.
+- Borda scoring (`borda_scores()` SQL function — 1st=3pts/2nd=2pts/3rd=1pt) is
+  the single source of truth for the live leaderboard, auto-lock resolution,
+  and the runner-up lookup.
+- **Auto-lock is lazy, not scheduled** — no cron/pg_cron. `resolve_due_elements()`
+  runs on every visit to `/trips/[tripId]`, by anyone, and resolves any `open`
+  element whose `voting_deadline` has passed: single option → locks with no
+  vote; a clear Borda winner → locks; a tie at the top → stays open, flagged
+  once. A trip nobody visits after its deadline stays unresolved until someone
+  does — accepted tradeoff, no new infra.
+- Tie / zero-options-at-deadline sends the organizer a real email (`lib/email.ts`
+  → Resend REST API, needs `RESEND_API_KEY` — see §3/§6) exactly once per
+  element (`trip_elements.tie_notified`/`empty_notified` flags), plus an
+  in-app banner that persists on the trip page from those same flags.
+- `get_runner_up_option(element_id)` exists and is correct (returns the next-
+  best Borda score excluding the current `locked_option_id`, null for an
+  organizer-locked element) but nothing calls it yet — reserved for flow #4
+  when a booked option falls through.
+- No UI yet for an organizer to break a tie or rescue a zero-options element —
+  detection + notification only, per the ticket.
 
 ## 10. Gotchas hit during setup
 

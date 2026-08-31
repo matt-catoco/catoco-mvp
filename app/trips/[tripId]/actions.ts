@@ -81,3 +81,39 @@ export async function submitOption(
   revalidatePath(`/trips/${element.trip_id}`);
   return {};
 }
+
+export type CastVotesResult = { error: string } | { error?: undefined };
+
+/**
+ * Replaces the caller's top-3 ranking for one element. Full replace, not
+ * incremental — cast_votes() deletes their existing votes for this
+ * element's options and re-inserts the new order, which is how "edit my
+ * ranking" is implemented (per the ticket: editable anytime up to
+ * voting_deadline). All the real validation (membership, open, deadline,
+ * ≤3, no dupes, options belong to this element) lives in the RPC.
+ */
+export async function castVotes(
+  elementId: string,
+  optionIds: string[],
+): Promise<CastVotesResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in to vote." };
+
+  const { error } = await supabase.rpc("cast_votes", {
+    p_element_id: elementId,
+    p_option_ids: optionIds,
+  });
+  if (error) return { error: error.message };
+
+  const { data: element } = await supabase
+    .from("trip_elements")
+    .select("trip_id")
+    .eq("id", elementId)
+    .maybeSingle();
+  if (element) revalidatePath(`/trips/${element.trip_id}`);
+
+  return {};
+}
