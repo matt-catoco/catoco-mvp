@@ -1,0 +1,641 @@
+/*
+ * Homepage styles, ported from design-handoff/cataco-homepage.html.
+ * Scoped under .page throughout — this file is a CSS Module, but bare
+ * type/universal selectors (h1, p, a, img, :focus-visible, ...) are NOT
+ * auto-scoped by CSS Modules, only class selectors are. Nesting everything
+ * under .page keeps this page's design system off every other route.
+ * (html { scroll-behavior: smooth } lives in globals.css instead — it has
+ * to apply to the real scrolling root.)
+ */
+
+.page {
+  --ink: #0d2020;
+  --paper: #fafaf7;
+  --teal: #2dd4bf;
+  --teal-deep: #0f8c7e;
+  --teal-wash: #e4f8f5;
+  --amber: #f2a63c;
+  --line: #dedcd1;
+  --muted: #6b6b64;
+  --white: #ffffff;
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", sans-serif;
+  --font-body: var(--font-inter), "Inter", sans-serif;
+  --max: 1120px;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/*
+ * :where(.page) instead of .page as the scoping wrapper below: a plain
+ * ".page h1" combinator adds the .page class's specificity on top of the
+ * type selector, which is *higher* than the original bare "h1{...}" rule
+ * had — enough to start beating same-specificity class rules like
+ * .btnPrimary's color, which is exactly what happened (invisible button
+ * text: ink-on-ink). :where() scopes without adding any specificity, so
+ * these match the original cascade weight exactly.
+ */
+:where(.page) h1,
+:where(.page) h2,
+:where(.page) h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+:where(.page) p {
+  margin: 0;
+}
+:where(.page) a {
+  color: inherit;
+}
+:where(.page) img,
+:where(.page) svg {
+  display: block;
+  max-width: 100%;
+}
+:where(.page) :global(:focus-visible) {
+  outline: 2.5px solid var(--teal-deep);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.wrap {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ---------- NAV ---------- */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(250, 250, 247, 0.88);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 76px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.brand svg {
+  width: 30px;
+  height: 30px;
+}
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.navLinks a {
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.navLinks a:hover {
+  color: var(--teal-deep);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btnPrimary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btnPrimary:hover {
+  background: var(--teal-deep);
+}
+.btnGhost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+.btnGhost:hover {
+  border-color: var(--ink);
+}
+.navCtaWrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ---------- HERO ---------- */
+.hero {
+  padding: 88px 0 64px;
+}
+.heroGrid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 56px;
+  align-items: center;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--teal-deep);
+  background: var(--teal-wash);
+  padding: 7px 14px;
+  border-radius: 100px;
+  margin-bottom: 22px;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal-deep);
+}
+.heroH1 {
+  font-size: 50px;
+  line-height: 1.15;
+  max-width: 15ch;
+}
+.heroSub {
+  margin-top: 22px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 46ch;
+}
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+.heroActions .btnPrimary {
+  padding: 14px 26px;
+  font-size: 16px;
+  background: var(--ink);
+}
+.linkQuiet {
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--ink);
+  border-bottom: 1.5px solid var(--line);
+  padding-bottom: 2px;
+}
+.linkQuiet:hover {
+  border-color: var(--ink);
+}
+
+/* Element tiles visual */
+.tileStage {
+  position: relative;
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: 20px;
+  padding: 30px;
+  min-height: 360px;
+}
+.tileStageLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.tileGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.tile {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: var(--font-display);
+}
+.tile.open {
+  border: 2px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+.tile.candidate {
+  border: 2px dashed var(--teal-deep);
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+}
+.tile.locked {
+  border: 2px solid var(--teal);
+  background: var(--ink);
+  color: var(--paper);
+}
+.tile .sym {
+  font-size: 20px;
+  font-weight: 700;
+}
+.tile .lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.tile .num {
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+.convergenceNote {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.swatch.d {
+  border: 1.5px dashed var(--muted);
+}
+.swatch.s {
+  background: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tile.candidate {
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ---------- SECTION SCAFFOLDING ---------- */
+.section {
+  padding: 84px 0;
+}
+.sectionHead {
+  max-width: 640px;
+  margin-bottom: 48px;
+}
+.sectionHead h2 {
+  font-size: 34px;
+  line-height: 1.15;
+}
+.sectionHead p {
+  margin-top: 14px;
+  font-size: 17px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.sectionHead p.tagline {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 18px;
+}
+.elements .sectionHead p.tagline {
+  color: var(--paper);
+}
+
+/* ---------- PROBLEM ---------- */
+.problem {
+  background: var(--white);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.problemGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.problemCard {
+  background: var(--white);
+  padding: 32px 28px;
+}
+.problemCard .mark {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  margin-bottom: 14px;
+}
+.problemCard h3 {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.problemCard p {
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* ---------- HOW IT WORKS ---------- */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  position: relative;
+}
+.step {
+  position: relative;
+  padding-right: 18px;
+}
+.stepRail {
+  height: 2px;
+  background: var(--line);
+  position: relative;
+  margin-bottom: 22px;
+}
+.stepRail::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  background: var(--ink);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+.step h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.step p {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* ---------- ELEMENTS SHOWCASE ---------- */
+.elements {
+  background: var(--ink);
+  color: var(--paper);
+}
+.elements .sectionHead p {
+  color: rgba(250, 250, 247, 0.62);
+}
+.elements .sectionHead h2 {
+  color: var(--paper);
+}
+.elGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.elTile {
+  border-radius: 14px;
+  padding: 20px;
+  min-height: 128px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.elTile.locked {
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--teal);
+}
+.elTile.open {
+  border: 2px dashed rgba(250, 250, 247, 0.35);
+  color: rgba(250, 250, 247, 0.85);
+}
+.elTile .num {
+  font-size: 11px;
+  opacity: 0.55;
+  font-weight: 600;
+}
+.elTile .sym {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  margin: 6px 0 2px;
+}
+.elTile .name {
+  font-size: 12px;
+  font-weight: 600;
+}
+.elTile .state {
+  font-size: 10.5px;
+  margin-top: 10px;
+  opacity: 0.7;
+}
+
+/* ---------- PULL QUOTE ---------- */
+.pullquote {
+  padding: 76px 0;
+}
+.pullquote .wrap {
+  max-width: 680px;
+  text-align: center;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 46px 28px;
+}
+.pqText {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+/* ---------- SIGNUP ---------- */
+.signup {
+  background: var(--teal-wash);
+}
+.signupCard {
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: 22px;
+  padding: 52px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.signupCard h2 {
+  font-size: 30px;
+  line-height: 1.15;
+}
+.signupCard .heroSub {
+  max-width: 40ch;
+}
+.signupList {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.signupList li {
+  list-style: none;
+  display: flex;
+  gap: 10px;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.signupList svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.tallyFrame {
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tfLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: none;
+}
+.tallyIframe {
+  border-radius: 10px;
+}
+.tfNote {
+  margin-top: auto;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  background: #fbf1df;
+  border: 1px solid #efd9a6;
+  padding: 12px 14px;
+  border-radius: 10px;
+}
+
+/* ---------- FOOTER ---------- */
+.footer {
+  border-top: 1px solid var(--line);
+  padding: 44px 0;
+}
+.footRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.footBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.footBrand svg {
+  width: 22px;
+  height: 22px;
+}
+.footLinks {
+  display: flex;
+  gap: 26px;
+}
+.footLinks a {
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.footLinks a:hover {
+  color: var(--ink);
+}
+.footCopy {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 20px;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 880px) {
+  .heroGrid {
+    grid-template-columns: 1fr;
+  }
+  .heroH1 {
+    font-size: 38px;
+  }
+  .navLinks {
+    display: none;
+  }
+  .problemGrid {
+    grid-template-columns: 1fr;
+  }
+  .steps {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 28px;
+  }
+  .step {
+    padding-right: 12px;
+  }
+  .elGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .signupCard {
+    grid-template-columns: 1fr;
+    padding: 32px;
+  }
+  .sectionHead h2 {
+    font-size: 27px;
+  }
+}
+@media (max-width: 520px) {
+  .steps {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tileGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

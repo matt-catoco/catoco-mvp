@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Smooth in-page anchor scrolling for the homepage nav (#how, #elements, #signup).
+   Lives here rather than page-scoped CSS because scroll-behavior only works on
+   the actual scrolling root. */
+html {
+  scroll-behavior: smooth;
+}

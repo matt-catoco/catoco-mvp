@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cataco — Plan it together. Fund it together. Go.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #0D2020;
+    --paper: #FAFAF7;
+    --teal: #2DD4BF;
+    --teal-deep: #0F8C7E;
+    --teal-wash: #E4F8F5;
+    --amber: #F2A63C;
+    --line: #DEDCD1;
+    --muted: #6B6B64;
+    --white: #FFFFFF;
+    --font-display: 'Bricolage Grotesque', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --max: 1120px;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  h1,h2,h3{
+    font-family: var(--font-display);
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  p{ margin: 0; }
+  a{ color: inherit; }
+  img,svg{ display: block; max-width: 100%; }
+
+  :focus-visible{
+    outline: 2.5px solid var(--teal-deep);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  .wrap{
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---------- NAV ---------- */
+  header{
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(250,250,247,0.88);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.wrap{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 76px;
+  }
+  .brand{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 20px;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .brand svg{ width: 30px; height: 30px; }
+  .nav-links{
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+  .nav-links a{
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .nav-links a:hover{ color: var(--teal-deep); }
+  .btn{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 15px;
+    padding: 11px 22px;
+    border-radius: 8px;
+    text-decoration: none;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.15s ease, border-color .15s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary{
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .btn-primary:hover{ background: var(--teal-deep); }
+  .btn-ghost{
+    background: transparent;
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .btn-ghost:hover{ border-color: var(--ink); }
+  .nav-cta-wrap{ display:flex; align-items:center; gap: 20px; }
+  .menu-toggle{ display:none; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding: 88px 0 64px;
+  }
+  .hero-grid{
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 56px;
+    align-items: center;
+  }
+  .eyebrow{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--teal-deep);
+    background: var(--teal-wash);
+    padding: 7px 14px;
+    border-radius: 100px;
+    margin-bottom: 22px;
+  }
+  .dot{
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--teal-deep);
+  }
+  .hero h1{
+    font-size: 50px;
+    line-height: 1.15;
+    max-width: 15ch;
+  }
+  .hero-sub{
+    margin-top: 22px;
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--muted);
+    max-width: 46ch;
+  }
+  .hero-actions{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+  }
+  .hero-actions .btn-primary{
+    padding: 14px 26px;
+    font-size: 16px;
+    background: var(--ink);
+  }
+  .link-quiet{
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--ink);
+    border-bottom: 1.5px solid var(--line);
+    padding-bottom: 2px;
+  }
+  .link-quiet:hover{ border-color: var(--ink); }
+
+  /* Element tiles visual */
+  .tile-stage{
+    position: relative;
+    background: var(--white);
+    border: 1.5px solid var(--line);
+    border-radius: 20px;
+    padding: 30px;
+    min-height: 360px;
+  }
+  .tile-stage-label{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+  .tile-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .tile{
+    aspect-ratio: 1;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: var(--font-display);
+  }
+  .tile.open{
+    border: 2px dashed var(--line);
+    background: transparent;
+    color: var(--muted);
+  }
+  .tile.candidate{
+    border: 2px dashed var(--teal-deep);
+    background: var(--teal-wash);
+    color: var(--teal-deep);
+  }
+  .tile.locked{
+    border: 2px solid var(--teal);
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .tile .sym{ font-size: 20px; font-weight: 700; }
+  .tile .lbl{ font-size: 10px; font-weight: 600; letter-spacing: 0.02em; }
+  .tile .num{ font-size: 10px; opacity: 0.55; }
+
+  .convergence-note{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .swatch{ width: 10px; height: 10px; border-radius: 2px; flex-shrink:0; }
+  .swatch.d{ border: 1.5px dashed var(--muted); }
+  .swatch.s{ background: var(--ink); }
+
+  @media (prefers-reduced-motion: no-preference){
+    .tile.candidate{ animation: pulse 2.4s ease-in-out infinite; }
+  }
+  @keyframes pulse{
+    0%,100%{ opacity: 1; }
+    50%{ opacity: 0.55; }
+  }
+
+  /* ---------- SECTION SCAFFOLDING ---------- */
+  section{ padding: 84px 0; }
+  .section-head{ max-width: 640px; margin-bottom: 48px; }
+  .section-head h2{ font-size: 34px; line-height: 1.15; }
+  .section-head p{ margin-top: 14px; font-size: 17px; color: var(--muted); line-height: 1.6; }
+  .section-head p.tagline{ color: var(--ink); font-weight: 600; font-size: 18px; }
+  .elements .section-head p.tagline{ color: var(--paper); }
+
+  /* ---------- PROBLEM ---------- */
+  .problem{ background: var(--white); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .problem-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .problem-card{
+    background: var(--white);
+    padding: 32px 28px;
+  }
+  .problem-card .mark{
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--teal-deep);
+    margin-bottom: 14px;
+  }
+  .problem-card h3{ font-size: 19px; font-weight: 600; line-height: 1.35; }
+  .problem-card p{ margin-top: 10px; font-size: 15px; color: var(--muted); line-height: 1.55; }
+
+  /* ---------- HOW IT WORKS ---------- */
+  .steps{
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    position: relative;
+  }
+  .step{
+    position: relative;
+    padding-right: 18px;
+  }
+  .step-rail{
+    height: 2px;
+    background: var(--line);
+    position: relative;
+    margin-bottom: 22px;
+  }
+  .step-rail::after{
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    width: 11px; height: 11px;
+    background: var(--ink);
+    border-radius: 50%;
+    transform: translateY(-50%);
+  }
+  .step h3{ font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .step p{ font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+
+  /* ---------- ELEMENTS SHOWCASE ---------- */
+  .elements{ background: var(--ink); color: var(--paper); }
+  .elements .section-head p{ color: rgba(250,250,247,0.62); }
+  .elements .section-head h2{ color: var(--paper); }
+  .el-grid{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .el-tile{
+    border-radius: 14px;
+    padding: 20px;
+    min-height: 128px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .el-tile.locked{
+    background: var(--paper);
+    color: var(--ink);
+    border: 2px solid var(--teal);
+  }
+  .el-tile.open{
+    border: 2px dashed rgba(250,250,247,0.35);
+    color: rgba(250,250,247,0.85);
+  }
+  .el-tile .num{ font-size: 11px; opacity: 0.55; font-weight: 600; }
+  .el-tile .sym{ font-family: var(--font-display); font-size: 26px; font-weight: 700; margin: 6px 0 2px; }
+  .el-tile .name{ font-size: 12px; font-weight: 600; }
+  .el-tile .state{ font-size: 10.5px; margin-top: 10px; opacity: 0.7; }
+
+  /* ---------- PULL QUOTE ---------- */
+  .pullquote{ padding: 76px 0; }
+  .pullquote .wrap{
+    max-width: 680px;
+    text-align: center;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 46px 28px;
+  }
+  .pq-text{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 28px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+
+  /* ---------- SIGNUP ---------- */
+  .signup{ background: var(--teal-wash); }
+  .signup-card{
+    background: var(--white);
+    border: 1.5px solid var(--line);
+    border-radius: 22px;
+    padding: 52px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .signup-card h2{ font-size: 30px; line-height: 1.15; }
+  .signup-card .hero-sub{ max-width: 40ch; }
+  .signup-list{
+    margin-top: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .signup-list li{
+    list-style: none;
+    display: flex;
+    gap: 10px;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  .signup-list svg{ flex-shrink: 0; margin-top: 3px; }
+  .tally-frame{
+    background: var(--paper);
+    border: 1.5px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .tally-frame .tf-label{ font-size: 12px; font-weight: 600; color: var(--muted); text-transform: none; }
+  .tally-iframe{ border-radius: 10px; }
+  .tf-note{
+    margin-top: auto;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+    background: #FBF1DF;
+    border: 1px solid #EFD9A6;
+    padding: 12px 14px;
+    border-radius: 10px;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    border-top: 1px solid var(--line);
+    padding: 44px 0;
+  }
+  .foot-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .foot-brand{ display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; }
+  .foot-brand svg{ width: 22px; height: 22px; }
+  .foot-links{ display: flex; gap: 26px; }
+  .foot-links a{ font-size: 14px; color: var(--muted); text-decoration: none; }
+  .foot-links a:hover{ color: var(--ink); }
+  .foot-copy{ font-size: 13px; color: var(--muted); margin-top: 20px; }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 880px){
+    .hero-grid{ grid-template-columns: 1fr; }
+    .hero h1{ font-size: 38px; }
+    .nav-links{ display: none; }
+    .problem-grid{ grid-template-columns: 1fr; }
+    .steps{ grid-template-columns: 1fr 1fr; row-gap: 28px; }
+    .step{ padding-right: 12px; }
+    .el-grid{ grid-template-columns: repeat(2, 1fr); }
+    .signup-card{ grid-template-columns: 1fr; padding: 32px; }
+    .section-head h2{ font-size: 27px; }
+  }
+  @media (max-width: 520px){
+    .steps{ grid-template-columns: 1fr 1fr; }
+    .tile-grid{ grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="wrap">
+    <a href="#" class="brand">
+      <svg viewBox="0 0 100 100">
+        <rect width="100" height="100" rx="22" fill="#2DD4BF"/>
+        <rect x="15" y="15" width="70" height="70" rx="12" fill="none" stroke="#0D2020" stroke-width="3" stroke-dasharray="3,4"/>
+        <rect x="36" y="36" width="28" height="28" rx="6" fill="#0D2020" transform="rotate(45 50 50)"/>
+      </svg>
+      cataco
+    </a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#elements">The elements</a>
+    </div>
+    <div class="nav-cta-wrap">
+      <a href="#signup" class="btn btn-primary">Join the beta</a>
+    </div>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow"><span class="dot"></span>Beta opening soon</span>
+      <h1>From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;</h1>
+      <p class="hero-sub">Cataco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.</p>
+      <div class="hero-actions">
+        <a href="#signup" class="btn btn-primary">Join the beta</a>
+        <a href="#how" class="link-quiet">See how it works</a>
+      </div>
+    </div>
+    <div class="tile-stage">
+      <div class="tile-stage-label">Accommodations — still deciding</div>
+      <div class="tile-grid">
+        <div class="tile open"><span class="sym">Hs</span><span class="lbl">Hostel</span><span class="num">04</span></div>
+        <div class="tile candidate"><span class="sym">Vl</span><span class="lbl">Villa</span><span class="num">14</span></div>
+        <div class="tile open"><span class="sym">Ap</span><span class="lbl">Apart.</span><span class="num">21</span></div>
+        <div class="tile open"><span class="sym">Cb</span><span class="lbl">Cabin</span><span class="num">08</span></div>
+        <div class="tile locked"><span class="sym">Vl</span><span class="lbl">Villa</span><span class="num">14</span></div>
+        <div class="tile open"><span class="sym">Tn</span><span class="lbl">Tent</span><span class="num">02</span></div>
+      </div>
+      <div class="convergence-note">
+        <span class="swatch d"></span> open, still voting &nbsp;·&nbsp;
+        <span class="swatch s"></span> locked in by the group
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="problem">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>They die in chats and spreadsheets.</h2>
+      <p>It's not that nobody wants to go. It's that &ldquo;we should do this&rdquo; has nowhere to turn into &ldquo;it's booked.&rdquo;</p>
+    </div>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="mark">01</div>
+        <h3>Everyone has an opinion, nobody has the final say</h3>
+        <p>Destination, dates, budget — nine people, nine sets of preferences, and no clean way to land on one answer.</p>
+      </div>
+      <div class="problem-card">
+        <div class="mark">02</div>
+        <h3>Somebody always ends up fronting the money</h3>
+        <p>One person books, then spends the next month chasing seven Venmo requests and hoping nobody bails.</p>
+      </div>
+      <div class="problem-card">
+        <div class="mark">03</div>
+        <h3>The plan lives in five different apps</h3>
+        <p>A group chat, a spreadsheet, three payment links, and a shared doc nobody's opened since March.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>From intent to itinerary</h2>
+      <p class="tagline">No chasing. No heroes. No awkwardness.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-rail"></div><h3>Create</h3><p>Name the trip, rough dates, who's coming.</p></div>
+      <div class="step"><div class="step-rail"></div><h3>Add options</h3><p>Everyone throws in ideas for stays, activities, food.</p></div>
+      <div class="step"><div class="step-rail"></div><h3>Vote</h3><p>The group ranks what they actually want.</p></div>
+      <div class="step"><div class="step-rail"></div><h3>Converge</h3><p>Top choices lock in automatically.</p></div>
+      <div class="step"><div class="step-rail"></div><h3>Fund</h3><p>Everyone chips in, tracked in one place.</p></div>
+      <div class="step"><div class="step-rail"></div><h3>Go</h3><p>Funded means booked. That's it.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="elements" id="elements">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Every trip, broken into the choices that matter</h2>
+      <p>Every trip is built on a foundation of elements &mdash; lock what you already know, leave the rest open for the group to decide.</p>
+    </div>
+    <div class="el-grid">
+      <div class="el-tile locked"><div class="num">01</div><div class="sym">Dt</div><div class="name">Dates</div><div class="state">Locked by organizer</div></div>
+      <div class="el-tile locked"><div class="num">02</div><div class="sym">Ds</div><div class="name">Destination</div><div class="state">Locked by organizer</div></div>
+      <div class="el-tile open"><div class="num">03</div><div class="sym">Bg</div><div class="name">Budget</div><div class="state">Open — voting</div></div>
+      <div class="el-tile open"><div class="num">04</div><div class="sym">Pt</div><div class="name">Participants</div><div class="state">Open — invites out</div></div>
+      <div class="el-tile open"><div class="num">05</div><div class="sym">Tr</div><div class="name">Travel</div><div class="state">Open — voting</div></div>
+      <div class="el-tile open"><div class="num">06</div><div class="sym">Ac</div><div class="name">Accommodations</div><div class="state">Open — voting</div></div>
+      <div class="el-tile open"><div class="num">07</div><div class="sym">Ex</div><div class="name">Experiences</div><div class="state">Open — voting</div></div>
+      <div class="el-tile open"><div class="num">08</div><div class="sym">Dn</div><div class="name">Dining</div><div class="state">Open — voting</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="pullquote">
+  <div class="wrap">
+    <p class="pq-text">&ldquo;Coordination is where you start.<br>Commitment is where you end.&rdquo;</p>
+  </div>
+</section>
+
+<section class="signup" id="signup">
+  <div class="wrap">
+    <div class="signup-card">
+      <div>
+        <h2>Be one of the first groups to try it</h2>
+        <p class="hero-sub">We're building this with real groups before a full launch. Tell us about your next trip idea and we'll reach out when your beta spot is ready.</p>
+        <ul class="signup-list">
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#0F8C7E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Free to join, no card required</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#0F8C7E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Early groups shape what we build next</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="#0F8C7E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>A few minutes, that's the whole ask</li>
+        </ul>
+      </div>
+      <div class="tally-frame">
+        <span class="tf-label">Beta signup</span>
+        <iframe data-tally-src="https://tally.so/embed/J94zBo?alignLeft=1&amp;hideTitle=1&amp;transparentBackground=1&amp;dynamicHeight=1" loading="lazy" width="100%" height="291" frameborder="0" marginheight="0" marginwidth="0" title="Cataco beta signup" class="tally-iframe"></iframe>
+        <div class="tf-note">Live: this connects to the real Cataco Alpha Signup form.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <a href="#" class="foot-brand">
+        <svg viewBox="0 0 100 100">
+          <rect width="100" height="100" rx="22" fill="#2DD4BF"/>
+          <rect x="15" y="15" width="70" height="70" rx="12" fill="none" stroke="#0D2020" stroke-width="3" stroke-dasharray="3,4"/>
+          <rect x="36" y="36" width="28" height="28" rx="6" fill="#0D2020" transform="rotate(45 50 50)"/>
+        </svg>
+        cataco
+      </a>
+      <div class="foot-links">
+        <a href="#how">How it works</a>
+        <a href="#elements">The elements</a>
+        <a href="mailto:hello@catoco.co">hello@catoco.co</a>
+      </div>
+    </div>
+    <p class="foot-copy">© 2026 Cataco.</p>
+  </div>
+</footer>
+
+<script>
+  var d = document, w = "https://tally.so/widgets/embed.js", v = function () {
+    if (typeof Tally !== "undefined") { Tally.loadEmbeds(); }
+    else {
+      d.querySelectorAll("iframe[data-tally-src]:not([src])").forEach(function (e) {
+        e.src = e.dataset.tallySrc;
+      });
+    }
+  };
+  if (typeof Tally !== "undefined") { v(); }
+  else if (d.querySelector('script[src="' + w + '"]') == null) {
+    var s = d.createElement("script");
+    s.src = w; s.onload = v; s.onerror = v;
+    d.body.appendChild(s);
+  }
+</script>
+</body>
+</html>
