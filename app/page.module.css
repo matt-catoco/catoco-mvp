@@ -533,7 +533,6 @@
   border: 1.5px solid var(--line);
   border-radius: 16px;
   padding: 20px;
-  min-height: 320px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -544,8 +543,32 @@
   color: var(--muted);
   text-transform: none;
 }
-.tallyIframe {
-  border-radius: 10px;
+.miniForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.miniInput {
+  height: 44px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--white);
+}
+.miniInput::placeholder {
+  color: var(--muted);
+}
+.miniInput:focus-visible {
+  outline: 2.5px solid var(--teal-deep);
+  outline-offset: 2px;
+}
+.miniSubmit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
 }
 .tfNote {
   margin-top: auto;

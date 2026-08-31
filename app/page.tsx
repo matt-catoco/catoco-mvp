@@ -79,7 +79,11 @@ export default function Home() {
             <a href="#elements">The elements</a>
           </div>
           <div className={styles.navCtaWrap}>
-            <a href="#signup" className={`${styles.btn} ${styles.btnPrimary}`}>
+            <a
+              href="#signup"
+              data-tally-open="J94zBo"
+              className={`${styles.btn} ${styles.btnPrimary}`}
+            >
               Join the beta
             </a>
           </div>
@@ -102,7 +106,11 @@ export default function Home() {
               chips in, and no one gets stuck holding the bill.
             </p>
             <div className={styles.heroActions}>
-              <a href="#signup" className={`${styles.btn} ${styles.btnPrimary}`}>
+              <a
+                href="#signup"
+                data-tally-open="J94zBo"
+                className={`${styles.btn} ${styles.btnPrimary}`}
+              >
                 Join the beta
               </a>
               <a href="#how" className={styles.linkQuiet}>
@@ -127,7 +135,7 @@ export default function Home() {
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
                 <span className={styles.sym}>Ap</span>
-                <span className={styles.lbl}>Apart.</span>
+                <span className={styles.lbl}>Apartment</span>
                 <span className={styles.num}>21</span>
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
@@ -136,9 +144,9 @@ export default function Home() {
                 <span className={styles.num}>08</span>
               </div>
               <div className={`${styles.tile} ${styles.locked}`}>
-                <span className={styles.sym}>Vl</span>
-                <span className={styles.lbl}>Villa</span>
-                <span className={styles.num}>14</span>
+                <span className={styles.sym}>Lf</span>
+                <span className={styles.lbl}>Loft</span>
+                <span className={styles.num}>09</span>
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
                 <span className={styles.sym}>Tn</span>
@@ -336,16 +344,31 @@ export default function Home() {
             </div>
             <div className={styles.tallyFrame}>
               <span className={styles.tfLabel}>Beta signup</span>
-              <iframe
-                data-tally-src="https://tally.so/embed/J94zBo?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1"
-                loading="lazy"
-                width="100%"
-                height={291}
-                title="Cataco beta signup"
-                className={styles.tallyIframe}
-              />
+              <div className={styles.miniForm}>
+                <input
+                  type="text"
+                  name="name"
+                  autoComplete="name"
+                  placeholder="Your name"
+                  className={styles.miniInput}
+                />
+                <input
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  placeholder="Email"
+                  className={styles.miniInput}
+                />
+                <button
+                  type="button"
+                  data-tally-open="J94zBo"
+                  className={`${styles.btn} ${styles.btnPrimary} ${styles.miniSubmit}`}
+                >
+                  Continue
+                </button>
+              </div>
               <div className={styles.tfNote}>
-                Live: this connects to the real Cataco Alpha Signup form.
+                Opens the real Cataco Alpha Signup form.
               </div>
             </div>
           </div>
