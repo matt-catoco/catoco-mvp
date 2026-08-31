@@ -58,6 +58,20 @@ export function categoryOf(type: ElementType): ElementCategory {
   return (MACRO_TYPES as readonly string[]).includes(type) ? "macro" : "micro";
 }
 
+// Two-letter marks for the tile grid (Trip Home dashboard + homepage demo).
+// Single source so the two callers can't drift apart — previously these were
+// hardcoded ad hoc in app/page.tsx only.
+export const ELEMENT_SYMBOLS: Record<ElementType, string> = {
+  dates: "Dt",
+  destination: "Ds",
+  budget: "Bg",
+  participants: "Pt",
+  travel: "Tr",
+  accommodation: "Ac",
+  experience: "Ex",
+  dining: "Dn",
+};
+
 export const STATUS_LABELS: Record<ElementStatus, string> = {
   add: "Collecting ideas",
   vote: "Voting",
@@ -108,6 +122,82 @@ export function computeParticipantsStatus({
   if (min != null && optedInCount >= min) return "minimum_met";
   if (invitesSent) return "invites_sent";
   return "range_set";
+}
+
+// ---- Trip Home tile status ---------------------------------------------
+// One place implementing the tile-grid status vocabulary (dashboard +
+// drill-in both read from this), so it isn't reimplemented per caller.
+// "Not started" = no trip_elements row exists for this type (skipped at
+// creation). A real, reachable state the ticket's 3-bucket vocabulary didn't
+// name — an open element with zero candidate options yet — stays inside the
+// "Collecting ideas" bucket rather than adding a new label; only the detail
+// count text changes ("No ideas yet" vs "N ideas").
+
+export type ElementTileInfo = {
+  state: "locked" | "open";
+  statusLabel: string;
+  detail: string;
+};
+
+export function describeElementTile(args: {
+  type: ElementType;
+  row: null | {
+    state: "locked" | "open";
+    optionCount: number;
+    lockedValue: Record<string, unknown> | null;
+    participants?: {
+      min: number | null;
+      max: number | null;
+      invitesSent: boolean;
+      optedInCount: number;
+    };
+  };
+}): ElementTileInfo {
+  const { type, row } = args;
+
+  if (!row) {
+    return { state: "open", statusLabel: "Not started", detail: "" };
+  }
+
+  // Guarded on state === "locked" too, matching the pre-dashboard trip page's
+  // condition — the wizard lets Participants be left "open" like any other
+  // element (voted on via candidate ranges), in which case it isn't the
+  // fixed range this branch describes and falls through to the generic open
+  // handling below instead (summarizeOptionValue already has a "participants"
+  // case, so that path renders it correctly).
+  if (type === "participants" && row.state === "locked" && row.participants) {
+    const status = computeParticipantsStatus({
+      min: row.participants.min,
+      max: row.participants.max,
+      invitesSent: row.participants.invitesSent,
+      optedInCount: row.participants.optedInCount,
+    });
+    return {
+      state: "locked",
+      statusLabel: PARTICIPANTS_STATUS_LABELS[status],
+      detail: summarizeOptionValue("participants", {
+        min: row.participants.min,
+        max: row.participants.max,
+      }),
+    };
+  }
+
+  if (row.state === "locked") {
+    return {
+      state: "locked",
+      statusLabel: "Settled",
+      detail: row.lockedValue ? summarizeOptionValue(type, row.lockedValue) : "?",
+    };
+  }
+
+  return {
+    state: "open",
+    statusLabel: "Collecting ideas",
+    detail:
+      row.optionCount > 0
+        ? `${row.optionCount} idea${row.optionCount === 1 ? "" : "s"}`
+        : "No ideas yet",
+  };
 }
 
 // ---- value shapes (one per element type) -----------------------------------

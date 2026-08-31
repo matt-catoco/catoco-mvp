@@ -3,6 +3,34 @@ import Link from "next/link";
 import styles from "./page.module.css";
 import { TallyEmbedScript } from "./tally-embed-script";
 import { LogoMark } from "@/components/logo-mark";
+import { ElementGrid } from "@/components/trip-home/element-grid";
+import { ELEMENT_LABELS, ELEMENT_SYMBOLS, type ElementType } from "@/lib/trip-elements";
+
+// Static demo data for the marketing showcase — same shared ElementGrid/
+// ElementTile the real Trip Home dashboard uses (components/trip-home/),
+// fed demo values instead of a real trip's. Labels/symbols pull from
+// lib/trip-elements so this can't drift from the real dashboard's vocabulary.
+const DEMO_TILE_BASE: {
+  key: ElementType;
+  num: string;
+  state: "locked" | "open";
+  statusLabel: string;
+}[] = [
+  { key: "dates", num: "01", state: "locked", statusLabel: "Locked by organizer" },
+  { key: "destination", num: "02", state: "locked", statusLabel: "Locked by organizer" },
+  { key: "budget", num: "03", state: "open", statusLabel: "Open — voting" },
+  { key: "participants", num: "04", state: "open", statusLabel: "Open — invites out" },
+  { key: "travel", num: "05", state: "open", statusLabel: "Open — voting" },
+  { key: "accommodation", num: "06", state: "open", statusLabel: "Open — voting" },
+  { key: "experience", num: "07", state: "open", statusLabel: "Open — voting" },
+  { key: "dining", num: "08", state: "open", statusLabel: "Open — voting" },
+];
+
+const DEMO_TILES = DEMO_TILE_BASE.map((t) => ({
+  ...t,
+  symbol: ELEMENT_SYMBOLS[t.key],
+  label: ELEMENT_LABELS[t.key],
+}));
 
 // Bricolage Grotesque + Inter are now loaded once, platform-wide, in
 // app/layout.tsx — page.module.css's --font-display/--font-body already
@@ -219,56 +247,7 @@ export default function Home() {
               already know, leave the rest open for the group to decide.
             </p>
           </div>
-          <div className={styles.elGrid}>
-            <div className={`${styles.elTile} ${styles.locked}`}>
-              <div className={styles.num}>01</div>
-              <div className={styles.sym}>Dt</div>
-              <div className={styles.name}>Dates</div>
-              <div className={styles.state}>Locked by organizer</div>
-            </div>
-            <div className={`${styles.elTile} ${styles.locked}`}>
-              <div className={styles.num}>02</div>
-              <div className={styles.sym}>Ds</div>
-              <div className={styles.name}>Destination</div>
-              <div className={styles.state}>Locked by organizer</div>
-            </div>
-            <div className={`${styles.elTile} ${styles.open}`}>
-              <div className={styles.num}>03</div>
-              <div className={styles.sym}>Bg</div>
-              <div className={styles.name}>Budget</div>
-              <div className={styles.state}>Open — voting</div>
-            </div>
-            <div className={`${styles.elTile} ${styles.open}`}>
-              <div className={styles.num}>04</div>
-              <div className={styles.sym}>Pt</div>
-              <div className={styles.name}>Participants</div>
-              <div className={styles.state}>Open — invites out</div>
-            </div>
-            <div className={`${styles.elTile} ${styles.open}`}>
-              <div className={styles.num}>05</div>
-              <div className={styles.sym}>Tr</div>
-              <div className={styles.name}>Travel</div>
-              <div className={styles.state}>Open — voting</div>
-            </div>
-            <div className={`${styles.elTile} ${styles.open}`}>
-              <div className={styles.num}>06</div>
-              <div className={styles.sym}>Ac</div>
-              <div className={styles.name}>Accommodations</div>
-              <div className={styles.state}>Open — voting</div>
-            </div>
-            <div className={`${styles.elTile} ${styles.open}`}>
-              <div className={styles.num}>07</div>
-              <div className={styles.sym}>Ex</div>
-              <div className={styles.name}>Experiences</div>
-              <div className={styles.state}>Open — voting</div>
-            </div>
-            <div className={`${styles.elTile} ${styles.open}`}>
-              <div className={styles.num}>08</div>
-              <div className={styles.sym}>Dn</div>
-              <div className={styles.name}>Dining</div>
-              <div className={styles.state}>Open — voting</div>
-            </div>
-          </div>
+          <ElementGrid tiles={DEMO_TILES} onDark />
         </div>
       </section>
 

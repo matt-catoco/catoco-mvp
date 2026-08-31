@@ -79,6 +79,7 @@ export async function submitOption(
   if (error) return { error: error.message };
 
   revalidatePath(`/trips/${element.trip_id}`);
+  revalidatePath(`/trips/${element.trip_id}/elements/${elementId}`);
   return {};
 }
 
@@ -113,7 +114,10 @@ export async function castVotes(
     .select("trip_id")
     .eq("id", elementId)
     .maybeSingle();
-  if (element) revalidatePath(`/trips/${element.trip_id}`);
+  if (element) {
+    revalidatePath(`/trips/${element.trip_id}`);
+    revalidatePath(`/trips/${element.trip_id}/elements/${elementId}`);
+  }
 
   return {};
 }

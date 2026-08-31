@@ -236,6 +236,34 @@ Batch 2 adds actual voting:
 - No UI yet for an organizer to break a tie or rescue a zero-options element —
   detection + notification only, per the ticket.
 
+## 9c. Trip Home dashboard (as of flow #3, batch 3)
+
+`/trips/[tripId]` changed from a flat list of every element inline to a tile
+grid — one tile per element type (all 8 from `ALL_TYPES`, including a "Not
+started" tile for any type skipped at creation), tap a tile to drill into
+`/trips/[tripId]/elements/[elementId]` for that element's full detail
+(read-only value if locked, the existing voting/submission UI if open). No
+migration — this is app code only, reusing the schema and RLS from batches
+1–2 unchanged.
+
+- Shared component: `components/trip-home/` (`ElementTile` + `ElementGrid`),
+  used both by the real dashboard and the homepage's `#elements` marketing
+  section (`app/page.tsx`, static demo data) — one implementation of the
+  dashed-outline/solid-fill device instead of two hand-built copies.
+- Tile status vocabulary lives in one place: `describeElementTile()` in
+  `lib/trip-elements.ts` — Not started / Collecting ideas (including a
+  zero-candidates case, worded "No ideas yet" rather than a 0) / Settled /
+  the four Participants-specific labels (`computeParticipantsStatus`,
+  unchanged from batch 2), gated on the element actually being locked — an
+  organizer can leave Participants "open" (voted on) instead of a fixed
+  range, in which case it's treated like any other open element instead.
+- The invite-link + opted-in-count card (organizer-only, shipped in the auth
+  flow — §9) moved from the flat trip page into the Participants drill-in
+  page; nothing about it changed functionally.
+- The lazy auto-lock trigger (`resolve_due_elements`, §9b) now fires from
+  both the dashboard and the drill-in page (`resolve-elements.ts`, shared),
+  since either can be the first page visited after a deadline passes.
+
 ## 10. Gotchas hit during setup
 
 - **Next.js 16:** `middleware.ts` is renamed to `proxy.ts` (`export function proxy`).
