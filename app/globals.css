@@ -1,28 +1,59 @@
 @import "tailwindcss";
 
+/*
+ * Cataco brand baseline, applied platform-wide (design-handoff/
+ * cataco-brand-toolkit.md is the source of truth). This covers the
+ * foundational tokens — colors, type — everywhere; it is not a per-screen
+ * redesign. Component-level detail (borders, secondary text, etc. still
+ * using stock Tailwind grays) is a later polish pass, not this one.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafaf7; /* paper */
+  --foreground: #0d2020; /* ink */
+  --brand-teal: #2dd4bf;
+  --brand-teal-deep: #0f8c7e;
+  --brand-teal-wash: #e4f8f5;
+  --brand-amber: #f2a63c;
+  --brand-line: #dedcd1;
+  --brand-muted: #6b6b64;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-teal-deep: var(--brand-teal-deep);
+  --color-brand-teal-wash: var(--brand-teal-wash);
+  --color-brand-amber: var(--brand-amber);
+  --color-brand-line: var(--brand-line);
+  --color-brand-muted: var(--brand-muted);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-bricolage);
 }
 
+/* Dark mode swaps the two brand anchor colors rather than a separate
+   palette — ink becomes the background, paper the text. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0d2020;
+    --foreground: #fafaf7;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), "Inter", Arial, Helvetica, sans-serif;
+}
+
+/* Bricolage Grotesque for headings everywhere, app-wide — the cheap,
+   high-leverage part of the brand baseline (no per-page className changes
+   needed). Existing font-weight utility classes on individual headings are
+   unaffected. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), var(--font-sans);
 }
 
 /* Smooth in-page anchor scrolling for the homepage nav (#how, #elements, #signup).

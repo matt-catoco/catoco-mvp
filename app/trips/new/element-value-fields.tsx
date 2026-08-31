@@ -201,6 +201,13 @@ export function ElementValueFields({
             value={str("note")}
             onChange={(e) => set("note", e.target.value)}
           />
+          <input
+            type="url"
+            className={field}
+            placeholder="Link (optional) — e.g. a flight or booking page"
+            value={str("url")}
+            onChange={(e) => set("url", e.target.value)}
+          />
           <CostField value={str("cost")} onChange={(v) => set("cost", v)} />
         </div>
       );
@@ -218,9 +225,9 @@ export function ElementValueFields({
           <input
             type="url"
             className={field}
-            placeholder="Link (optional)"
-            value={str("link")}
-            onChange={(e) => set("link", e.target.value)}
+            placeholder="Link (optional) — e.g. an Airbnb, hotel, or restaurant page"
+            value={str("url")}
+            onChange={(e) => set("url", e.target.value)}
           />
           <CostField value={str("cost")} onChange={(v) => set("cost", v)} />
         </div>

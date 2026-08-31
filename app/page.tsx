@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bricolage_Grotesque, Inter } from "next/font/google";
 import styles from "./page.module.css";
 import { TallyEmbedScript } from "./tally-embed-script";
 
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
-  subsets: ["latin"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
+// Bricolage Grotesque + Inter are now loaded once, platform-wide, in
+// app/layout.tsx — page.module.css's --font-display/--font-body already
+// just reference those same CSS variables by name, so nothing else here
+// needs to change.
 
 export const metadata: Metadata = {
   title: "Cataco — Plan it together. Fund it together. Go.",
@@ -67,7 +61,7 @@ function CheckIcon() {
 
 export default function Home() {
   return (
-    <div className={`${styles.page} ${bricolage.variable} ${inter.variable}`}>
+    <div className={styles.page}>
       <header className={styles.header}>
         <nav className={`${styles.nav} ${styles.wrap}`}>
           <Link href="/" className={styles.brand}>

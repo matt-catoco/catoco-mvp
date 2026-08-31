@@ -68,17 +68,12 @@ export const STATUS_LABELS: Record<ElementStatus, string> = {
   booked: "Booked",
 };
 
-/**
- * Status an element gets the moment the trip is created.
- * Mirrors the CASE logic in public.create_trip().
- */
-export function initialElementStatus(
-  state: ElementState,
-  optionCount: number,
-): ElementStatus | null {
-  if (state === "locked") return "settled";
-  return optionCount >= 1 ? "add" : null;
-}
+// Mirrors the CASE logic in public.create_trip(), which is the actual source
+// of truth for what gets stamped into trip_elements.status on creation
+// (locked -> 'settled', open with options -> 'add', open+empty -> null).
+// The review screen shows its own friendlier labels — see
+// app/trips/new/steps/review-step.tsx — rather than this raw stamping, so
+// there's no JS-side "initial status" helper here to keep in sync with it.
 
 // ---- Participants: a status lifecycle separate from the base element
 // status above. Driven by the locked {min,max} range, the invites_sent flag
@@ -135,8 +130,11 @@ export type ParticipantsValue = {
   invited?: string[];
 };
 // `cost` (optional) is in the trip's budget currency; used later by financing.
-export type TravelValue = { mode: string; note?: string; cost?: number };
-export type PlaceValue = { name: string; link?: string; cost?: number };
+// `url` is an MVP stand-in for real inventory — paste an Airbnb/hotel/
+// flight/restaurant link. Later replaced/supplemented by source +
+// external_ref once API/MCP integration lands; not built now.
+export type TravelValue = { mode: string; note?: string; url?: string; cost?: number };
+export type PlaceValue = { name: string; url?: string; cost?: number };
 
 export const COST_BEARING_TYPES: ElementType[] = [
   "travel",
@@ -171,9 +169,9 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
     case "participants":
       return { min: "", max: "" };
     case "travel":
-      return { mode: "", note: "", cost: "" };
+      return { mode: "", note: "", url: "", cost: "" };
     default:
-      return { name: "", link: "", cost: "" };
+      return { name: "", url: "", cost: "" };
   }
 }
 
@@ -288,12 +286,13 @@ export function normalizeOptionValue(
     case "travel": {
       const out: TravelValue = { mode: str("mode") };
       if (str("note")) out.note = str("note");
+      if (str("url")) out.url = str("url");
       if (str("cost")) out.cost = Number(value.cost);
       return out;
     }
     default: {
       const out: PlaceValue = { name: str("name") };
-      if (str("link")) out.link = str("link");
+      if (str("url")) out.url = str("url");
       if (str("cost")) out.cost = Number(value.cost);
       return out;
     }
@@ -327,11 +326,11 @@ export function summarizeOptionValue(
       return "?";
     }
     case "travel": {
-      const base = [str("mode"), str("note")].filter(Boolean).join(" — ") || "?";
+      const base = [str("mode"), str("note"), str("url")].filter(Boolean).join(" — ") || "?";
       return str("cost") ? `${base} · ${str("cost")}` : base;
     }
     default: {
-      const base = [str("name"), str("link")].filter(Boolean).join(" — ") || "?";
+      const base = [str("name"), str("url")].filter(Boolean).join(" — ") || "?";
       return str("cost") ? `${base} · ${str("cost")}` : base;
     }
   }

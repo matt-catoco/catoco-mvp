@@ -4,21 +4,47 @@ import Image from "next/image";
 import {
   ALL_TYPES,
   ELEMENT_LABELS,
-  STATUS_LABELS,
-  initialElementStatus,
+  PARTICIPANTS_STATUS_LABELS,
+  computeParticipantsStatus,
+  normalizeOptionValue,
   summarizeOptionValue,
   type ElementType,
+  type ParticipantsValue,
 } from "@/lib/trip-elements";
 import { resolveIcon } from "@/lib/trip-icons";
 import type { WizardDraft } from "../types";
 
+/**
+ * Review-screen label only — locked elements read "Settled" except
+ * Participants (a locked range still has ongoing fill activity, so it shows
+ * its own batch-2 lifecycle instead); open elements always show "Collecting
+ * ideas", never blank, regardless of whether any options are seeded yet.
+ * This is independent of what create_trip actually stamps into
+ * trip_elements.status (which can be null for an empty open element) — that
+ * stamping is unchanged.
+ */
 function StatusBadge({ type, draft }: { type: ElementType; draft: WizardDraft }) {
   const el = draft.elements[type];
-  const status = initialElementStatus(
-    el.choice === "locked" ? "locked" : "open",
-    el.options.length,
-  );
-  const text = status ? STATUS_LABELS[status] : "No status yet";
+  let text: string;
+
+  if (el.choice === "locked" && type === "participants") {
+    const value = normalizeOptionValue(
+      "participants",
+      el.options[0]?.value ?? {},
+    ) as ParticipantsValue;
+    const status = computeParticipantsStatus({
+      min: value.min,
+      max: value.max,
+      invitesSent: false,
+      optedInCount: 0,
+    });
+    text = PARTICIPANTS_STATUS_LABELS[status];
+  } else if (el.choice === "locked") {
+    text = "Settled";
+  } else {
+    text = "Collecting ideas";
+  }
+
   return (
     <span className="rounded-full border border-black/[.12] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-white/[.16]">
       {text}
