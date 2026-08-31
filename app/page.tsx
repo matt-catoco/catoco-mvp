@@ -362,7 +362,7 @@ export default function Home() {
                 </button>
               </div>
               <div className={styles.tfNote}>
-                Opens the real Cataco Alpha Signup form.
+                Opens the real Cataco Beta Signup form.
               </div>
             </div>
           </div>
