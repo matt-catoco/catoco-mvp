@@ -5,10 +5,11 @@ import {
   ELEMENT_LABELS,
   categoryOf,
   emptyValueFor,
+  validateDeadlines,
   validateOptionValue,
   type ElementType,
 } from "@/lib/trip-elements";
-import { ElementValueFields } from "./element-value-fields";
+import { ElementValueFields } from "@/components/element-value-fields";
 import type { ElementChoice, ElementDraft } from "./types";
 
 const CHOICES: { value: ElementChoice; label: string; hint: string }[] = [
@@ -139,6 +140,11 @@ export function ElementCard({
           <p className="text-xs text-zinc-500 dark:text-zinc-500">
             Both can be changed later, any time before this element locks.
           </p>
+          {validateDeadlines(draft.optionsDeadline, draft.votingDeadline) && (
+            <p className="text-xs text-red-500">
+              {validateDeadlines(draft.optionsDeadline, draft.votingDeadline)}
+            </p>
+          )}
 
           {draft.options.length === 0 && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400">

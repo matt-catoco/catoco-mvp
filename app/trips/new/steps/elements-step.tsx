@@ -3,6 +3,7 @@
 import {
   MACRO_TYPES,
   MICRO_TYPES,
+  validateDeadlines,
   validateOptionValue,
   type ElementCategory,
   type ElementType,
@@ -16,8 +17,12 @@ function elementComplete(type: ElementType, el: ElementDraft): boolean {
   if (el.choice === "locked") {
     return el.options.length === 1 && !validateOptionValue(type, el.options[0].value);
   }
-  // open: any seeded option must be valid; zero options is allowed
-  return el.options.every((o) => !validateOptionValue(type, o.value));
+  // open: any seeded option must be valid, deadlines must be in order; zero
+  // options is allowed
+  return (
+    el.options.every((o) => !validateOptionValue(type, o.value)) &&
+    !validateDeadlines(el.optionsDeadline, el.votingDeadline)
+  );
 }
 
 export function ElementsStep({

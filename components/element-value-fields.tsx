@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { CURRENCIES, type ElementType } from "@/lib/trip-elements";
 
+// Shared between the trip-creation wizard (app/trips/new) and the post-
+// creation option-submission form (app/trips/[tripId]) — same input shapes,
+// same validation, so it lives here rather than under either caller's folder.
+
 const field =
   "h-10 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]";
 const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
@@ -204,11 +208,11 @@ export function ElementValueFields({
           <input
             type="url"
             className={field}
-            placeholder="Link (optional) — e.g. a flight or booking page"
-            value={str("url")}
-            onChange={(e) => set("url", e.target.value)}
+            placeholder="Booking link (optional) — e.g. a flight or booking page"
+            value={str("booking_link")}
+            onChange={(e) => set("booking_link", e.target.value)}
           />
-          <CostField value={str("cost")} onChange={(v) => set("cost", v)} />
+          <PriceField value={str("price")} onChange={(v) => set("price", v)} />
         </div>
       );
 
@@ -225,11 +229,11 @@ export function ElementValueFields({
           <input
             type="url"
             className={field}
-            placeholder="Link (optional) — e.g. an Airbnb, hotel, or restaurant page"
-            value={str("url")}
-            onChange={(e) => set("url", e.target.value)}
+            placeholder="Booking link (optional) — e.g. an Airbnb, hotel, or restaurant page"
+            value={str("booking_link")}
+            onChange={(e) => set("booking_link", e.target.value)}
           />
-          <CostField value={str("cost")} onChange={(v) => set("cost", v)} />
+          <PriceField value={str("price")} onChange={(v) => set("price", v)} />
         </div>
       );
   }
@@ -348,7 +352,7 @@ function DatesFields({
   );
 }
 
-function CostField({
+function PriceField({
   value,
   onChange,
 }: {
@@ -357,7 +361,7 @@ function CostField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className={label}>Estimated cost (optional)</span>
+      <span className={label}>Estimated price (optional)</span>
       <input
         type="number"
         min={0}

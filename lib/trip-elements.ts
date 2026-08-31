@@ -129,14 +129,31 @@ export type ParticipantsValue = {
   max: number | null;
   invited?: string[];
 };
-// `cost` (optional) is in the trip's budget currency; used later by financing.
-// `url` is an MVP stand-in for real inventory — paste an Airbnb/hotel/
-// flight/restaurant link. Later replaced/supplemented by source +
-// external_ref once API/MCP integration lands; not built now.
-export type TravelValue = { mode: string; note?: string; url?: string; cost?: number };
-export type PlaceValue = { name: string; url?: string; cost?: number };
+// `price` (optional) is in the trip's budget currency, manually entered by
+// whoever submits the option; used later by financing. `booking_link` is an
+// MVP stand-in for real inventory — paste an Airbnb/hotel/flight/restaurant
+// link. `title`/`description`/`thumbnail_url` are auto-extracted server-side
+// from booking_link's Open Graph tags (see lib/link-preview.ts) — never set
+// by the user directly. Later booking_link is replaced/supplemented by
+// source + external_ref once API/MCP integration lands; not built now.
+export type LinkPreview = {
+  title?: string;
+  description?: string;
+  thumbnail_url?: string;
+};
+export type TravelValue = LinkPreview & {
+  mode: string;
+  note?: string;
+  booking_link?: string;
+  price?: number;
+};
+export type PlaceValue = LinkPreview & {
+  name: string;
+  booking_link?: string;
+  price?: number;
+};
 
-export const COST_BEARING_TYPES: ElementType[] = [
+export const PRICE_BEARING_TYPES: ElementType[] = [
   "travel",
   "accommodation",
   "experience",
@@ -169,18 +186,18 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
     case "participants":
       return { min: "", max: "" };
     case "travel":
-      return { mode: "", note: "", url: "", cost: "" };
+      return { mode: "", note: "", booking_link: "", price: "" };
     default:
-      return { name: "", url: "", cost: "" };
+      return { name: "", booking_link: "", price: "" };
   }
 }
 
-/** Error message if the optional `cost` field is present but not a number >= 0. */
-function costError(value: Record<string, unknown>): string | null {
-  const raw = value.cost;
+/** Error message if the optional `price` field is present but not a number >= 0. */
+function priceError(value: Record<string, unknown>): string | null {
+  const raw = value.price;
   if (raw === undefined || raw === null || String(raw).trim() === "") return null;
   const n = Number(raw);
-  if (!Number.isFinite(n) || n < 0) return "Cost must be 0 or more";
+  if (!Number.isFinite(n) || n < 0) return "Price must be 0 or more";
   return null;
 }
 
@@ -239,15 +256,30 @@ export function validateOptionValue(
     }
     case "travel":
       if (!str("mode")) return "Enter a travel mode";
-      return costError(value);
+      return priceError(value);
     case "accommodation":
     case "experience":
     case "dining":
       if (!str("name")) return "Enter a name";
-      return costError(value);
+      return priceError(value);
     default:
       return "Unknown element type";
   }
+}
+
+/**
+ * Cross-field check for open elements: options_deadline must be on or before
+ * voting_deadline (can't accept new candidates after voting has closed).
+ * Mirrors the check in public.create_trip(). Empty strings (unset) are fine.
+ */
+export function validateDeadlines(
+  optionsDeadline: string,
+  votingDeadline: string,
+): string | null {
+  if (optionsDeadline && votingDeadline && optionsDeadline > votingDeadline) {
+    return "Options deadline must be on or before the voting deadline";
+  }
+  return null;
 }
 
 /**
@@ -286,14 +318,14 @@ export function normalizeOptionValue(
     case "travel": {
       const out: TravelValue = { mode: str("mode") };
       if (str("note")) out.note = str("note");
-      if (str("url")) out.url = str("url");
-      if (str("cost")) out.cost = Number(value.cost);
+      if (str("booking_link")) out.booking_link = str("booking_link");
+      if (str("price")) out.price = Number(value.price);
       return out;
     }
     default: {
       const out: PlaceValue = { name: str("name") };
-      if (str("url")) out.url = str("url");
-      if (str("cost")) out.cost = Number(value.cost);
+      if (str("booking_link")) out.booking_link = str("booking_link");
+      if (str("price")) out.price = Number(value.price);
       return out;
     }
   }
@@ -326,12 +358,13 @@ export function summarizeOptionValue(
       return "?";
     }
     case "travel": {
-      const base = [str("mode"), str("note"), str("url")].filter(Boolean).join(" — ") || "?";
-      return str("cost") ? `${base} · ${str("cost")}` : base;
+      const base =
+        [str("mode"), str("note"), str("booking_link")].filter(Boolean).join(" — ") || "?";
+      return str("price") ? `${base} · ${str("price")}` : base;
     }
     default: {
-      const base = [str("name"), str("url")].filter(Boolean).join(" — ") || "?";
-      return str("cost") ? `${base} · ${str("cost")}` : base;
+      const base = [str("name"), str("booking_link")].filter(Boolean).join(" — ") || "?";
+      return str("price") ? `${base} · ${str("price")}` : base;
     }
   }
 }
