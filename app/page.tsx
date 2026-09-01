@@ -129,7 +129,7 @@ export default function Home() {
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
                 <span className={styles.sym}>Ap</span>
-                <span className={styles.lbl}>Apart.</span>
+                <span className={styles.lbl}>Apartment</span>
                 <span className={styles.num}>21</span>
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
