@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CURRENCIES, type ElementType } from "@/lib/trip-elements";
+import { CURRENCIES, PRICING_BASES, PRICING_BASIS_LABELS, type ElementType } from "@/lib/trip-elements";
 
 // Shared between the trip-creation wizard (app/trips/new) and the post-
 // creation option-submission form (app/trips/[tripId]) — same input shapes,
@@ -92,8 +92,10 @@ export function ElementValueFields({
           <PriceField
             price={str("price")}
             currency={str("currency")}
+            pricingBasis={str("pricing_basis")}
             onChangePrice={(v) => set("price", v)}
             onChangeCurrency={(v) => set("currency", v)}
+            onChangePricingBasis={(v) => set("pricing_basis", v)}
           />
         </div>
       );
@@ -119,8 +121,10 @@ export function ElementValueFields({
           <PriceField
             price={str("price")}
             currency={str("currency")}
+            pricingBasis={str("pricing_basis")}
             onChangePrice={(v) => set("price", v)}
             onChangeCurrency={(v) => set("currency", v)}
+            onChangePricingBasis={(v) => set("pricing_basis", v)}
           />
         </div>
       );
@@ -220,40 +224,62 @@ function DatesFields({
 function PriceField({
   price,
   currency,
+  pricingBasis,
   onChangePrice,
   onChangeCurrency,
+  onChangePricingBasis,
 }: {
   price: string;
   currency: string;
+  pricingBasis: string;
   onChangePrice: (v: string) => void;
   onChangeCurrency: (v: string) => void;
+  onChangePricingBasis: (v: string) => void;
 }) {
   return (
-    <div className="flex items-end gap-2">
-      <label className="flex flex-col gap-1">
-        <span className={label}>Estimated price (optional)</span>
-        <input
-          type="number"
-          min={0}
-          step="any"
-          inputMode="decimal"
-          className={`${field} max-w-[140px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
-          placeholder="0"
-          value={price}
-          onChange={(e) => onChangePrice(e.target.value)}
-        />
-      </label>
-      <select
-        className={`${field} w-24`}
-        value={currency || "USD"}
-        onChange={(e) => onChangeCurrency(e.target.value)}
-      >
-        {CURRENCIES.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-end gap-2">
+        <label className="flex flex-col gap-1">
+          <span className={label}>Estimated price (optional)</span>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            inputMode="decimal"
+            className={`${field} max-w-[140px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+            placeholder="0"
+            value={price}
+            onChange={(e) => onChangePrice(e.target.value)}
+          />
+        </label>
+        <select
+          className={`${field} w-24`}
+          value={currency || "USD"}
+          onChange={(e) => onChangeCurrency(e.target.value)}
+        >
+          {CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
+      {price.trim() && (
+        <label className="flex flex-col gap-1">
+          <span className={label}>Price is per</span>
+          <select
+            className={`${field} w-44`}
+            value={pricingBasis}
+            onChange={(e) => onChangePricingBasis(e.target.value)}
+          >
+            {PRICING_BASES.map((b) => (
+              <option key={b} value={b}>
+                {PRICING_BASIS_LABELS[b]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </div>
   );
 }

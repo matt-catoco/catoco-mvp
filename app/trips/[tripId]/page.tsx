@@ -5,6 +5,7 @@ import {
   ELEMENT_SYMBOLS,
   describeElementStatus,
   type ElementType,
+  type FundingStatus,
 } from "@/lib/trip-elements";
 import { ElementGrid } from "@/components/trip-home/element-grid";
 import { resolveAndNotify } from "./resolve-elements";
@@ -15,8 +16,14 @@ type ElementRow = {
   label: string;
   state: "locked" | "open";
   locked_option_id: string | null;
-  funded_at: string | null;
   created_at: string;
+};
+
+type FundingRow = {
+  status: FundingStatus;
+  required_amount: number;
+  actual_amount_paid: number | null;
+  funding_request_elements: { element_id: string }[];
 };
 
 /**
@@ -80,7 +87,7 @@ export default async function TripLandingPage({
 
   const { data: elements } = await supabase
     .from("trip_elements")
-    .select("id, type, label, state, locked_option_id, funded_at, created_at")
+    .select("id, type, label, state, locked_option_id, created_at")
     .eq("trip_id", tripId)
     .order("created_at", { ascending: true })
     .returns<ElementRow[]>();
@@ -92,14 +99,25 @@ export default async function TripLandingPage({
     .map((e) => e.locked_option_id)
     .filter((id): id is string => !!id);
 
-  const [{ data: openOptions }, { data: lockedOptions }] = await Promise.all([
-    openIds.length
-      ? supabase.from("element_options").select("id, element_id").in("element_id", openIds)
-      : Promise.resolve({ data: [] as { id: string; element_id: string }[] }),
-    lockedOptionIds.length
-      ? supabase.from("element_options").select("id, value").in("id", lockedOptionIds)
-      : Promise.resolve({ data: [] as { id: string; value: Record<string, unknown> }[] }),
-  ]);
+  const [{ data: openOptions }, { data: lockedOptions }, { data: fundingRows }] =
+    await Promise.all([
+      openIds.length
+        ? supabase.from("element_options").select("id, element_id").in("element_id", openIds)
+        : Promise.resolve({ data: [] as { id: string; element_id: string }[] }),
+      lockedOptionIds.length
+        ? supabase.from("element_options").select("id, value").in("id", lockedOptionIds)
+        : Promise.resolve({ data: [] as { id: string; value: Record<string, unknown> }[] }),
+      // Active (non-superseded) funding_requests for this trip's elements —
+      // required/actual for the rollup, status for each tile's Funded/Booked
+      // treatment. RLS (is_funding_request_member) already scopes this to
+      // what the viewer can see, same as everything else on this page.
+      supabase
+        .from("funding_requests")
+        .select("status, required_amount, actual_amount_paid, funding_request_elements(element_id)")
+        .eq("trip_id", tripId)
+        .neq("status", "superseded")
+        .returns<FundingRow[]>(),
+    ]);
 
   const optionCountByElement = new Map<string, number>();
   for (const o of openOptions ?? []) {
@@ -109,6 +127,17 @@ export default async function TripLandingPage({
     (lockedOptions ?? []).map((o) => [o.id, o.value as Record<string, unknown>]),
   );
 
+  const fundingByElement = new Map<string, FundingStatus>();
+  let totalRequired = 0;
+  let totalActual = 0;
+  for (const fr of fundingRows ?? []) {
+    for (const fre of fr.funding_request_elements) {
+      fundingByElement.set(fre.element_id, fr.status);
+    }
+    totalRequired += fr.required_amount;
+    if (fr.status === "booked") totalActual += fr.actual_amount_paid ?? fr.required_amount;
+  }
+
   const tiles = rows.map((row, idx) => {
     const lockedValue = row.locked_option_id
       ? lockedValueById.get(row.locked_option_id) ?? null
@@ -116,7 +145,7 @@ export default async function TripLandingPage({
     const info = describeElementStatus({
       type: row.type,
       state: row.state,
-      fundedAt: row.funded_at,
+      fundingStatus: fundingByElement.get(row.id) ?? null,
       optionCount: optionCountByElement.get(row.id) ?? 0,
       lockedValue,
     });
@@ -154,6 +183,16 @@ export default async function TripLandingPage({
           </Link>
         </div>
       </div>
+
+      {totalRequired > 0 && (
+        <div className="flex w-full max-w-2xl items-center justify-between rounded-lg border border-black/[.1] px-4 py-3 text-sm dark:border-white/[.14]">
+          <span className="text-zinc-500">Budgeted vs. actual</span>
+          <span className="font-medium text-black dark:text-zinc-50">
+            {totalActual > 0 ? `${totalActual.toFixed(2)} actual · ` : ""}
+            {totalRequired.toFixed(2)} required
+          </span>
+        </div>
+      )}
 
       <div className="w-full max-w-2xl">
         {tiles.length === 0 ? (

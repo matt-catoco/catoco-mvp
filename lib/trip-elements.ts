@@ -100,6 +100,10 @@ export function emptyMetadataFor(type: ElementType): Record<string, string> {
 // bucket — an element only exists once someone's actually created it;
 // nothing to show for types nobody's added yet.
 
+// A locked element's funding lifecycle (flow #4) — null when it has no
+// funding_request at all (Dates/Destination, or an unpriced locked value).
+export type FundingStatus = "collecting" | "ready_to_purchase" | "booked" | null;
+
 export type ElementTileInfo = {
   state: ElementState;
   funded: boolean;
@@ -109,16 +113,17 @@ export type ElementTileInfo = {
 
 export function describeElementStatus(row: {
   state: ElementState;
-  fundedAt: string | null;
+  fundingStatus: FundingStatus;
   optionCount: number;
   lockedValue: Record<string, unknown> | null;
   type: ElementType;
 }): ElementTileInfo {
   if (row.state === "locked") {
+    const funded = row.fundingStatus === "ready_to_purchase" || row.fundingStatus === "booked";
     return {
       state: "locked",
-      funded: Boolean(row.fundedAt),
-      statusLabel: row.fundedAt ? "Funded" : "Confirmed",
+      funded,
+      statusLabel: row.fundingStatus === "booked" ? "Booked" : funded ? "Funded" : "Confirmed",
       detail: row.lockedValue ? summarizeOptionValue(row.type, row.lockedValue) : "?",
     };
   }
@@ -166,12 +171,14 @@ export type TravelValue = LinkPreview & {
   booking_link?: string;
   price?: number;
   currency?: string;
+  pricing_basis?: string;
 };
 export type PlaceValue = LinkPreview & {
   name: string;
   booking_link?: string;
   price?: number;
   currency?: string;
+  pricing_basis?: string;
 };
 
 export const PRICE_BEARING_TYPES: ElementType[] = [
@@ -182,6 +189,25 @@ export const PRICE_BEARING_TYPES: ElementType[] = [
 ];
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
+
+// ---- flow #4: pricing basis for real funding-amount calculation -----------
+// unit_price/pricing_basis are real columns on element_options (not part of
+// the jsonb value like price/currency above) — they drive actual SQL
+// arithmetic (required_amount = unit_price * multiplier) once an option
+// locks, so they need to be reliably typed. The UI still enters a single
+// "price" number; pricing_basis just says what it's a price *per*.
+export const PRICING_BASES = ["per_night", "per_person", "flat"] as const;
+export type PricingBasis = (typeof PRICING_BASES)[number];
+
+export const PRICING_BASIS_LABELS: Record<PricingBasis, string> = {
+  per_night: "per night",
+  per_person: "per person",
+  flat: "flat (shared cost)",
+};
+
+export function defaultPricingBasisFor(type: ElementType): PricingBasis {
+  return type === "accommodation" ? "per_night" : "per_person";
+}
 
 export type OptionValue = DatesValue | DestinationValue | TravelValue | PlaceValue;
 
@@ -197,9 +223,22 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
     case "destination":
       return { name: "" };
     case "travel":
-      return { mode: "", note: "", booking_link: "", price: "", currency: "USD" };
+      return {
+        mode: "",
+        note: "",
+        booking_link: "",
+        price: "",
+        currency: "USD",
+        pricing_basis: defaultPricingBasisFor("travel"),
+      };
     default:
-      return { name: "", booking_link: "", price: "", currency: "USD" };
+      return {
+        name: "",
+        booking_link: "",
+        price: "",
+        currency: "USD",
+        pricing_basis: defaultPricingBasisFor(type),
+      };
   }
 }
 
@@ -209,6 +248,12 @@ function priceError(value: Record<string, unknown>): string | null {
   if (raw === undefined || raw === null || String(raw).trim() === "") return null;
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) return "Price must be 0 or more";
+  // A price with no pricing_basis can't drive the funding calculation once
+  // this option locks — require both together, not price alone.
+  const basis = String(value.pricing_basis ?? "").trim();
+  if (!basis || !(PRICING_BASES as readonly string[]).includes(basis)) {
+    return "Pick what the price is per (night, person, or a flat shared cost)";
+  }
   return null;
 }
 
@@ -320,6 +365,7 @@ export function normalizeOptionValue(
       if (str("price")) {
         out.price = Number(value.price);
         out.currency = str("currency") || "USD";
+        out.pricing_basis = str("pricing_basis");
       }
       return out;
     }
@@ -329,10 +375,31 @@ export function normalizeOptionValue(
       if (str("price")) {
         out.price = Number(value.price);
         out.currency = str("currency") || "USD";
+        out.pricing_basis = str("pricing_basis");
       }
       return out;
     }
   }
+}
+
+/**
+ * Pulls unit_price/pricing_basis out of a normalized option value for the
+ * RPC params that store them as real columns (element_options.unit_price/
+ * pricing_basis) — separate from price/currency, which stay in the jsonb
+ * value purely for display (OptionSummary). Null/null when no price was set.
+ */
+export function extractPricing(
+  value: Record<string, unknown>,
+): { unitPrice: number | null; pricingBasis: PricingBasis | null } {
+  const price = value.price;
+  if (price === undefined || price === null || String(price).trim() === "") {
+    return { unitPrice: null, pricingBasis: null };
+  }
+  const basis = String(value.pricing_basis ?? "").trim();
+  const validBasis = (PRICING_BASES as readonly string[]).includes(basis)
+    ? (basis as PricingBasis)
+    : null;
+  return { unitPrice: Number(price), pricingBasis: validBasis };
 }
 
 export function summarizeOptionValue(
@@ -355,11 +422,19 @@ export function summarizeOptionValue(
     case "travel": {
       const base =
         [str("mode"), str("note"), str("booking_link")].filter(Boolean).join(" — ") || "?";
-      return str("price") ? `${base} · ${str("currency") || "USD"} ${str("price")}` : base;
+      return str("price") ? `${base} · ${priceLabel(value)}` : base;
     }
     default: {
       const base = [str("name"), str("booking_link")].filter(Boolean).join(" — ") || "?";
-      return str("price") ? `${base} · ${str("currency") || "USD"} ${str("price")}` : base;
+      return str("price") ? `${base} · ${priceLabel(value)}` : base;
     }
   }
+}
+
+function priceLabel(value: Record<string, unknown>): string {
+  const str = (k: string) => String(value[k] ?? "").trim();
+  const basis = str("pricing_basis");
+  const suffix =
+    basis === "per_night" ? "/night" : basis === "per_person" ? "/person" : "";
+  return `${str("currency") || "USD"} ${str("price")}${suffix}`;
 }

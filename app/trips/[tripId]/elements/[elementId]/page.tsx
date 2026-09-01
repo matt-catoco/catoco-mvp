@@ -9,7 +9,8 @@ import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
 import { EditElementForm } from "../../edit-element-form";
-import { FundedToggle } from "../../funded-toggle";
+import { FundingCard, type FundingRequestInfo } from "../../funding-card";
+import { BookingConfirmation } from "../../booking-confirmation";
 
 type ElementRow = {
   id: string;
@@ -22,9 +23,20 @@ type ElementRow = {
   tie_notified: boolean;
   empty_notified: boolean;
   locked_option_id: string | null;
-  funded_at: string | null;
+  booked_at: string | null;
   created_by: string | null;
 };
+
+type FundingRow = {
+  id: string;
+  required_amount: number;
+  status: "collecting" | "ready_to_purchase" | "booked";
+  funding_deadline: string | null;
+  purchaser_id: string | null;
+  actual_amount_paid: number | null;
+};
+
+type RosterRow = { user_id: string; display_name: string | null; is_organizer: boolean };
 
 type OptionRow = {
   id: string;
@@ -88,7 +100,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, funded_at, created_by",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, booked_at, created_by",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -113,6 +125,47 @@ export default async function ElementDetailPage({
           .maybeSingle()
       : { data: null };
 
+    const { data: fundingRow } = await supabase
+      .from("funding_requests")
+      .select(
+        "id, required_amount, status, funding_deadline, purchaser_id, actual_amount_paid, funding_request_elements!inner(element_id)",
+      )
+      .eq("funding_request_elements.element_id", element.id)
+      .neq("status", "superseded")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .returns<FundingRow>();
+
+    let funding: FundingRequestInfo | null = null;
+    if (fundingRow) {
+      const [{ data: collected }, { data: rosterData }] = await Promise.all([
+        supabase.rpc("get_funding_collected", { p_funding_request_id: fundingRow.id }),
+        supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
+      ]);
+      const roster = (rosterData ?? []) as RosterRow[];
+      const purchaser = roster.find((r) => r.user_id === fundingRow.purchaser_id);
+      funding = {
+        id: fundingRow.id,
+        requiredAmount: fundingRow.required_amount,
+        collected: (collected as number) ?? 0,
+        status: fundingRow.status,
+        deadline: fundingRow.funding_deadline,
+        purchaserId: fundingRow.purchaser_id,
+        purchaserName:
+          fundingRow.purchaser_id === user.id
+            ? "You"
+            : purchaser?.display_name?.trim() || (purchaser?.is_organizer ? "Organizer" : "Member"),
+        actualAmountPaid: fundingRow.actual_amount_paid,
+      };
+    }
+
+    const badgeLabel = element.booked_at
+      ? "Booked"
+      : funding?.status === "ready_to_purchase"
+        ? "Funded"
+        : "Confirmed";
+
     body = (
       <div className="w-full max-w-xl rounded-xl border border-black/[.1] p-4 text-left dark:border-white/[.14]">
         <div className="flex items-center justify-between gap-2">
@@ -120,16 +173,16 @@ export default async function ElementDetailPage({
             {element.label}
           </span>
           <StatusBadge
-            state={element.funded_at ? "funded" : "locked"}
-            label={element.funded_at ? "Funded" : "Confirmed"}
+            state={element.booked_at ? "funded" : funding?.status === "ready_to_purchase" ? "funded" : "locked"}
+            label={badgeLabel}
           />
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
         <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
           {option ? <OptionSummary type={element.type} value={option.value} /> : "?"}
         </div>
-        {canEdit && (
-          <div className="mt-3 flex items-center gap-3">
+        {canEdit && !element.booked_at && (
+          <div className="mt-3">
             <EditElementForm
               tripId={tripId}
               elementId={element.id}
@@ -141,13 +194,21 @@ export default async function ElementDetailPage({
               initialVotingDeadline={null}
               initialLockedValue={option?.value ?? {}}
             />
-            <FundedToggle
-              tripId={tripId}
-              elementId={element.id}
-              funded={Boolean(element.funded_at)}
-            />
           </div>
         )}
+
+        {!element.booked_at &&
+          (funding ? (
+            <FundingCard
+              tripId={tripId}
+              elementId={element.id}
+              currentUserId={user.id}
+              canManage={Boolean(canManage)}
+              funding={funding}
+            />
+          ) : (
+            canEdit && <BookingConfirmation tripId={tripId} elementId={element.id} />
+          ))}
       </div>
     );
   } else {

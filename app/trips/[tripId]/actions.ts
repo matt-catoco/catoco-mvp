@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
+  extractPricing,
   normalizeOptionValue,
   validateOptionValue,
   type ElementType,
@@ -75,12 +76,14 @@ export async function createElement(input: {
 
   if (!input.label.trim()) return { error: "Give it a label." };
 
-  let options: { value: unknown }[] = [];
+  let options: { value: unknown; unit_price: number | null; pricing_basis: string | null }[] = [];
   if (input.state === "locked") {
     const err = validateOptionValue(input.type, input.lockedValue);
     if (err) return { error: err };
     const value = normalizeOptionValue(input.type, input.lockedValue!) as Record<string, unknown>;
-    options = [{ value: await applyLinkPreview(input.type, value) }];
+    const withPreview = await applyLinkPreview(input.type, value);
+    const { unitPrice, pricingBasis } = extractPricing(withPreview);
+    options = [{ value: withPreview, unit_price: unitPrice, pricing_basis: pricingBasis }];
   }
 
   const { data, error } = await supabase.rpc("create_element", {
@@ -172,32 +175,6 @@ export async function deleteElement(
   return {};
 }
 
-export type MarkElementFundedResult = { error?: string };
-
-/**
- * Marks a confirmed (locked) element as funded — the milestone beyond
- * Confirmed from the homepage's 3-state key. No real payment mechanism
- * behind this yet; it's a manually-settable flag. Same authority as
- * editing (organizer, co-organizer, or the element's own creator), enforced
- * in mark_element_funded() along with the locked-only restriction.
- */
-export async function markElementFunded(
-  tripId: string,
-  elementId: string,
-  funded: boolean,
-): Promise<MarkElementFundedResult> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("mark_element_funded", {
-    p_element_id: elementId,
-    p_funded: funded,
-  });
-  if (error) return { error: error.message };
-
-  revalidatePath(`/trips/${tripId}`);
-  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
-  return {};
-}
-
 export type SetParticipantRoleResult = { error?: string };
 
 /** Organizer or co-organizer assigns a roster member's role. */
@@ -272,12 +249,15 @@ export async function submitOption(
     type,
     normalizeOptionValue(type, rawValue) as Record<string, unknown>,
   );
+  const { unitPrice, pricingBasis } = extractPricing(value);
 
   const { error } = await supabase.from("element_options").insert({
     element_id: elementId,
     value,
     source: "user_proposed",
     proposed_by: user.id,
+    unit_price: unitPrice,
+    pricing_basis: pricingBasis,
   });
 
   if (error) return { error: error.message };
@@ -315,10 +295,13 @@ export async function updateOption(
     type,
     normalizeOptionValue(type, rawValue) as Record<string, unknown>,
   );
+  const { unitPrice, pricingBasis } = extractPricing(value);
 
   const { error } = await supabase.rpc("update_option", {
     p_option_id: optionId,
     p_value: value,
+    p_unit_price: unitPrice,
+    p_pricing_basis: pricingBasis,
   });
   if (error) return { error: error.message };
 
@@ -389,4 +372,136 @@ export async function castVotes(
   }
 
   return {};
+}
+
+export type AddFundingContributionResult = { error?: string };
+
+/**
+ * The manual contribution ledger stand-in (flow #4) — not a real charge,
+ * just bookkeeping (who, how much), so collected-vs-required is actually
+ * reachable end to end. Swapped for real Stripe charges in the
+ * contribution-charge ticket without touching this schema. Membership +
+ * the collecting-only restriction are enforced in add_funding_contribution().
+ */
+export async function addFundingContribution(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  amount: number,
+): Promise<AddFundingContributionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("add_funding_contribution", {
+    p_funding_request_id: fundingRequestId,
+    p_amount: amount,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
+export type SetFundingDeadlineResult = { error?: string };
+
+/**
+ * Organizer/co-organizer only. A funding_request's deadline starts null
+ * (same lazy-resolution pattern as voting_deadline) and is cleared back to
+ * null on an unfunded-but-still-viable retry — nothing resolves until this
+ * is explicitly set, never silently open-ended.
+ */
+export async function setFundingDeadline(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  deadline: string,
+): Promise<SetFundingDeadlineResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_funding_deadline", {
+    p_funding_request_id: fundingRequestId,
+    p_deadline: deadline,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
+export type ResolveFundingOutcomeResult = { error?: string };
+
+/**
+ * Organizer/co-organizer, once a funding_deadline has passed. Funded ->
+ * ready_to_purchase. Unfunded: `stillViable` is the manual viability
+ * answer (no Travelpayouts/Viator integration exists yet, so every type
+ * gets the same self-report check Dining always had) — true reopens
+ * collecting with a cleared deadline, false runs the runner-up/reopen
+ * fallback.
+ */
+export async function resolveFundingOutcome(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  stillViable: boolean,
+): Promise<ResolveFundingOutcomeResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("resolve_funding_outcome", {
+    p_funding_request_id: fundingRequestId,
+    p_still_viable: stillViable,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
+export type ReportElementBookedResult = { error?: string };
+
+/**
+ * The purchaser (or organizer/co-organizer) self-reports the outcome once
+ * ready_to_purchase — Booked (with an optional actual amount, defaulting
+ * to required_amount) or Unavailable, which runs the exact same fallback
+ * cascade as an unfunded-and-no-longer-viable funding_request. Works the
+ * same for payment_type=none elements too (no funding_request at all) —
+ * they still get a booking-confirmation step per the ticket.
+ */
+export async function reportElementBooked(
+  tripId: string,
+  elementId: string,
+  outcome: "booked" | "unavailable",
+  actualAmountPaid?: number,
+): Promise<ReportElementBookedResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("report_element_booked", {
+    p_element_id: elementId,
+    p_outcome: outcome,
+    p_actual_amount_paid: actualAmountPaid ?? null,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
+export type BundleFundingRequestsResult = { error?: string; fundingRequestId?: string };
+
+/**
+ * Organizer/co-organizer merges several single-element, still-collecting
+ * funding_requests into one — a separate manual action, never automatic.
+ * No dedicated picker UI yet (flagged as thin in the plan); this wraps the
+ * RPC for whenever that lands.
+ */
+export async function bundleFundingRequests(
+  tripId: string,
+  elementIds: string[],
+): Promise<BundleFundingRequestsResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("bundle_funding_requests", {
+    p_element_ids: elementIds,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  return { fundingRequestId: data as string };
 }
