@@ -4,10 +4,16 @@
 -- Editing a submitted-but-not-yet-locked candidate should be able to fix its
 -- real pricing columns too, not just the display value — if it later wins
 -- the vote and locks, calculate_required_amount() needs the corrected
--- numbers. New params are appended with defaults, so this is a safe
--- CREATE OR REPLACE (no signature-incompatible change, unlike a return-type
--- change would be).
+-- numbers.
+--
+-- CREATE OR REPLACE does NOT collapse this into the existing 2-arg version —
+-- Postgres treats a different parameter count as a different overload
+-- regardless of defaults, so without the explicit drop below this would
+-- silently leave both update_option(uuid, jsonb) and update_option(uuid,
+-- jsonb, numeric, text) coexisting.
 -- ============================================================================
+
+drop function if exists public.update_option(uuid, jsonb);
 
 create or replace function public.update_option(
   p_option_id uuid,
