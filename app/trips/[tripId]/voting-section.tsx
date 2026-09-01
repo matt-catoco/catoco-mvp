@@ -89,7 +89,7 @@ export function VotingSection({
                   {summarizeOptionValue(elementType, opt.value)}
                 </span>
                 <span className={myRank ? "opacity-80" : "text-zinc-500"}>
-                  {groupRank === 1 ? "Leading" : `#${groupRank} overall`}
+                  #{groupRank} overall
                 </span>
               </button>
             </li>
