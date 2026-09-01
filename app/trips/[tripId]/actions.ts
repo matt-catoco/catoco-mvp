@@ -264,6 +264,31 @@ export async function updateOption(
   return {};
 }
 
+export type LockElementResult = { error?: string };
+
+/**
+ * Organizer/co-organizer ends voting early and locks one of the current
+ * candidates in — the one manual override path, alongside the automatic
+ * ones (locking at creation, auto-lock on voting_deadline). Authority + the
+ * open-state check are enforced in lock_element(), not here.
+ */
+export async function lockElement(
+  tripId: string,
+  elementId: string,
+  optionId: string,
+): Promise<LockElementResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("lock_element", {
+    p_element_id: elementId,
+    p_option_id: optionId,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
 export type CastVotesResult = { error: string } | { error?: undefined };
 
 /**

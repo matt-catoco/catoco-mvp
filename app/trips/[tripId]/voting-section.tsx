@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
-import { castVotes, updateOption } from "./actions";
+import { castVotes, lockElement, updateOption } from "./actions";
 
 type OptionWithScore = {
   id: string;
@@ -92,6 +92,7 @@ export function VotingSection({
               myRank={myRank}
               groupRank={groupRank}
               canEdit={canEdit}
+              canLock={canManage}
               onToggle={() => toggle(opt.id)}
             />
           );
@@ -122,6 +123,7 @@ function OptionRow({
   myRank,
   groupRank,
   canEdit,
+  canLock,
   onToggle,
 }: {
   tripId: string;
@@ -131,12 +133,59 @@ function OptionRow({
   myRank: number | null;
   groupRank: number;
   canEdit: boolean;
+  canLock: boolean;
   onToggle: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [confirmingLock, setConfirmingLock] = useState(false);
   const [draft, setDraft] = useState<Record<string, unknown>>(option.value);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [lockPending, startLockTransition] = useTransition();
+  const [lockError, setLockError] = useState<string | null>(null);
+
+  if (confirmingLock) {
+    return (
+      <li className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
+        <p className="text-amber-800 dark:text-amber-300">
+          Lock in &ldquo;{summarizeOptionValue(elementType, option.value)}&rdquo; now? This ends
+          voting immediately — no confirmation from anyone else needed.
+        </p>
+        {lockError && <p className="mt-1.5 text-red-500">{lockError}</p>}
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            disabled={lockPending}
+            onClick={() => {
+              setLockError(null);
+              startLockTransition(async () => {
+                const res = await lockElement(tripId, elementId, option.id);
+                if (res.error) {
+                  setLockError(res.error);
+                  return;
+                }
+                setConfirmingLock(false);
+              });
+            }}
+            className="rounded-lg bg-foreground px-3 py-1.5 font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            {lockPending ? "Locking…" : "Confirm lock"}
+          </button>
+          <button
+            type="button"
+            disabled={lockPending}
+            onClick={() => {
+              setLockError(null);
+              setConfirmingLock(false);
+            }}
+            className="text-zinc-500 underline hover:text-black dark:hover:text-zinc-50 disabled:opacity-40"
+          >
+            Cancel
+          </button>
+        </div>
+      </li>
+    );
+  }
 
   if (editing) {
     return (
@@ -203,6 +252,15 @@ function OptionRow({
           className="shrink-0 text-xs text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
         >
           Edit
+        </button>
+      )}
+      {canLock && (
+        <button
+          type="button"
+          onClick={() => setConfirmingLock(true)}
+          className="shrink-0 text-xs text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
+        >
+          Lock this in
         </button>
       )}
     </li>
