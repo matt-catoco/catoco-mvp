@@ -251,7 +251,7 @@ export function validateDeadlines(
   votingDeadline: string,
 ): string | null {
   if (optionsDeadline && votingDeadline && optionsDeadline > votingDeadline) {
-    return "Options deadline must be on or before the voting deadline";
+    return "Submission deadline must be on or before the voting deadline";
   }
   return null;
 }

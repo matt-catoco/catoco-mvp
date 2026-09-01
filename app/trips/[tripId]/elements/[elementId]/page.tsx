@@ -202,7 +202,7 @@ export default async function ElementDetailPage({
 
         {(element.options_deadline || element.voting_deadline) && (
           <p className="mt-2 text-xs text-zinc-500">
-            {element.options_deadline && `Options by ${element.options_deadline.slice(0, 10)}`}
+            {element.options_deadline && `Submissions by ${element.options_deadline.slice(0, 10)}`}
             {element.options_deadline && element.voting_deadline && " · "}
             {element.voting_deadline && `Vote by ${element.voting_deadline.slice(0, 10)}`}
           </p>

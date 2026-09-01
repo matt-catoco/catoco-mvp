@@ -107,7 +107,7 @@ export function EditElementForm({
       ) : (
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1">
-            <span className={labelClass}>Options deadline</span>
+            <span className={labelClass}>Submission deadline</span>
             <input
               type="date"
               className={field}

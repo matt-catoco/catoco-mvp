@@ -213,7 +213,7 @@ export function AddElementForm({
       ) : (
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1">
-            <span className={labelClass}>Options deadline (optional)</span>
+            <span className={labelClass}>Submission deadline (optional)</span>
             <input
               type="date"
               className={field}
