@@ -128,13 +128,16 @@ export function describeElementStatus(row: {
 
 // ---- option (candidate) value shapes — one per element type ---------------
 
-// Persisted shape is deliberately just start/end — `duration_nights` is a
-// UI-only entry convenience (element-value-fields.tsx's DatesFields lets you
-// type a length and it derives end_date), never stored: keeping both would
-// be redundant data that could drift out of sync with each other.
+// Two independent shapes, not a start+derived-end combo: either real
+// anchored dates (start_date, optional end_date), or a bare `nights` count
+// with no start_date at all — "we need 5 nights, haven't picked when yet."
+// Suggesting a start date in the nights case would be misleading (nobody
+// proposed one), so the two never coexist — element-value-fields.tsx's
+// DatesFields clears one set of fields when you switch modes.
 export type DatesValue = {
-  start_date: string;
+  start_date?: string;
   end_date?: string;
+  nights?: number;
   flexibility_days?: 0 | 1 | 2 | 3;
 };
 export type DestinationValue = { name: string };
@@ -177,7 +180,7 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
       return {
         start_date: "",
         end_date: "",
-        duration_nights: "",
+        nights: "",
         flexibility_days: "",
       };
     case "destination":
@@ -214,16 +217,16 @@ export function validateOptionValue(
 
   switch (type) {
     case "dates": {
+      if (str("flexibility_days") && !["0", "1", "2", "3"].includes(str("flexibility_days")))
+        return "Flexibility must be 0–3 days";
+      if (str("nights")) {
+        const n = num("nights");
+        if (!Number.isInteger(n) || n <= 0) return "Nights must be a whole number above 0";
+        return null;
+      }
       if (!str("start_date")) return "Pick a start date";
       if (str("end_date") && str("end_date") < str("start_date"))
         return "End date is before the start date";
-      if (str("duration_nights")) {
-        const n = num("duration_nights");
-        if (!Number.isInteger(n) || n <= 0)
-          return "Nights must be a whole number above 0";
-      }
-      if (str("flexibility_days") && !["0", "1", "2", "3"].includes(str("flexibility_days")))
-        return "Flexibility must be 0–3 days";
       return null;
     }
     case "destination":
@@ -266,11 +269,15 @@ export function normalizeOptionValue(
   const str = (k: string) => String(value[k] ?? "").trim();
   switch (type) {
     case "dates": {
-      // duration_nights is UI-only (element-value-fields.tsx's "length" entry
-      // mode already derives end_date from it) — never persisted, so
-      // start/end can't drift out of sync with a separately-stored count.
-      const out: DatesValue = { start_date: str("start_date") };
-      if (str("end_date")) out.end_date = str("end_date");
+      // Nights and start/end never coexist — Nights mode means no start date
+      // was suggested at all, not "start date, unspecified length."
+      const out: DatesValue = {};
+      if (str("nights")) {
+        out.nights = Number(value.nights);
+      } else {
+        out.start_date = str("start_date");
+        if (str("end_date")) out.end_date = str("end_date");
+      }
       if (str("flexibility_days"))
         out.flexibility_days = Number(value.flexibility_days) as 0 | 1 | 2 | 3;
       return out;
@@ -301,8 +308,13 @@ export function summarizeOptionValue(
   switch (type) {
     case "dates": {
       const flex = str("flexibility_days");
-      let base = str("start_date") || "?";
-      if (str("end_date")) base += ` → ${str("end_date")}`;
+      let base: string;
+      if (str("nights")) {
+        base = `${str("nights")} nights`;
+      } else {
+        base = str("start_date") || "?";
+        if (str("end_date")) base += ` → ${str("end_date")}`;
+      }
       return flex ? `${base} · ±${flex}d` : base;
     }
     case "travel": {

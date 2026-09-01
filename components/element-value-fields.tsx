@@ -40,27 +40,6 @@ function ModeToggle<T extends string>({
   );
 }
 
-// Pure calendar-date arithmetic in UTC — deliberately NOT `new Date(str)` +
-// local setDate/getDate, which shifts by a day in any timezone ahead of UTC
-// (e.g. Europe, Asia, Australia): local midnight there is still "yesterday"
-// in UTC, so toISOString() rounds down. Date.UTC() sidesteps local time
-// entirely and correctly normalizes day-of-month overflow across months/years.
-function addNights(startDateStr: string, nights: number): string {
-  const [y, m, d] = startDateStr.split("-").map(Number);
-  if (!y || !m || !d) return "";
-  return new Date(Date.UTC(y, m - 1, d + nights)).toISOString().slice(0, 10);
-}
-
-function nightsBetween(startStr: string, endStr: string): string {
-  const [sy, sm, sd] = startStr.split("-").map(Number);
-  const [ey, em, ed] = endStr.split("-").map(Number);
-  if (!sy || !sm || !sd || !ey || !em || !ed) return "";
-  const diff = Math.round(
-    (Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86_400_000,
-  );
-  return diff > 0 ? String(diff) : "";
-}
-
 export function ElementValueFields({
   type,
   value,
@@ -145,63 +124,44 @@ function DatesFields({
 }) {
   const str = (k: string) => String(value[k] ?? "");
   // UI-only: which entry mode is active. Seeded from whatever's already in
-  // the value so re-opening a partially-filled option lands in the right mode.
-  const [mode, setMode] = useState<"exact" | "nights">(
-    str("duration_nights") && !str("end_date") ? "nights" : "exact",
-  );
+  // the value so re-opening a partially-filled option lands in the right
+  // mode. The two modes are independent, not derived from each other —
+  // Nights means "we know the length, not yet when" (no start date at all,
+  // suggesting one would be misleading); Exact dates means real anchored
+  // dates. Switching modes clears the other mode's fields.
+  const [mode, setMode] = useState<"exact" | "nights">(str("nights") ? "nights" : "exact");
 
-  const setStart = (startDate: string) => {
-    if (mode === "nights" && str("duration_nights")) {
-      onChange({
-        ...value,
-        start_date: startDate,
-        end_date: addNights(startDate, Number(value.duration_nights)),
-      });
+  function switchMode(next: "exact" | "nights") {
+    setMode(next);
+    if (next === "nights") {
+      onChange({ ...value, start_date: "", end_date: "" });
     } else {
-      onChange({ ...value, start_date: startDate });
+      onChange({ ...value, nights: "" });
     }
-  };
-
-  const setEnd = (endDate: string) => {
-    onChange({
-      ...value,
-      end_date: endDate,
-      duration_nights: nightsBetween(str("start_date"), endDate),
-    });
-  };
-
-  const setDuration = (nights: string) => {
-    const n = Number(nights);
-    const start = str("start_date");
-    onChange({
-      ...value,
-      duration_nights: nights,
-      end_date: start && Number.isInteger(n) && n > 0 ? addNights(start, n) : "",
-    });
-  };
+  }
 
   return (
     <div className="flex flex-col gap-3">
       <ModeToggle
         value={mode}
-        onChange={setMode}
+        onChange={switchMode}
         options={[
           { value: "exact", label: "Exact dates" },
           { value: "nights", label: "Nights" },
         ]}
       />
 
-      <div className="flex gap-3">
-        <label className="flex flex-1 flex-col gap-1">
-          <span className={label}>Start date</span>
-          <input
-            type="date"
-            className={field}
-            value={str("start_date")}
-            onChange={(e) => setStart(e.target.value)}
-          />
-        </label>
-        {mode === "exact" ? (
+      {mode === "exact" ? (
+        <div className="flex gap-3">
+          <label className="flex flex-1 flex-col gap-1">
+            <span className={label}>Start date</span>
+            <input
+              type="date"
+              className={field}
+              value={str("start_date")}
+              onChange={(e) => onChange({ ...value, start_date: e.target.value })}
+            />
+          </label>
           <label className="flex flex-1 flex-col gap-1">
             <span className={label}>End date</span>
             <input
@@ -209,27 +169,23 @@ function DatesFields({
               className={field}
               value={str("end_date")}
               min={str("start_date") || undefined}
-              onChange={(e) => setEnd(e.target.value)}
+              onChange={(e) => onChange({ ...value, end_date: e.target.value })}
             />
           </label>
-        ) : (
-          <label className="flex flex-1 flex-col gap-1">
-            <span className={label}>Nights</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              className={field}
-              placeholder="7"
-              value={str("duration_nights")}
-              onChange={(e) => setDuration(e.target.value)}
-            />
-          </label>
-        )}
-      </div>
-
-      {mode === "nights" && str("end_date") && (
-        <p className="text-xs text-zinc-500">Ends {str("end_date")}</p>
+        </div>
+      ) : (
+        <label className="flex flex-col gap-1">
+          <span className={label}>Nights</span>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            className={`${field} max-w-[120px]`}
+            placeholder="7"
+            value={str("nights")}
+            onChange={(e) => onChange({ ...value, nights: e.target.value })}
+          />
+        </label>
       )}
 
       <label className="flex flex-col gap-1">
