@@ -222,6 +222,48 @@ export async function submitOption(
   return {};
 }
 
+export type UpdateOptionResult = { error?: string };
+
+/**
+ * Fixes a mistake in an already-submitted candidate (e.g. the wrong price) —
+ * the proposer, organizer, or co-organizer, only while the element is still
+ * open. Authority + the open-state check are enforced in update_option(),
+ * not here.
+ */
+export async function updateOption(
+  optionId: string,
+  tripId: string,
+  elementId: string,
+  type: ElementType,
+  rawValue: Record<string, unknown>,
+): Promise<UpdateOptionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in to edit this." };
+
+  const validationError = validateOptionValue(type, rawValue);
+  if (validationError) return { error: validationError };
+
+  const value = normalizeOptionValue(type, rawValue) as Record<string, unknown>;
+
+  if (MICRO_TYPES_WITH_LINK.includes(type) && typeof value.booking_link === "string") {
+    const preview = await fetchLinkPreview(value.booking_link);
+    Object.assign(value, preview);
+  }
+
+  const { error } = await supabase.rpc("update_option", {
+    p_option_id: optionId,
+    p_value: value,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
 export type CastVotesResult = { error: string } | { error?: undefined };
 
 /**

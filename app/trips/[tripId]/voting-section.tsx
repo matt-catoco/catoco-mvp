@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ElementValueFields } from "@/components/element-value-fields";
 import { summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
-import { castVotes } from "./actions";
+import { castVotes, updateOption } from "./actions";
 
 type OptionWithScore = {
   id: string;
   value: Record<string, unknown>;
   score: number;
+  proposedBy: string | null;
 };
 
 /**
@@ -16,17 +18,23 @@ type OptionWithScore = {
  * voting_deadline — this just replaces the ranking via castVotes on Save.
  */
 export function VotingSection({
+  tripId,
   elementId,
   elementType,
   options,
   myRanking,
   votingDeadline,
+  currentUserId,
+  canManage,
 }: {
+  tripId: string;
   elementId: string;
   elementType: ElementType;
   options: OptionWithScore[];
   myRanking: string[];
   votingDeadline: string | null;
+  currentUserId: string;
+  canManage: boolean;
 }) {
   const [ranking, setRanking] = useState<string[]>(myRanking);
   const [dirty, setDirty] = useState(false);
@@ -73,26 +81,19 @@ export function VotingSection({
           // sorted by score, this just labels the position instead of
           // showing raw points (which don't mean anything on their own).
           const groupRank = index + 1;
+          const canEdit = canManage || opt.proposedBy === currentUserId;
           return (
-            <li key={opt.id}>
-              <button
-                type="button"
-                onClick={() => toggle(opt.id)}
-                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
-                  myRank
-                    ? "border-transparent bg-foreground text-background"
-                    : "border-black/[.1] hover:bg-black/[.03] dark:border-white/[.14] dark:hover:bg-white/[.05]"
-                }`}
-              >
-                <span className="flex-1">
-                  {myRank && <span className="mr-2 font-semibold">#{myRank}</span>}
-                  {summarizeOptionValue(elementType, opt.value)}
-                </span>
-                <span className={myRank ? "opacity-80" : "text-zinc-500"}>
-                  #{groupRank} overall
-                </span>
-              </button>
-            </li>
+            <OptionRow
+              key={opt.id}
+              tripId={tripId}
+              elementId={elementId}
+              elementType={elementType}
+              option={opt}
+              myRank={myRank}
+              groupRank={groupRank}
+              canEdit={canEdit}
+              onToggle={() => toggle(opt.id)}
+            />
           );
         })}
       </ul>
@@ -110,5 +111,100 @@ export function VotingSection({
         </button>
       )}
     </div>
+  );
+}
+
+function OptionRow({
+  tripId,
+  elementId,
+  elementType,
+  option,
+  myRank,
+  groupRank,
+  canEdit,
+  onToggle,
+}: {
+  tripId: string;
+  elementId: string;
+  elementType: ElementType;
+  option: OptionWithScore;
+  myRank: number | null;
+  groupRank: number;
+  canEdit: boolean;
+  onToggle: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, unknown>>(option.value);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  if (editing) {
+    return (
+      <li className="rounded-lg border border-black/[.1] p-3 dark:border-white/[.14]">
+        <ElementValueFields type={elementType} value={draft} onChange={setDraft} />
+        {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setError(null);
+              startTransition(async () => {
+                const res = await updateOption(option.id, tripId, elementId, elementType, draft);
+                if (res.error) {
+                  setError(res.error);
+                  return;
+                }
+                setEditing(false);
+              });
+            }}
+            className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            {pending ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setDraft(option.value);
+              setError(null);
+              setEditing(false);
+            }}
+            className="text-xs text-zinc-500 underline hover:text-red-500 disabled:opacity-40"
+          >
+            Cancel
+          </button>
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex flex-1 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+          myRank
+            ? "border-transparent bg-foreground text-background"
+            : "border-black/[.1] hover:bg-black/[.03] dark:border-white/[.14] dark:hover:bg-white/[.05]"
+        }`}
+      >
+        <span className="flex-1">
+          {myRank && <span className="mr-2 font-semibold">#{myRank}</span>}
+          {summarizeOptionValue(elementType, option.value)}
+        </span>
+        <span className={myRank ? "opacity-80" : "text-zinc-500"}>#{groupRank} overall</span>
+      </button>
+      {canEdit && (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="shrink-0 text-xs text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
+        >
+          Edit
+        </button>
+      )}
+    </li>
   );
 }

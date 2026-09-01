@@ -158,11 +158,13 @@ export type TravelValue = LinkPreview & {
   note?: string;
   booking_link?: string;
   price?: number;
+  currency?: string;
 };
 export type PlaceValue = LinkPreview & {
   name: string;
   booking_link?: string;
   price?: number;
+  currency?: string;
 };
 
 export const PRICE_BEARING_TYPES: ElementType[] = [
@@ -171,6 +173,8 @@ export const PRICE_BEARING_TYPES: ElementType[] = [
   "experience",
   "dining",
 ];
+
+export const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
 
 export type OptionValue = DatesValue | DestinationValue | TravelValue | PlaceValue;
 
@@ -186,9 +190,9 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
     case "destination":
       return { name: "" };
     case "travel":
-      return { mode: "", note: "", booking_link: "", price: "" };
+      return { mode: "", note: "", booking_link: "", price: "", currency: "USD" };
     default:
-      return { name: "", booking_link: "", price: "" };
+      return { name: "", booking_link: "", price: "", currency: "USD" };
   }
 }
 
@@ -288,13 +292,19 @@ export function normalizeOptionValue(
       const out: TravelValue = { mode: str("mode") };
       if (str("note")) out.note = str("note");
       if (str("booking_link")) out.booking_link = str("booking_link");
-      if (str("price")) out.price = Number(value.price);
+      if (str("price")) {
+        out.price = Number(value.price);
+        out.currency = str("currency") || "USD";
+      }
       return out;
     }
     default: {
       const out: PlaceValue = { name: str("name") };
       if (str("booking_link")) out.booking_link = str("booking_link");
-      if (str("price")) out.price = Number(value.price);
+      if (str("price")) {
+        out.price = Number(value.price);
+        out.currency = str("currency") || "USD";
+      }
       return out;
     }
   }
@@ -320,11 +330,11 @@ export function summarizeOptionValue(
     case "travel": {
       const base =
         [str("mode"), str("note"), str("booking_link")].filter(Boolean).join(" — ") || "?";
-      return str("price") ? `${base} · ${str("price")}` : base;
+      return str("price") ? `${base} · ${str("currency") || "USD"} ${str("price")}` : base;
     }
     default: {
       const base = [str("name"), str("booking_link")].filter(Boolean).join(" — ") || "?";
-      return str("price") ? `${base} · ${str("price")}` : base;
+      return str("price") ? `${base} · ${str("currency") || "USD"} ${str("price")}` : base;
     }
   }
 }

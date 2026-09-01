@@ -222,15 +222,19 @@ export default async function ElementDetailPage({
         <div className="mt-3 flex flex-col gap-2">
           {(options ?? []).length > 0 ? (
             <VotingSection
+              tripId={tripId}
               elementId={element.id}
               elementType={element.type}
               options={(options ?? []).map((o) => ({
                 id: o.id,
                 value: o.value,
                 score: scoresByOption.get(o.id) ?? 0,
+                proposedBy: o.proposed_by,
               }))}
               myRanking={myRanking}
               votingDeadline={element.voting_deadline}
+              currentUserId={user.id}
+              canManage={Boolean(canManage)}
             />
           ) : (
             <p className="text-xs text-zinc-500">No options yet.</p>
