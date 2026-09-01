@@ -114,38 +114,44 @@ export default function Home() {
           </div>
           <div className={styles.tileStage}>
             <div className={styles.tileStageLabel}>
-              Accommodations — still deciding
+              Chelsea&apos;s 40th — trip overview
             </div>
             <div className={styles.tileGrid}>
-              <div className={`${styles.tile} ${styles.open}`}>
-                <span className={styles.sym}>Hs</span>
-                <span className={styles.lbl}>Hostel</span>
-                <span className={styles.num}>04</span>
+              <div className={`${styles.tile} ${styles.locked}`}>
+                <span className={styles.num}>01</span>
+                <span className={styles.sym}>Dt</span>
+                <span className={styles.type}>Dates</span>
+                <span className={styles.value}>Sep 12–19</span>
               </div>
               <div className={`${styles.tile} ${styles.candidate}`}>
-                <span className={styles.sym}>Vl</span>
-                <span className={styles.lbl}>Villa</span>
-                <span className={styles.num}>14</span>
-              </div>
-              <div className={`${styles.tile} ${styles.open}`}>
-                <span className={styles.sym}>Ap</span>
-                <span className={styles.lbl}>Apartment</span>
-                <span className={styles.num}>21</span>
-              </div>
-              <div className={`${styles.tile} ${styles.open}`}>
-                <span className={styles.sym}>Cb</span>
-                <span className={styles.lbl}>Cabin</span>
-                <span className={styles.num}>08</span>
-              </div>
-              <div className={`${styles.tile} ${styles.locked}`}>
-                <span className={styles.sym}>Vl</span>
-                <span className={styles.lbl}>Villa</span>
-                <span className={styles.num}>14</span>
-              </div>
-              <div className={`${styles.tile} ${styles.open}`}>
-                <span className={styles.sym}>Tn</span>
-                <span className={styles.lbl}>Tent</span>
                 <span className={styles.num}>02</span>
+                <span className={styles.sym}>Ds</span>
+                <span className={styles.type}>Destination</span>
+                <span className={styles.value}>Sevilla, ES</span>
+              </div>
+              <div className={`${styles.tile} ${styles.candidate}`}>
+                <span className={styles.num}>03</span>
+                <span className={styles.sym}>Ac</span>
+                <span className={styles.type}>Accommodations</span>
+                <span className={styles.value}>Villa</span>
+              </div>
+              <div className={`${styles.tile} ${styles.open}`}>
+                <span className={styles.num}>04</span>
+                <span className={styles.sym}>Dn</span>
+                <span className={styles.type}>Dining</span>
+                <span className={styles.value}>Dinner</span>
+              </div>
+              <div className={`${styles.tile} ${styles.open}`}>
+                <span className={styles.num}>05</span>
+                <span className={styles.sym}>Ex</span>
+                <span className={styles.type}>Experiences</span>
+                <span className={styles.value}>Flamenco show</span>
+              </div>
+              <div className={`${styles.tile} ${styles.open}`}>
+                <span className={styles.num}>06</span>
+                <span className={styles.sym}>Tr</span>
+                <span className={styles.type}>Travel</span>
+                <span className={styles.value}>Flights</span>
               </div>
             </div>
             <div className={styles.convergenceNote}>
@@ -159,7 +165,7 @@ export default function Home() {
               </span>
               <span className={styles.keyItem}>
                 <span className={`${styles.swatch} ${styles.s}`} />
-                funded, ready to go
+                ready to go
               </span>
             </div>
           </div>

@@ -262,13 +262,19 @@
   color: var(--paper);
 }
 .tile .sym {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
 }
-.tile .lbl {
-  font-size: 10px;
+.tile .type {
+  font-family: var(--font-body);
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  opacity: 0.75;
+}
+.tile .value {
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 600;
 }
 .tile .num {
   font-size: 10px;
@@ -309,21 +315,6 @@
 }
 .swatch.s {
   background: var(--ink);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .tile.candidate {
-    animation: pulse 2.4s ease-in-out infinite;
-  }
-}
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
 }
 
 /* ---------- SECTION SCAFFOLDING ---------- */
