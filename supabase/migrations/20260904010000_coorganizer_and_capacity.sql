@@ -312,8 +312,11 @@ grant execute on function public.set_participant_role(uuid, uuid, text) to authe
 grant execute on function public.set_participant_capacity(uuid, integer, integer) to authenticated;
 
 -- ---- get_trip_roster: include role, so the Participants page can show/
--- manage it ------------------------------------------------------------
-create or replace function public.get_trip_roster(p_trip_id uuid)
+-- manage it. Postgres can't CREATE OR REPLACE a set-returning function when
+-- the output columns change (3 -> 5 here) — has to be dropped first. -------
+drop function if exists public.get_trip_roster(uuid);
+
+create function public.get_trip_roster(p_trip_id uuid)
 returns table(user_id uuid, display_name text, is_organizer boolean, role text, joined_at timestamptz)
 language sql
 stable
