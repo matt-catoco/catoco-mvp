@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ELEMENT_METADATA_FIELDS, type ElementType } from "@/lib/trip-elements";
 import { OptionSummary } from "@/components/option-summary";
+import { StatusBadge } from "@/components/status-badge";
 import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
@@ -116,9 +117,7 @@ export default async function ElementDetailPage({
           <span className="text-sm font-medium text-black dark:text-zinc-50">
             {element.label}
           </span>
-          <span className="rounded-full border border-black/[.12] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-white/[.16]">
-            Settled
-          </span>
+          <StatusBadge state="locked" label="Confirmed" />
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
         <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -176,9 +175,7 @@ export default async function ElementDetailPage({
           <span className="text-sm font-medium text-black dark:text-zinc-50">
             {element.label}
           </span>
-          <span className="rounded-full border border-black/[.12] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-white/[.16]">
-            Collecting ideas
-          </span>
+          <StatusBadge state="open" label="Collecting ideas" />
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
         {canEdit && (

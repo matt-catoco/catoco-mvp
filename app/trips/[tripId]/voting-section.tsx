@@ -74,7 +74,7 @@ export function VotingSection({
             : "Top choice locks in automatically once a voting deadline is set — no confirmation needed."}
       </p>
 
-      <ul className="flex flex-col gap-1.5">
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {sorted.map((opt, index) => {
           const rankIndex = ranking.indexOf(opt.id);
           const myRank = rankIndex >= 0 ? rankIndex + 1 : null;
@@ -147,7 +147,7 @@ function OptionRow({
 
   if (confirmingLock) {
     return (
-      <li className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
+      <li className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs sm:col-span-2">
         <p className="text-amber-800 dark:text-amber-300">
           Lock in &ldquo;{summarizeOptionValue(elementType, option.value)}&rdquo; now? This ends
           voting immediately — no confirmation from anyone else needed.
@@ -190,7 +190,7 @@ function OptionRow({
 
   if (editing) {
     return (
-      <li className="rounded-lg border border-black/[.1] p-3 dark:border-white/[.14]">
+      <li className="rounded-lg border border-black/[.1] p-3 dark:border-white/[.14] sm:col-span-2">
         <ElementValueFields type={elementType} value={draft} onChange={setDraft} />
         {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
         <div className="mt-2 flex items-center gap-2">
@@ -230,41 +230,51 @@ function OptionRow({
   }
 
   return (
-    <li className="flex items-center gap-1.5">
+    <li
+      className={`overflow-hidden rounded-lg border text-xs transition-colors ${
+        myRank
+          ? "border-transparent bg-foreground text-background"
+          : "border-black/[.1] dark:border-white/[.14]"
+      }`}
+    >
       <button
         type="button"
         onClick={onToggle}
-        className={`flex flex-1 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
-          myRank
-            ? "border-transparent bg-foreground text-background"
-            : "border-black/[.1] hover:bg-black/[.03] dark:border-white/[.14] dark:hover:bg-white/[.05]"
+        className={`block w-full p-2.5 text-left ${
+          myRank ? "" : "hover:bg-black/[.03] dark:hover:bg-white/[.05]"
         }`}
       >
-        <span className="flex min-w-0 flex-1 items-center gap-2">
-          {myRank && <span className="shrink-0 font-semibold">#{myRank}</span>}
-          <OptionSummary type={elementType} value={option.value} />
-        </span>
-        <span className={`shrink-0 ${myRank ? "opacity-80" : "text-zinc-500"}`}>
-          #{groupRank} overall
-        </span>
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          {myRank ? <span className="font-semibold">#{myRank}</span> : <span />}
+          <span className={myRank ? "opacity-80" : "text-zinc-500"}>#{groupRank} overall</span>
+        </div>
+        <OptionSummary type={elementType} value={option.value} />
       </button>
-      {canEdit && (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="shrink-0 text-xs text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
+      {(canEdit || canLock) && (
+        <div
+          className={`flex items-center gap-3 border-t px-2.5 py-1.5 ${
+            myRank ? "border-background/20" : "border-black/[.08] dark:border-white/[.1]"
+          }`}
         >
-          Edit
-        </button>
-      )}
-      {canLock && (
-        <button
-          type="button"
-          onClick={() => setConfirmingLock(true)}
-          className="shrink-0 text-xs text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
-        >
-          Lock this in
-        </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className={`underline ${myRank ? "opacity-80 hover:opacity-100" : "text-zinc-500 hover:text-black dark:hover:text-zinc-50"}`}
+            >
+              Edit
+            </button>
+          )}
+          {canLock && (
+            <button
+              type="button"
+              onClick={() => setConfirmingLock(true)}
+              className={`underline ${myRank ? "opacity-80 hover:opacity-100" : "text-zinc-500 hover:text-black dark:hover:text-zinc-50"}`}
+            >
+              Lock this in
+            </button>
+          )}
+        </div>
       )}
     </li>
   );

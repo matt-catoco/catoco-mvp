@@ -93,7 +93,7 @@ export function emptyMetadataFor(type: ElementType): Record<string, string> {
 // ---- Trip Home tile status --------------------------------------------
 // One place implementing the status vocabulary for a single element
 // instance: Collecting ideas (open — including a zero-candidates case,
-// worded "No ideas yet" rather than a 0) / Settled (locked). There's no
+// worded "No ideas yet" rather than a 0) / Confirmed (locked). There's no
 // "not started" bucket anymore — an element only exists once someone's
 // actually created it; nothing to show for types nobody's added yet.
 
@@ -112,7 +112,7 @@ export function describeElementStatus(row: {
   if (row.state === "locked") {
     return {
       state: "locked",
-      statusLabel: "Settled",
+      statusLabel: "Confirmed",
       detail: row.lockedValue ? summarizeOptionValue(row.type, row.lockedValue) : "?",
     };
   }

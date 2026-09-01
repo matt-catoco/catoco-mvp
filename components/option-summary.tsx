@@ -8,11 +8,13 @@ function priceLine(value: Record<string, unknown>): string | null {
 }
 
 /**
- * Renders a candidate for comparison — thumbnail + title + description +
- * price when the booking link's Open Graph tags came back with anything
- * (lib/link-preview.ts, best-effort), falling back to the plain text
- * summary otherwise. Used everywhere a submitted option is shown to more
- * than its own proposer: the voting list and the settled/locked value.
+ * Renders a candidate for comparison — a real card (thumbnail on top, title/
+ * description/price below) when the booking link's Open Graph tags came
+ * back with anything (lib/link-preview.ts, best-effort), falling back to
+ * the plain text summary otherwise. Used everywhere a submitted option is
+ * shown to more than its own proposer: the voting grid and the settled/
+ * locked value. Sized for a grid cell, not an inline row — callers own the
+ * grid/list layout around it.
  */
 export function OptionSummary({
   type,
@@ -28,27 +30,29 @@ export function OptionSummary({
   const fallback = summarizeOptionValue(type, value);
 
   if (!PRICE_BEARING_TYPES.includes(type) || (!title && !thumbnail)) {
-    return <>{fallback}</>;
+    return <span className="block">{fallback}</span>;
   }
 
   return (
-    <span className="flex min-w-0 items-center gap-3">
+    <span className="flex w-full flex-col gap-2">
       {thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element -- arbitrary external host, next/image would need every domain allowlisted
         <img
           src={thumbnail}
           alt=""
-          className="h-12 w-12 shrink-0 rounded-md bg-black/[.06] object-cover dark:bg-white/[.08]"
+          className="h-32 w-full rounded-md bg-black/[.06] object-cover dark:bg-white/[.08]"
         />
       ) : (
-        <span className="h-12 w-12 shrink-0 rounded-md bg-black/[.06] dark:bg-white/[.08]" />
+        <span className="flex h-32 w-full items-center justify-center rounded-md bg-black/[.06] text-[10px] uppercase tracking-wide text-zinc-400 dark:bg-white/[.08]">
+          No image
+        </span>
       )}
-      <span className="min-w-0 flex-1">
+      <span className="block min-w-0">
         <span className="block truncate font-medium">{title || fallback}</span>
         {description && (
-          <span className="block truncate text-[11px] opacity-70">{description}</span>
+          <span className="mt-0.5 block line-clamp-2 text-[11px] opacity-70">{description}</span>
         )}
-        {price && <span className="block text-[11px] opacity-70">{price}</span>}
+        {price && <span className="mt-0.5 block text-[11px] opacity-70">{price}</span>}
       </span>
     </span>
   );
