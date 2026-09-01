@@ -75,6 +75,93 @@ export async function createElement(input: {
   return { elementId: data as string };
 }
 
+export type UpdateElementResult = { error?: string };
+
+/**
+ * Fixes a mistake on an already-created element — label, metadata,
+ * deadlines, and (if locked) the locked value itself. Authority (creator,
+ * organizer, or co-organizer) is enforced inside update_element(), not here.
+ */
+export async function updateElement(input: {
+  tripId: string;
+  elementId: string;
+  type: ElementType;
+  label: string;
+  metadata: Record<string, string>;
+  state: "locked" | "open";
+  optionsDeadline?: string | null;
+  votingDeadline?: string | null;
+  lockedValue?: Record<string, unknown>;
+}): Promise<UpdateElementResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in to edit this element." };
+
+  if (!input.label.trim()) return { error: "Give it a label." };
+
+  let lockedValue: unknown = null;
+  if (input.state === "locked" && input.lockedValue) {
+    const err = validateOptionValue(input.type, input.lockedValue);
+    if (err) return { error: err };
+    lockedValue = normalizeOptionValue(input.type, input.lockedValue);
+  }
+
+  const { error } = await supabase.rpc("update_element", {
+    p_element_id: input.elementId,
+    p_label: input.label,
+    p_metadata: input.metadata,
+    p_options_deadline: input.optionsDeadline || null,
+    p_voting_deadline: input.votingDeadline || null,
+    p_locked_value: lockedValue,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${input.tripId}`);
+  revalidatePath(`/trips/${input.tripId}/elements/${input.elementId}`);
+  return {};
+}
+
+export type SetParticipantRoleResult = { error?: string };
+
+/** Organizer or co-organizer assigns a roster member's role. */
+export async function setParticipantRole(
+  tripId: string,
+  userId: string,
+  role: "participant" | "co_organizer",
+): Promise<SetParticipantRoleResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_participant_role", {
+    p_trip_id: tripId,
+    p_user_id: userId,
+    p_role: role,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/trips/${tripId}/participants`);
+  return {};
+}
+
+export type SetParticipantCapacityResult = { error?: string };
+
+/** Organizer or co-organizer sets the (informational, non-blocking) min/max. */
+export async function setParticipantCapacity(
+  tripId: string,
+  min: number | null,
+  max: number | null,
+): Promise<SetParticipantCapacityResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_participant_capacity", {
+    p_trip_id: tripId,
+    p_min: min,
+    p_max: max,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/trips/${tripId}/participants`);
+  return {};
+}
+
 export type SubmitOptionResult = { error: string } | { error?: undefined };
 
 const MICRO_TYPES_WITH_LINK: ElementType[] = [

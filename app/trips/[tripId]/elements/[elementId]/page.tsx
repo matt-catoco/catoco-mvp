@@ -10,6 +10,7 @@ import {
 import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
+import { EditElementForm } from "../../edit-element-form";
 
 type ElementRow = {
   id: string;
@@ -22,6 +23,7 @@ type ElementRow = {
   tie_notified: boolean;
   empty_notified: boolean;
   locked_option_id: string | null;
+  created_by: string | null;
 };
 
 type OptionRow = {
@@ -86,7 +88,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, created_by",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -96,6 +98,9 @@ export default async function ElementDetailPage({
   // RLS (is_element_member) already hides elements outside the viewer's
   // scope — a null here means either it doesn't exist or they're not in it.
   if (!element) redirect(`/trips/${tripId}`);
+
+  const { data: canManage } = await supabase.rpc("is_trip_organizer", { p_trip_id: tripId });
+  const canEdit = Boolean(canManage) || element.created_by === user.id;
 
   let body: ReactNode;
 
@@ -122,6 +127,21 @@ export default async function ElementDetailPage({
         <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
           {option ? summarizeOptionValue(element.type, option.value) : "?"}
         </p>
+        {canEdit && (
+          <div className="mt-3">
+            <EditElementForm
+              tripId={tripId}
+              elementId={element.id}
+              type={element.type}
+              state="locked"
+              initialLabel={element.label}
+              initialMetadata={element.metadata ?? {}}
+              initialOptionsDeadline={null}
+              initialVotingDeadline={null}
+              initialLockedValue={option?.value ?? {}}
+            />
+          </div>
+        )}
       </div>
     );
   } else {
@@ -164,6 +184,21 @@ export default async function ElementDetailPage({
           </span>
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
+        {canEdit && (
+          <div className="mt-2">
+            <EditElementForm
+              tripId={tripId}
+              elementId={element.id}
+              type={element.type}
+              state="open"
+              initialLabel={element.label}
+              initialMetadata={element.metadata ?? {}}
+              initialOptionsDeadline={element.options_deadline}
+              initialVotingDeadline={element.voting_deadline}
+              initialLockedValue={null}
+            />
+          </div>
+        )}
 
         {(element.options_deadline || element.voting_deadline) && (
           <p className="mt-2 text-xs text-zinc-500">

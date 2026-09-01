@@ -32,7 +32,10 @@ export default async function AddElementPage({
 
   if (!trip) redirect(`/trips/${tripId}`);
 
-  const { data: rosterData } = await supabase.rpc("get_trip_roster", { p_trip_id: tripId });
+  const [{ data: rosterData }, { data: canManage }] = await Promise.all([
+    supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
+    supabase.rpc("is_trip_organizer", { p_trip_id: tripId }),
+  ]);
   const roster = ((rosterData ?? []) as RosterRow[]).map((r) => ({
     userId: r.user_id,
     displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
@@ -50,7 +53,7 @@ export default async function AddElementPage({
         <AddElementForm
           tripId={tripId}
           currentUserId={user.id}
-          isOrganizer={trip.organizer_id === user.id}
+          isOrganizer={Boolean(canManage)}
           roster={roster}
         />
       </div>

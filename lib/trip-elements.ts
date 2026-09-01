@@ -128,9 +128,12 @@ export function describeElementStatus(row: {
 
 // ---- option (candidate) value shapes — one per element type ---------------
 
+// Persisted shape is deliberately just start/end — `duration_nights` is a
+// UI-only entry convenience (element-value-fields.tsx's DatesFields lets you
+// type a length and it derives end_date), never stored: keeping both would
+// be redundant data that could drift out of sync with each other.
 export type DatesValue = {
   start_date: string;
-  duration_nights?: number;
   end_date?: string;
   flexibility_days?: 0 | 1 | 2 | 3;
 };
@@ -263,9 +266,11 @@ export function normalizeOptionValue(
   const str = (k: string) => String(value[k] ?? "").trim();
   switch (type) {
     case "dates": {
+      // duration_nights is UI-only (element-value-fields.tsx's "length" entry
+      // mode already derives end_date from it) — never persisted, so
+      // start/end can't drift out of sync with a separately-stored count.
       const out: DatesValue = { start_date: str("start_date") };
       if (str("end_date")) out.end_date = str("end_date");
-      if (str("duration_nights")) out.duration_nights = Number(value.duration_nights);
       if (str("flexibility_days"))
         out.flexibility_days = Number(value.flexibility_days) as 0 | 1 | 2 | 3;
       return out;
@@ -298,7 +303,6 @@ export function summarizeOptionValue(
       const flex = str("flexibility_days");
       let base = str("start_date") || "?";
       if (str("end_date")) base += ` → ${str("end_date")}`;
-      else if (str("duration_nights")) base += ` (${str("duration_nights")} nights)`;
       return flex ? `${base} · ±${flex}d` : base;
     }
     case "travel": {
