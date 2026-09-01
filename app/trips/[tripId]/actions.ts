@@ -151,6 +151,27 @@ export async function updateElement(input: {
   return {};
 }
 
+export type DeleteElementResult = { error?: string };
+
+/**
+ * Removes an element entirely — not a mistake to fix (that's
+ * updateElement), a "this shouldn't exist" (wrong type, duplicate, etc).
+ * Same authority as editing (organizer, co-organizer, or the element's own
+ * creator), no state restriction. Cascades to its options/votes/scope via
+ * existing FKs — nothing extra to clean up here.
+ */
+export async function deleteElement(
+  tripId: string,
+  elementId: string,
+): Promise<DeleteElementResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_element", { p_element_id: elementId });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  return {};
+}
+
 export type SetParticipantRoleResult = { error?: string };
 
 /** Organizer or co-organizer assigns a roster member's role. */

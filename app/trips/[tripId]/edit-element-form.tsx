@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { ElementMetadataFields } from "@/components/element-metadata-fields";
 import type { ElementType } from "@/lib/trip-elements";
-import { updateElement } from "./actions";
+import { deleteElement, updateElement } from "./actions";
 
 const field =
   "h-10 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]";
@@ -54,6 +54,9 @@ export function EditElementForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletePending, startDeleteTransition] = useTransition();
 
   if (!open) {
     return (
@@ -146,6 +149,57 @@ export function EditElementForm({
         >
           Cancel
         </button>
+      </div>
+
+      <div className="mt-1 border-t border-black/[.08] pt-3 dark:border-white/[.1]">
+        {confirmingDelete ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs">
+            <p className="text-red-700 dark:text-red-400">
+              Delete &ldquo;{label}&rdquo; entirely? This removes it and everything under it —
+              submissions, votes, all of it. There&apos;s no undo.
+            </p>
+            {deleteError && <p className="mt-1.5 text-red-600 dark:text-red-400">{deleteError}</p>}
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                disabled={deletePending}
+                onClick={() => {
+                  setDeleteError(null);
+                  startDeleteTransition(async () => {
+                    const res = await deleteElement(tripId, elementId);
+                    if (res.error) {
+                      setDeleteError(res.error);
+                      return;
+                    }
+                    router.push(`/trips/${tripId}`);
+                  });
+                }}
+                className="rounded-lg bg-red-600 px-3 py-1.5 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {deletePending ? "Deleting…" : "Delete permanently"}
+              </button>
+              <button
+                type="button"
+                disabled={deletePending}
+                onClick={() => {
+                  setDeleteError(null);
+                  setConfirmingDelete(false);
+                }}
+                className="text-zinc-500 underline hover:text-black dark:hover:text-zinc-50 disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="text-xs text-red-600 underline hover:text-red-700 dark:text-red-400"
+          >
+            Delete this element
+          </button>
+        )}
       </div>
     </div>
   );
