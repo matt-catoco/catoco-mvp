@@ -66,9 +66,13 @@ export function VotingSection({
       </p>
 
       <ul className="flex flex-col gap-1.5">
-        {sorted.map((opt) => {
+        {sorted.map((opt, index) => {
           const rankIndex = ranking.indexOf(opt.id);
           const myRank = rankIndex >= 0 ? rankIndex + 1 : null;
+          // Current standing across everyone's votes — the list is already
+          // sorted by score, this just labels the position instead of
+          // showing raw points (which don't mean anything on their own).
+          const groupRank = index + 1;
           return (
             <li key={opt.id}>
               <button
@@ -84,7 +88,9 @@ export function VotingSection({
                   {myRank && <span className="mr-2 font-semibold">#{myRank}</span>}
                   {summarizeOptionValue(elementType, opt.value)}
                 </span>
-                <span className={myRank ? "opacity-80" : "text-zinc-500"}>{opt.score} pts</span>
+                <span className={myRank ? "opacity-80" : "text-zinc-500"}>
+                  {groupRank === 1 ? "Leading" : `#${groupRank} overall`}
+                </span>
               </button>
             </li>
           );
