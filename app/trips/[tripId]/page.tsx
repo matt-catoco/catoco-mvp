@@ -15,6 +15,7 @@ type ElementRow = {
   label: string;
   state: "locked" | "open";
   locked_option_id: string | null;
+  funded_at: string | null;
   created_at: string;
 };
 
@@ -79,7 +80,7 @@ export default async function TripLandingPage({
 
   const { data: elements } = await supabase
     .from("trip_elements")
-    .select("id, type, label, state, locked_option_id, created_at")
+    .select("id, type, label, state, locked_option_id, funded_at, created_at")
     .eq("trip_id", tripId)
     .order("created_at", { ascending: true })
     .returns<ElementRow[]>();
@@ -115,6 +116,7 @@ export default async function TripLandingPage({
     const info = describeElementStatus({
       type: row.type,
       state: row.state,
+      fundedAt: row.funded_at,
       optionCount: optionCountByElement.get(row.id) ?? 0,
       lockedValue,
     });
@@ -124,6 +126,7 @@ export default async function TripLandingPage({
       label: row.label,
       num: String(idx + 1).padStart(2, "0"),
       state: info.state,
+      funded: info.funded,
       statusLabel: info.statusLabel,
       detail: info.detail,
       href: `/trips/${tripId}/elements/${row.id}`,

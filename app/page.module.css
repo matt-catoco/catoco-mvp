@@ -277,13 +277,21 @@
 
 .convergenceNote {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  row-gap: 8px;
+  column-gap: 18px;
   margin-top: 20px;
   padding-top: 18px;
   border-top: 1px solid var(--line);
   font-size: 13px;
   color: var(--muted);
+}
+.keyItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
 }
 .swatch {
   width: 10px;
@@ -293,6 +301,10 @@
 }
 .swatch.d {
   border: 1.5px dashed var(--muted);
+}
+.swatch.c {
+  border: 1.5px dashed var(--teal-deep);
+  background: var(--teal-wash);
 }
 .swatch.s {
   background: var(--ink);

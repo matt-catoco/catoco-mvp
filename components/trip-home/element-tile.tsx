@@ -6,6 +6,12 @@ export type ElementTileProps = {
   label: string;
   num: string;
   state: "locked" | "open";
+  /** Only meaningful when state === "locked" — a locked-but-not-yet-funded
+   * element renders as "Confirmed" (dashed teal), a funded one as the
+   * strongest, solid-fill state. Mirrors the homepage hero mockup's 3-item
+   * key: open/still voting -> confirmed/locked in by the group -> funded/
+   * ready to go. No real funding mechanism exists behind this yet. */
+  funded?: boolean;
   statusLabel: string;
   detail?: string;
   href?: string;
@@ -25,28 +31,37 @@ export type ElementTileProps = {
  * and the homepage's demo showcase (app/page.tsx), per the 2026-08-31 decision
  * to build this once rather than maintain two hand-built copies of the same
  * dashed-vs-solid device (design-handoff/cataco-brand-toolkit.md: dashed
- * outline = open/still deciding, solid fill = locked in by the group).
+ * outline = open/still deciding, solid fill = locked in by the group) — now
+ * a 3-way progression: dashed neutral (open) -> dashed teal (confirmed) ->
+ * solid (funded).
  */
 export function ElementTile({
   symbol,
   label,
   num,
   state,
+  funded = false,
   statusLabel,
   detail,
   href,
   onDark = false,
 }: ElementTileProps) {
-  const lockedClasses = onDark
+  const fundedClasses = onDark
     ? "bg-[#FAFAF7] text-[#0D2020] border-brand-teal"
     : "bg-background text-foreground border-brand-teal";
+  const confirmedClasses = onDark
+    ? "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep"
+    : "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep";
   const openClasses = onDark
-    ? "border-white/35 text-white/85"
-    : "border-brand-line text-foreground";
+    ? "border-dashed border-white/35 text-white/85"
+    : "border-dashed border-brand-line text-foreground";
+
+  const variantClasses =
+    state === "locked" ? (funded ? fundedClasses : confirmedClasses) : openClasses;
 
   const tileClasses = [
     "flex min-h-[128px] flex-col justify-between rounded-2xl border-2 p-5 text-left transition-colors",
-    state === "locked" ? lockedClasses : `border-dashed ${openClasses}`,
+    variantClasses,
     href ? "hover:border-brand-teal-deep cursor-pointer" : "",
   ]
     .filter(Boolean)

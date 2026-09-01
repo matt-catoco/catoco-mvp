@@ -172,6 +172,32 @@ export async function deleteElement(
   return {};
 }
 
+export type MarkElementFundedResult = { error?: string };
+
+/**
+ * Marks a confirmed (locked) element as funded — the milestone beyond
+ * Confirmed from the homepage's 3-state key. No real payment mechanism
+ * behind this yet; it's a manually-settable flag. Same authority as
+ * editing (organizer, co-organizer, or the element's own creator), enforced
+ * in mark_element_funded() along with the locked-only restriction.
+ */
+export async function markElementFunded(
+  tripId: string,
+  elementId: string,
+  funded: boolean,
+): Promise<MarkElementFundedResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_element_funded", {
+    p_element_id: elementId,
+    p_funded: funded,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
 export type SetParticipantRoleResult = { error?: string };
 
 /** Organizer or co-organizer assigns a roster member's role. */

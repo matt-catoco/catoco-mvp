@@ -10,13 +10,17 @@ import { ELEMENT_LABELS, ELEMENT_SYMBOLS, type ElementType } from "@/lib/trip-el
 // ElementTile the real Trip Home dashboard uses (components/trip-home/),
 // fed demo values instead of a real trip's. Labels/symbols pull from
 // lib/trip-elements so this can't drift from the real dashboard's vocabulary.
+// All 3 states shown at once, matching the hero mockup's key: Dates is
+// funded (the strongest, solid state), Destination is confirmed/locked in
+// by the group but not yet funded, the rest are still open.
 const DEMO_TILE_BASE: {
   key: ElementType;
   num: string;
   state: "locked" | "open";
+  funded?: boolean;
   statusLabel: string;
 }[] = [
-  { key: "dates", num: "01", state: "locked", statusLabel: "Locked by organizer" },
+  { key: "dates", num: "01", state: "locked", funded: true, statusLabel: "Funded" },
   { key: "destination", num: "02", state: "locked", statusLabel: "Locked by organizer" },
   { key: "travel", num: "03", state: "open", statusLabel: "Open — voting" },
   { key: "accommodation", num: "04", state: "open", statusLabel: "Open — voting" },
@@ -125,7 +129,7 @@ export default function Home() {
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
                 <span className={styles.sym}>Ap</span>
-                <span className={styles.lbl}>Apartment</span>
+                <span className={styles.lbl}>Apart.</span>
                 <span className={styles.num}>21</span>
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
@@ -134,9 +138,9 @@ export default function Home() {
                 <span className={styles.num}>08</span>
               </div>
               <div className={`${styles.tile} ${styles.locked}`}>
-                <span className={styles.sym}>Lf</span>
-                <span className={styles.lbl}>Loft</span>
-                <span className={styles.num}>09</span>
+                <span className={styles.sym}>Vl</span>
+                <span className={styles.lbl}>Villa</span>
+                <span className={styles.num}>14</span>
               </div>
               <div className={`${styles.tile} ${styles.open}`}>
                 <span className={styles.sym}>Tn</span>
@@ -145,10 +149,18 @@ export default function Home() {
               </div>
             </div>
             <div className={styles.convergenceNote}>
-              <span className={`${styles.swatch} ${styles.d}`} /> open, still
-              voting &nbsp;·&nbsp;
-              <span className={`${styles.swatch} ${styles.s}`} /> locked in by
-              the group
+              <span className={styles.keyItem}>
+                <span className={`${styles.swatch} ${styles.d}`} />
+                open, still voting
+              </span>
+              <span className={styles.keyItem}>
+                <span className={`${styles.swatch} ${styles.c}`} />
+                locked in by the group
+              </span>
+              <span className={styles.keyItem}>
+                <span className={`${styles.swatch} ${styles.s}`} />
+                funded, ready to go
+              </span>
             </div>
           </div>
         </div>

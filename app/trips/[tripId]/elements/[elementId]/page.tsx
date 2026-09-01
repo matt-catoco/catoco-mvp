@@ -9,6 +9,7 @@ import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
 import { EditElementForm } from "../../edit-element-form";
+import { FundedToggle } from "../../funded-toggle";
 
 type ElementRow = {
   id: string;
@@ -21,6 +22,7 @@ type ElementRow = {
   tie_notified: boolean;
   empty_notified: boolean;
   locked_option_id: string | null;
+  funded_at: string | null;
   created_by: string | null;
 };
 
@@ -86,7 +88,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, created_by",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, funded_at, created_by",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -117,14 +119,17 @@ export default async function ElementDetailPage({
           <span className="text-sm font-medium text-black dark:text-zinc-50">
             {element.label}
           </span>
-          <StatusBadge state="locked" label="Confirmed" />
+          <StatusBadge
+            state={element.funded_at ? "funded" : "locked"}
+            label={element.funded_at ? "Funded" : "Confirmed"}
+          />
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
         <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
           {option ? <OptionSummary type={element.type} value={option.value} /> : "?"}
         </div>
         {canEdit && (
-          <div className="mt-3">
+          <div className="mt-3 flex items-center gap-3">
             <EditElementForm
               tripId={tripId}
               elementId={element.id}
@@ -135,6 +140,11 @@ export default async function ElementDetailPage({
               initialOptionsDeadline={null}
               initialVotingDeadline={null}
               initialLockedValue={option?.value ?? {}}
+            />
+            <FundedToggle
+              tripId={tripId}
+              elementId={element.id}
+              funded={Boolean(element.funded_at)}
             />
           </div>
         )}
