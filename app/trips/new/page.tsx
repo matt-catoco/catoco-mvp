@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { NewTripWizard } from "./new-trip-wizard";
+import { NewTripForm } from "./new-trip-form";
 
 export default async function NewTripPage() {
   const supabase = await createClient();
@@ -14,7 +14,7 @@ export default async function NewTripPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <NewTripWizard userId={user.id} />
+      <NewTripForm userId={user.id} />
     </div>
   );
 }

@@ -1,42 +1,27 @@
-// Shared element metadata + value-shape validation for the trip-creation flow.
-// The SQL function public.validate_option_value() mirrors validateOptionValue().
+// Shared element metadata + value-shape validation.
+//
+// Elements are multi-instance and participant-created (flow #3 redesign,
+// 2026-09-01) — there's no more fixed macro/micro slot list, no SQL-side
+// value-shape mirror (lib/trip-elements.ts is now the sole validator), and
+// Budget/Participants are no longer element types (budget folded into the
+// existing optional `price` field on cost-bearing types; Participants is
+// its own roster/invite surface, not an element at all).
 
-export const MACRO_TYPES = [
+export const ELEMENT_TYPES = [
   "dates",
   "destination",
-  "budget",
-  "participants",
-] as const;
-
-export const MICRO_TYPES = [
   "travel",
   "accommodation",
   "experience",
   "dining",
 ] as const;
 
-export type MacroType = (typeof MACRO_TYPES)[number];
-export type MicroType = (typeof MICRO_TYPES)[number];
-export type ElementType = MacroType | MicroType;
-
-export const ALL_TYPES: ElementType[] = [...MACRO_TYPES, ...MICRO_TYPES];
-
-export type ElementCategory = "macro" | "micro";
+export type ElementType = (typeof ELEMENT_TYPES)[number];
 export type ElementState = "locked" | "open";
-export type ElementStatus =
-  | "add"
-  | "vote"
-  | "settled"
-  | "collecting"
-  | "funded"
-  | "refunded"
-  | "booked";
 
 export const ELEMENT_LABELS: Record<ElementType, string> = {
   dates: "Dates",
   destination: "Destination",
-  budget: "Budget",
-  participants: "Participants",
   travel: "Travel",
   accommodation: "Accommodations",
   experience: "Experiences",
@@ -44,152 +29,93 @@ export const ELEMENT_LABELS: Record<ElementType, string> = {
 };
 
 export const ELEMENT_BLURBS: Record<ElementType, string> = {
-  dates: "When the trip happens",
+  dates: "When it happens",
   destination: "Where you're going",
-  budget: "Rough spend per person",
-  participants: "How many people",
   travel: "How you get there",
   accommodation: "Where you stay",
   experience: "Things to do",
   dining: "Where to eat",
 };
 
-export function categoryOf(type: ElementType): ElementCategory {
-  return (MACRO_TYPES as readonly string[]).includes(type) ? "macro" : "micro";
-}
-
 // Two-letter marks for the tile grid (Trip Home dashboard + homepage demo).
-// Single source so the two callers can't drift apart — previously these were
-// hardcoded ad hoc in app/page.tsx only.
 export const ELEMENT_SYMBOLS: Record<ElementType, string> = {
   dates: "Dt",
   destination: "Ds",
-  budget: "Bg",
-  participants: "Pt",
   travel: "Tr",
   accommodation: "Ac",
   experience: "Ex",
   dining: "Dn",
 };
 
-export const STATUS_LABELS: Record<ElementStatus, string> = {
-  add: "Collecting ideas",
-  vote: "Voting",
-  settled: "Settled",
-  collecting: "Collecting funds",
-  funded: "Funded",
-  refunded: "Refunded",
-  booked: "Booked",
+// ---- element-level metadata (flexible, per type, TS-only) -----------------
+// Freeform jsonb on trip_elements.metadata — no SQL-side shape enforcement,
+// so adding/changing a type's fields never needs a migration. This is
+// distinct from the option-level `value` shapes below, which describe a
+// *candidate* (a specific restaurant/flight/etc. people vote on) — metadata
+// describes the element instance itself (e.g. which dining occasion this
+// is), set once at creation.
+
+export type MetadataFieldKind = "text" | "date" | "select";
+export type MetadataFieldDef = {
+  key: string;
+  label: string;
+  kind: MetadataFieldKind;
+  options?: { value: string; label: string }[];
 };
 
-// Mirrors the CASE logic in public.create_trip(), which is the actual source
-// of truth for what gets stamped into trip_elements.status on creation
-// (locked -> 'settled', open with options -> 'add', open+empty -> null).
-// The review screen shows its own friendlier labels — see
-// app/trips/new/steps/review-step.tsx — rather than this raw stamping, so
-// there's no JS-side "initial status" helper here to keep in sync with it.
-
-// ---- Participants: a status lifecycle separate from the base element
-// status above. Driven by the locked {min,max} range, the invites_sent flag
-// (set explicitly by the organizer sharing the link), and the opted-in count
-// from element_participants — never stored, always computed from those.
-
-export type ParticipantsStatus =
-  | "range_set"
-  | "invites_sent"
-  | "minimum_met"
-  | "group_full";
-
-export const PARTICIPANTS_STATUS_LABELS: Record<ParticipantsStatus, string> = {
-  range_set: "Range set",
-  invites_sent: "Invites sent",
-  minimum_met: "Minimum met",
-  group_full: "Group full",
+export const ELEMENT_METADATA_FIELDS: Record<ElementType, MetadataFieldDef[]> = {
+  dates: [],
+  destination: [],
+  travel: [{ key: "date", label: "Date", kind: "date" }],
+  accommodation: [{ key: "date", label: "Date", kind: "date" }],
+  experience: [{ key: "date", label: "Date", kind: "date" }],
+  dining: [
+    { key: "date", label: "Date", kind: "date" },
+    {
+      key: "meal_type",
+      label: "Meal",
+      kind: "select",
+      options: [
+        { value: "breakfast", label: "Breakfast" },
+        { value: "lunch", label: "Lunch" },
+        { value: "dinner", label: "Dinner" },
+      ],
+    },
+  ],
 };
 
-export function computeParticipantsStatus({
-  min,
-  max,
-  invitesSent,
-  optedInCount,
-}: {
-  min: number | null;
-  max: number | null;
-  invitesSent: boolean;
-  optedInCount: number;
-}): ParticipantsStatus {
-  if (max != null && optedInCount >= max) return "group_full";
-  if (min != null && optedInCount >= min) return "minimum_met";
-  if (invitesSent) return "invites_sent";
-  return "range_set";
+export function emptyMetadataFor(type: ElementType): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of ELEMENT_METADATA_FIELDS[type]) out[f.key] = "";
+  return out;
 }
 
-// ---- Trip Home tile status ---------------------------------------------
-// One place implementing the tile-grid status vocabulary (dashboard +
-// drill-in both read from this), so it isn't reimplemented per caller.
-// "Not started" = no trip_elements row exists for this type (skipped at
-// creation). A real, reachable state the ticket's 3-bucket vocabulary didn't
-// name — an open element with zero candidate options yet — stays inside the
-// "Collecting ideas" bucket rather than adding a new label; only the detail
-// count text changes ("No ideas yet" vs "N ideas").
+// ---- Trip Home tile status --------------------------------------------
+// One place implementing the status vocabulary for a single element
+// instance: Collecting ideas (open — including a zero-candidates case,
+// worded "No ideas yet" rather than a 0) / Settled (locked). There's no
+// "not started" bucket anymore — an element only exists once someone's
+// actually created it; nothing to show for types nobody's added yet.
 
 export type ElementTileInfo = {
-  state: "locked" | "open";
+  state: ElementState;
   statusLabel: string;
   detail: string;
 };
 
-export function describeElementTile(args: {
+export function describeElementStatus(row: {
+  state: ElementState;
+  optionCount: number;
+  lockedValue: Record<string, unknown> | null;
   type: ElementType;
-  row: null | {
-    state: "locked" | "open";
-    optionCount: number;
-    lockedValue: Record<string, unknown> | null;
-    participants?: {
-      min: number | null;
-      max: number | null;
-      invitesSent: boolean;
-      optedInCount: number;
-    };
-  };
 }): ElementTileInfo {
-  const { type, row } = args;
-
-  if (!row) {
-    return { state: "open", statusLabel: "Not started", detail: "" };
-  }
-
-  // Guarded on state === "locked" too, matching the pre-dashboard trip page's
-  // condition — the wizard lets Participants be left "open" like any other
-  // element (voted on via candidate ranges), in which case it isn't the
-  // fixed range this branch describes and falls through to the generic open
-  // handling below instead (summarizeOptionValue already has a "participants"
-  // case, so that path renders it correctly).
-  if (type === "participants" && row.state === "locked" && row.participants) {
-    const status = computeParticipantsStatus({
-      min: row.participants.min,
-      max: row.participants.max,
-      invitesSent: row.participants.invitesSent,
-      optedInCount: row.participants.optedInCount,
-    });
-    return {
-      state: "locked",
-      statusLabel: PARTICIPANTS_STATUS_LABELS[status],
-      detail: summarizeOptionValue("participants", {
-        min: row.participants.min,
-        max: row.participants.max,
-      }),
-    };
-  }
-
   if (row.state === "locked") {
     return {
       state: "locked",
       statusLabel: "Settled",
-      detail: row.lockedValue ? summarizeOptionValue(type, row.lockedValue) : "?",
+      detail: row.lockedValue ? summarizeOptionValue(row.type, row.lockedValue) : "?",
     };
   }
-
   return {
     state: "open",
     statusLabel: "Collecting ideas",
@@ -200,7 +126,7 @@ export function describeElementTile(args: {
   };
 }
 
-// ---- value shapes (one per element type) -----------------------------------
+// ---- option (candidate) value shapes — one per element type ---------------
 
 export type DatesValue = {
   start_date: string;
@@ -209,23 +135,13 @@ export type DatesValue = {
   flexibility_days?: 0 | 1 | 2 | 3;
 };
 export type DestinationValue = { name: string };
-export type BudgetValue =
-  | { mode: "single"; amount: number; currency: string }
-  | { mode: "range"; min: number; max: number; currency: string };
-// `invited` is reserved for a future per-person-tracked invite mechanism —
-// the one built now is a generic copy/paste link, so this stays empty.
-export type ParticipantsValue = {
-  min: number | null;
-  max: number | null;
-  invited?: string[];
-};
-// `price` (optional) is in the trip's budget currency, manually entered by
-// whoever submits the option; used later by financing. `booking_link` is an
-// MVP stand-in for real inventory — paste an Airbnb/hotel/flight/restaurant
-// link. `title`/`description`/`thumbnail_url` are auto-extracted server-side
-// from booking_link's Open Graph tags (see lib/link-preview.ts) — never set
-// by the user directly. Later booking_link is replaced/supplemented by
-// source + external_ref once API/MCP integration lands; not built now.
+// `price` (optional) is in whatever currency the group is using, manually
+// entered by whoever submits the option — the only surviving piece of the
+// old Budget element, now per-candidate instead of trip-wide.
+// `booking_link` is an MVP stand-in for real inventory — paste an
+// Airbnb/hotel/flight/restaurant link. `title`/`description`/`thumbnail_url`
+// are auto-extracted server-side from booking_link's Open Graph tags (see
+// lib/link-preview.ts) — never set by the user directly.
 export type LinkPreview = {
   title?: string;
   description?: string;
@@ -250,15 +166,7 @@ export const PRICE_BEARING_TYPES: ElementType[] = [
   "dining",
 ];
 
-export type OptionValue =
-  | DatesValue
-  | DestinationValue
-  | BudgetValue
-  | ParticipantsValue
-  | TravelValue
-  | PlaceValue;
-
-export const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
+export type OptionValue = DatesValue | DestinationValue | TravelValue | PlaceValue;
 
 export function emptyValueFor(type: ElementType): Record<string, unknown> {
   switch (type) {
@@ -271,10 +179,6 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
       };
     case "destination":
       return { name: "" };
-    case "budget":
-      return { mode: "single", amount: "", min: "", max: "", currency: "USD" };
-    case "participants":
-      return { min: "", max: "" };
     case "travel":
       return { mode: "", note: "", booking_link: "", price: "" };
     default:
@@ -294,6 +198,7 @@ function priceError(value: Record<string, unknown>): string | null {
 /**
  * Returns an error message if `value` is not a valid option for `type`,
  * otherwise null. Accepts loosely-typed draft objects (strings from inputs).
+ * TS-only now — there's no SQL-side mirror of this (2026-09-01 redesign).
  */
 export function validateOptionValue(
   type: ElementType,
@@ -320,30 +225,6 @@ export function validateOptionValue(
     }
     case "destination":
       return str("name") ? null : "Enter a destination";
-    case "budget": {
-      if (!str("currency")) return "Pick a currency";
-      if (str("mode") === "range") {
-        if (!str("min") || !Number.isFinite(num("min")) || num("min") <= 0)
-          return "Enter a minimum above 0";
-        if (!str("max") || !Number.isFinite(num("max")) || num("max") <= 0)
-          return "Enter a maximum above 0";
-        if (num("max") < num("min")) return "Maximum is below the minimum";
-        return null;
-      }
-      if (!str("amount") || !Number.isFinite(num("amount")) || num("amount") <= 0)
-        return "Enter an amount above 0";
-      return null;
-    }
-    case "participants": {
-      if (!str("min") && !str("max")) return "Set a minimum or maximum group size";
-      if (str("min") && (!Number.isInteger(num("min")) || num("min") <= 0))
-        return "Minimum must be a whole number above 0";
-      if (str("max") && (!Number.isInteger(num("max")) || num("max") <= 0))
-        return "Maximum must be a whole number above 0";
-      if (str("min") && str("max") && num("max") < num("min"))
-        return "Maximum is below the minimum";
-      return null;
-    }
     case "travel":
       if (!str("mode")) return "Enter a travel mode";
       return priceError(value);
@@ -360,7 +241,7 @@ export function validateOptionValue(
 /**
  * Cross-field check for open elements: options_deadline must be on or before
  * voting_deadline (can't accept new candidates after voting has closed).
- * Mirrors the check in public.create_trip(). Empty strings (unset) are fine.
+ * Mirrors the check in create_element(). Empty strings (unset) are fine.
  */
 export function validateDeadlines(
   optionsDeadline: string,
@@ -391,20 +272,6 @@ export function normalizeOptionValue(
     }
     case "destination":
       return { name: str("name") };
-    case "budget": {
-      const currency = str("currency") || "USD";
-      if (str("mode") === "range") {
-        return { mode: "range", min: Number(value.min), max: Number(value.max), currency };
-      }
-      return { mode: "single", amount: Number(value.amount), currency };
-    }
-    case "participants": {
-      const out: ParticipantsValue = {
-        min: str("min") ? Number(value.min) : null,
-        max: str("max") ? Number(value.max) : null,
-      };
-      return out;
-    }
     case "travel": {
       const out: TravelValue = { mode: str("mode") };
       if (str("note")) out.note = str("note");
@@ -433,19 +300,6 @@ export function summarizeOptionValue(
       if (str("end_date")) base += ` → ${str("end_date")}`;
       else if (str("duration_nights")) base += ` (${str("duration_nights")} nights)`;
       return flex ? `${base} · ±${flex}d` : base;
-    }
-    case "budget": {
-      const cur = str("currency") || "USD";
-      if (str("mode") === "range") return `${cur} ${str("min") || "?"}–${str("max") || "?"}`;
-      return `${cur} ${str("amount") || "?"}`;
-    }
-    case "participants": {
-      const min = str("min");
-      const max = str("max");
-      if (min && max) return `${min}–${max} people`;
-      if (min) return `${min}+ people`;
-      if (max) return `Up to ${max} people`;
-      return "?";
     }
     case "travel": {
       const base =

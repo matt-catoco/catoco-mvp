@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CURRENCIES, type ElementType } from "@/lib/trip-elements";
+import type { ElementType } from "@/lib/trip-elements";
 
 // Shared between the trip-creation wizard (app/trips/new) and the post-
 // creation option-submission form (app/trips/[tripId]) — same input shapes,
@@ -85,109 +85,6 @@ export function ElementValueFields({
           value={str("name")}
           onChange={(e) => set("name", e.target.value)}
         />
-      );
-
-    case "budget": {
-      const mode = str("mode") === "range" ? "range" : "single";
-      return (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <ModeToggle
-              value={mode}
-              onChange={(v) => set("mode", v)}
-              options={[
-                { value: "single", label: "Single amount" },
-                { value: "range", label: "Range" },
-              ]}
-            />
-            <label className="flex flex-col gap-1">
-              <span className={label}>Currency</span>
-              <select
-                className={`${field} w-24`}
-                value={str("currency") || "USD"}
-                onChange={(e) => set("currency", e.target.value)}
-              >
-                {CURRENCIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {mode === "range" ? (
-            <div className="flex gap-3">
-              <label className="flex flex-1 flex-col gap-1">
-                <span className={label}>Min per person</span>
-                <input
-                  type="number"
-                  min={1}
-                  step="any"
-                  className={field}
-                  placeholder="800"
-                  value={str("min")}
-                  onChange={(e) => set("min", e.target.value)}
-                />
-              </label>
-              <label className="flex flex-1 flex-col gap-1">
-                <span className={label}>Max per person</span>
-                <input
-                  type="number"
-                  min={1}
-                  step="any"
-                  className={field}
-                  placeholder="1500"
-                  value={str("max")}
-                  onChange={(e) => set("max", e.target.value)}
-                />
-              </label>
-            </div>
-          ) : (
-            <label className="flex flex-col gap-1">
-              <span className={label}>Amount per person</span>
-              <input
-                type="number"
-                min={1}
-                step="any"
-                className={field}
-                placeholder="1200"
-                value={str("amount")}
-                onChange={(e) => set("amount", e.target.value)}
-              />
-            </label>
-          )}
-        </div>
-      );
-    }
-
-    case "participants":
-      return (
-        <div className="flex gap-3">
-          <label className="flex flex-1 flex-col gap-1">
-            <span className={label}>Minimum</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              className={field}
-              placeholder="e.g. 4"
-              value={str("min")}
-              onChange={(e) => set("min", e.target.value)}
-            />
-          </label>
-          <label className="flex flex-1 flex-col gap-1">
-            <span className={label}>Maximum (optional)</span>
-            <input
-              type="number"
-              min={1}
-              step={1}
-              className={field}
-              placeholder="e.g. 8"
-              value={str("max")}
-              onChange={(e) => set("max", e.target.value)}
-            />
-          </label>
-        </div>
       );
 
     case "travel":

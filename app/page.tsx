@@ -18,12 +18,10 @@ const DEMO_TILE_BASE: {
 }[] = [
   { key: "dates", num: "01", state: "locked", statusLabel: "Locked by organizer" },
   { key: "destination", num: "02", state: "locked", statusLabel: "Locked by organizer" },
-  { key: "budget", num: "03", state: "open", statusLabel: "Open — voting" },
-  { key: "participants", num: "04", state: "open", statusLabel: "Open — invites out" },
-  { key: "travel", num: "05", state: "open", statusLabel: "Open — voting" },
-  { key: "accommodation", num: "06", state: "open", statusLabel: "Open — voting" },
-  { key: "experience", num: "07", state: "open", statusLabel: "Open — voting" },
-  { key: "dining", num: "08", state: "open", statusLabel: "Open — voting" },
+  { key: "travel", num: "03", state: "open", statusLabel: "Open — voting" },
+  { key: "accommodation", num: "04", state: "open", statusLabel: "Open — voting" },
+  { key: "experience", num: "05", state: "open", statusLabel: "Open — voting" },
+  { key: "dining", num: "06", state: "open", statusLabel: "Open — voting" },
 ];
 
 const DEMO_TILES = DEMO_TILE_BASE.map((t) => ({

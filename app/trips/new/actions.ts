@@ -2,24 +2,20 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  categoryOf,
-  normalizeOptionValue,
-  validateOptionValue,
-  type ElementType,
-} from "@/lib/trip-elements";
-import { ALL_TYPES } from "@/lib/trip-elements";
-import type { WizardDraft } from "./types";
 
 export type CreateTripResult = { error: string };
 
 /**
- * Builds the RPC payload from the wizard draft, re-validates server-side, and
- * calls public.create_trip (one transaction). On success it redirects to the new
- * trip; on failure it returns an error string for the review screen.
+ * Trip creation is now a bare shell (2026-09-01 redesign) — just a name and
+ * optional icon. Every element, including Dates/Destination, is added
+ * afterward from Trip Home. A plain insert against the existing
+ * organizer-owns-all RLS policy on `trips` — no RPC needed now that there's
+ * no multi-row element seeding to do transactionally (create_trip() RPC was
+ * retired in the same migration that dropped the fixed element-slot model).
  */
 export async function createTrip(
-  draft: WizardDraft,
+  name: string,
+  icon: string | null,
 ): Promise<CreateTripResult> {
   const supabase = await createClient();
   const {
@@ -27,54 +23,16 @@ export async function createTrip(
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in");
 
-  const name = (draft?.name ?? "").trim();
-  if (!name) return { error: "Give the trip a name." };
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Give the trip a name." };
 
-  const elements: Array<{
-    category: "macro" | "micro";
-    type: ElementType;
-    state: "locked" | "open";
-    options_deadline: string | null;
-    voting_deadline: string | null;
-    options: Array<{ value: unknown }>;
-  }> = [];
-
-  for (const type of ALL_TYPES) {
-    const el = draft.elements?.[type];
-    if (!el || el.choice === "skip") continue;
-
-    const rawOptions = el.options ?? [];
-
-    if (el.choice === "locked") {
-      if (rawOptions.length !== 1) {
-        return { error: `Set a value for ${type}, or skip it.` };
-      }
-    }
-
-    for (const opt of rawOptions) {
-      const err = validateOptionValue(type, opt.value);
-      if (err) return { error: `${type}: ${err}` };
-    }
-
-    elements.push({
-      category: categoryOf(type),
-      type,
-      state: el.choice,
-      options_deadline:
-        el.choice === "open" && el.optionsDeadline ? el.optionsDeadline : null,
-      voting_deadline:
-        el.choice === "open" && el.votingDeadline ? el.votingDeadline : null,
-      options: rawOptions.map((o) => ({
-        value: normalizeOptionValue(type, o.value),
-      })),
-    });
-  }
-
-  const { data, error } = await supabase.rpc("create_trip", {
-    payload: { name, icon: draft.icon ?? null, elements },
-  });
+  const { data, error } = await supabase
+    .from("trips")
+    .insert({ name: trimmed, icon, organizer_id: user.id })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
 
-  redirect(`/trips/${data as string}`);
+  redirect(`/trips/${data.id}`);
 }

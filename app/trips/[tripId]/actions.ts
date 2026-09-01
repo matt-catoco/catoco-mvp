@@ -11,16 +11,68 @@ import { fetchLinkPreview } from "@/lib/link-preview";
 
 /**
  * Marks that the organizer has started inviting people (first "Copy invite
- * link" click). Plain client update, not an RPC — the existing organizer
- * policy on trip_elements already grants this.
+ * link" click). Lives on `trips` now (2026-09-01 redesign) — Participants
+ * isn't an element anymore, just a plain trip-level flag. Plain client
+ * update, not an RPC — the existing organizer policy on `trips` already
+ * grants this.
  */
 export async function markInvitesSent(tripId: string) {
   const supabase = await createClient();
-  await supabase
-    .from("trip_elements")
-    .update({ invites_sent: true })
-    .eq("trip_id", tripId)
-    .eq("type", "participants");
+  await supabase.from("trips").update({ invites_sent: true }).eq("id", tripId);
+}
+
+export type CreateElementResult = { error?: string; elementId?: string };
+
+/**
+ * Creates a new element instance — any trip member, not just the organizer,
+ * scoped to everyone (scopeUserIds: null) or a hand-picked subset. All the
+ * real invariants (who's allowed to lock immediately, that a locked element
+ * has exactly one value, that scope members actually belong to the trip)
+ * are enforced inside create_element() itself, not here — this just shapes
+ * the payload and surfaces whatever the RPC rejects.
+ */
+export async function createElement(input: {
+  tripId: string;
+  type: ElementType;
+  label: string;
+  metadata: Record<string, string>;
+  scopeUserIds: string[] | null;
+  state: "locked" | "open";
+  optionsDeadline?: string | null;
+  votingDeadline?: string | null;
+  lockedValue?: Record<string, unknown>;
+}): Promise<CreateElementResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in to add an element." };
+
+  if (!input.label.trim()) return { error: "Give it a label." };
+
+  let options: { value: unknown }[] = [];
+  if (input.state === "locked") {
+    const err = validateOptionValue(input.type, input.lockedValue);
+    if (err) return { error: err };
+    options = [{ value: normalizeOptionValue(input.type, input.lockedValue!) }];
+  }
+
+  const { data, error } = await supabase.rpc("create_element", {
+    p_trip_id: input.tripId,
+    p_type: input.type,
+    p_label: input.label,
+    p_metadata: input.metadata,
+    p_scope_user_ids: input.scopeUserIds,
+    p_state: input.state,
+    p_options_deadline: input.optionsDeadline || null,
+    p_voting_deadline: input.votingDeadline || null,
+    p_options: options,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${input.tripId}`);
+  return { elementId: data as string };
 }
 
 export type SubmitOptionResult = { error: string } | { error?: undefined };

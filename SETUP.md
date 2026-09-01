@@ -81,10 +81,22 @@ Supabase → SQL Editor → paste each file's contents and run, oldest first:
 4. `20260831000000_option_cost.sql` — `create or replace` of
    `validate_option_value()` to allow an optional numeric `cost` on
    travel / accommodation / experience / dining options. Safe to re-run.
+5. `20260831120000_element_schema_updates.sql` through `20260902000000_flow3_batch2.sql`
+   — the periodic-table model's dates/budget/participants shape updates,
+   collaboration RLS, and voting/auto-lock mechanics. See §9a/§9b (now
+   historical — the element model these describe was replaced, §9d).
+6. `20260903000000_element_model_redesign.sql` — **destructive**: `delete from
+   public.trips` (cascades everything) before reshaping the schema — only
+   safe because no real trip data exists yet (confirmed pre-launch). Retires
+   `create_trip(jsonb)`, `validate_option_value()`, and the fixed
+   Budget/Participants element types; adds `trip_participants`,
+   multi-instance elements, `create_element()`, `is_element_member()`,
+   `get_trip_roster()`. See §9d for the full picture. Run once.
 
 Verify afterwards: `profiles` and `trips` exist, `trips` has the new columns,
-`trip_elements` / `element_options` / `element_participants` / `votes` exist, and
-completing a sign-in creates a matching `profiles` row automatically.
+`trip_elements` / `element_options` / `trip_participants` / `element_participants`
+/ `votes` exist, `trip_elements.type` no longer allows `budget`/`participants`,
+and completing a sign-in creates a matching `profiles` row automatically.
 
 ### Storage bucket (for trip icons)
 
@@ -184,7 +196,7 @@ Other scripts: `npm run build`, `npm start`, `npm run lint`.
 `invited_via_trip_id` is set exactly once, at account creation, by the
 `handle_new_user` trigger reading `raw_user_meta_data`. Re-invites never change it.
 
-## 9a. Trip creation flow (as of flow #2)
+## 9a. Trip creation flow (as of flow #2) — superseded, see §9d
 
 `/trips/new` is a 5-step client wizard (start → name+icon → macro → micro →
 review). Nothing is written until **Create trip**, which calls the `createTrip`
@@ -236,7 +248,7 @@ Batch 2 adds actual voting:
 - No UI yet for an organizer to break a tie or rescue a zero-options element —
   detection + notification only, per the ticket.
 
-## 9c. Trip Home dashboard (as of flow #3, batch 3)
+## 9c. Trip Home dashboard (as of flow #3, batch 3) — superseded, see §9d
 
 `/trips/[tripId]` changed from a flat list of every element inline to a tile
 grid — one tile per element type (all 8 from `ALL_TYPES`, including a "Not
@@ -263,6 +275,55 @@ migration — this is app code only, reusing the schema and RLS from batches
 - The lazy auto-lock trigger (`resolve_due_elements`, §9b) now fires from
   both the dashboard and the drill-in page (`resolve-elements.ts`, shared),
   since either can be the first page visited after a deadline passes.
+
+## 9d. Element model redesign (as of flow #3, 2026-09-01) — current
+
+Overturns §9a/§9c's fixed-8/organizer-only/trip-wide model. Migration:
+`20260903000000_element_model_redesign.sql` (destructive — see §4 item 6).
+
+- **Multi-instance, participant-created elements.** `trip_elements` no longer
+  has a `unique (trip_id, type)` constraint — any trip member can add any
+  number of instances of a type, any time, via `create_element()` (security
+  definer RPC), not just the organizer at creation. `/trips/new` is now a
+  bare one-field form (name + optional icon, `app/trips/new/new-trip-form.tsx`)
+  — the 5-step wizard and `create_trip()` are retired.
+- **Types**: `dates | destination | travel | accommodation | experience |
+  dining` — Budget is gone as its own type (folded into the existing
+  optional `price` field on cost-bearing option values); Participants is
+  gone as an element entirely (see below). `ELEMENT_TYPES` in
+  `lib/trip-elements.ts` replaces the old `MACRO_TYPES`/`MICRO_TYPES` split.
+- **Flexible metadata, TS-only.** `trip_elements.metadata` is freeform
+  `jsonb` — a per-type field list (`ELEMENT_METADATA_FIELDS`, e.g. Dining's
+  date + meal type) drives a generic form (`components/element-metadata-fields.tsx`)
+  and is validated in TypeScript only. The SQL-side `validate_option_value()`
+  mirror and its trigger are dropped entirely — `lib/trip-elements.ts` is now
+  the sole validator for `element_options.value` too.
+- **Scoped elements, personalized Trip Home.** `element_participants` is
+  repurposed: a row now means "in scope for this element" (not the old
+  "opted into the trip via a fake Participants element"). A creator picks
+  "everyone" or a hand-picked subset of the roster when adding an element
+  (`app/trips/[tripId]/add-element-form.tsx`). `is_element_member()`
+  replaces trip-wide `is_trip_member()` for element/option/vote RLS, so
+  `/trips/[tripId]` (rebuilt as a personalized feed, not one tile per fixed
+  type) naturally shows the organizer everything and a regular participant
+  only what they're scoped into — no client-side filtering, it's what the
+  query returns.
+- **Locking permission.** `create_element()` only honors a requested
+  `state = 'locked'` when the caller is the organizer, or the scope is
+  exactly `{caller}` (their own solo item, e.g. self-booked flights) —
+  otherwise it's silently forced to `open` regardless of what was
+  requested, so a client can't bypass the rule.
+- **Participants is its own surface**, not an element: `trip_participants`
+  is the real roster table (`join_trip()` now inserts here, not into a fake
+  element), `trips.invites_sent` replaces the old element-level flag, and
+  `/trips/[tripId]/participants` (roster + the existing `InviteLink`,
+  organizer-only for generating it) replaces the old Participants tile.
+  `get_trip_roster()` (security definer) supplies display names for the
+  roster page and the add-element scope picker, since `profiles` RLS only
+  lets a user read their own row.
+- Everything else from §9b (Borda voting, lazy auto-lock, tie/empty
+  notification) is unchanged in mechanics — just scoped by element
+  membership instead of trip-wide membership.
 
 ## 10. Gotchas hit during setup
 
