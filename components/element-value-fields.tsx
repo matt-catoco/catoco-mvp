@@ -146,12 +146,12 @@ function DatesFields({
   const str = (k: string) => String(value[k] ?? "");
   // UI-only: which entry mode is active. Seeded from whatever's already in
   // the value so re-opening a partially-filled option lands in the right mode.
-  const [mode, setMode] = useState<"exact" | "length">(
-    str("duration_nights") && !str("end_date") ? "length" : "exact",
+  const [mode, setMode] = useState<"exact" | "nights">(
+    str("duration_nights") && !str("end_date") ? "nights" : "exact",
   );
 
   const setStart = (startDate: string) => {
-    if (mode === "length" && str("duration_nights")) {
+    if (mode === "nights" && str("duration_nights")) {
       onChange({
         ...value,
         start_date: startDate,
@@ -187,7 +187,7 @@ function DatesFields({
         onChange={setMode}
         options={[
           { value: "exact", label: "Exact dates" },
-          { value: "length", label: "Start + length" },
+          { value: "nights", label: "Nights" },
         ]}
       />
 
@@ -228,7 +228,7 @@ function DatesFields({
         )}
       </div>
 
-      {mode === "length" && str("end_date") && (
+      {mode === "nights" && str("end_date") && (
         <p className="text-xs text-zinc-500">Ends {str("end_date")}</p>
       )}
 
