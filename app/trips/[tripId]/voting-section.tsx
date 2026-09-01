@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ElementValueFields } from "@/components/element-value-fields";
+import { OptionSummary } from "@/components/option-summary";
 import { summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
 import { castVotes, lockElement, updateOption } from "./actions";
 
@@ -239,11 +240,13 @@ function OptionRow({
             : "border-black/[.1] hover:bg-black/[.03] dark:border-white/[.14] dark:hover:bg-white/[.05]"
         }`}
       >
-        <span className="flex-1">
-          {myRank && <span className="mr-2 font-semibold">#{myRank}</span>}
-          {summarizeOptionValue(elementType, option.value)}
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          {myRank && <span className="shrink-0 font-semibold">#{myRank}</span>}
+          <OptionSummary type={elementType} value={option.value} />
         </span>
-        <span className={myRank ? "opacity-80" : "text-zinc-500"}>#{groupRank} overall</span>
+        <span className={`shrink-0 ${myRank ? "opacity-80" : "text-zinc-500"}`}>
+          #{groupRank} overall
+        </span>
       </button>
       {canEdit && (
         <button

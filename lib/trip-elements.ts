@@ -206,6 +206,24 @@ function priceError(value: Record<string, unknown>): string | null {
 }
 
 /**
+ * Booking link is required on price-bearing types — it's not just a nice-to-
+ * have, it's what drives the auto-scraped thumbnail/title/description that
+ * make candidates comparable at a glance on the voting page instead of just
+ * bare text.
+ */
+function bookingLinkError(value: Record<string, unknown>): string | null {
+  const raw = String(value.booking_link ?? "").trim();
+  if (!raw) return "Add a booking link";
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error();
+  } catch {
+    return "Booking link must be a valid http(s) URL";
+  }
+  return null;
+}
+
+/**
  * Returns an error message if `value` is not a valid option for `type`,
  * otherwise null. Accepts loosely-typed draft objects (strings from inputs).
  * TS-only now — there's no SQL-side mirror of this (2026-09-01 redesign).
@@ -237,12 +255,12 @@ export function validateOptionValue(
       return str("name") ? null : "Enter a destination";
     case "travel":
       if (!str("mode")) return "Enter a travel mode";
-      return priceError(value);
+      return bookingLinkError(value) ?? priceError(value);
     case "accommodation":
     case "experience":
     case "dining":
       if (!str("name")) return "Enter a name";
-      return priceError(value);
+      return bookingLinkError(value) ?? priceError(value);
     default:
       return "Unknown element type";
   }

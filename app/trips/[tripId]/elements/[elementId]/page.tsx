@@ -2,11 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  ELEMENT_METADATA_FIELDS,
-  summarizeOptionValue,
-  type ElementType,
-} from "@/lib/trip-elements";
+import { ELEMENT_METADATA_FIELDS, type ElementType } from "@/lib/trip-elements";
+import { OptionSummary } from "@/components/option-summary";
 import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
@@ -124,9 +121,9 @@ export default async function ElementDetailPage({
           </span>
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
-        <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-          {option ? summarizeOptionValue(element.type, option.value) : "?"}
-        </p>
+        <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+          {option ? <OptionSummary type={element.type} value={option.value} /> : "?"}
+        </div>
         {canEdit && (
           <div className="mt-3">
             <EditElementForm

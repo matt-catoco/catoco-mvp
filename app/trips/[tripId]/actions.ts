@@ -9,6 +9,31 @@ import {
 } from "@/lib/trip-elements";
 import { fetchLinkPreview } from "@/lib/link-preview";
 
+const MICRO_TYPES_WITH_LINK: ElementType[] = [
+  "travel",
+  "accommodation",
+  "experience",
+  "dining",
+];
+
+/**
+ * Scrapes and merges in title/description/thumbnail_url for any value with a
+ * booking_link — every write path that can produce one of these types'
+ * values goes through this (new submissions, edited submissions, and a
+ * locked value set at creation or via edit), so the comparison card on the
+ * voting page never depends on which specific path a value came from.
+ */
+async function applyLinkPreview(
+  type: ElementType,
+  value: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  if (MICRO_TYPES_WITH_LINK.includes(type) && typeof value.booking_link === "string") {
+    const preview = await fetchLinkPreview(value.booking_link);
+    Object.assign(value, preview);
+  }
+  return value;
+}
+
 /**
  * Marks that the organizer has started inviting people (first "Copy invite
  * link" click). Lives on `trips` now (2026-09-01 redesign) — Participants
@@ -54,7 +79,8 @@ export async function createElement(input: {
   if (input.state === "locked") {
     const err = validateOptionValue(input.type, input.lockedValue);
     if (err) return { error: err };
-    options = [{ value: normalizeOptionValue(input.type, input.lockedValue!) }];
+    const value = normalizeOptionValue(input.type, input.lockedValue!) as Record<string, unknown>;
+    options = [{ value: await applyLinkPreview(input.type, value) }];
   }
 
   const { data, error } = await supabase.rpc("create_element", {
@@ -105,7 +131,8 @@ export async function updateElement(input: {
   if (input.state === "locked" && input.lockedValue) {
     const err = validateOptionValue(input.type, input.lockedValue);
     if (err) return { error: err };
-    lockedValue = normalizeOptionValue(input.type, input.lockedValue);
+    const value = normalizeOptionValue(input.type, input.lockedValue) as Record<string, unknown>;
+    lockedValue = await applyLinkPreview(input.type, value);
   }
 
   const { error } = await supabase.rpc("update_element", {
@@ -164,13 +191,6 @@ export async function setParticipantCapacity(
 
 export type SubmitOptionResult = { error: string } | { error?: undefined };
 
-const MICRO_TYPES_WITH_LINK: ElementType[] = [
-  "travel",
-  "accommodation",
-  "experience",
-  "dining",
-];
-
 /**
  * Lets any trip member (organizer or a joined participant) propose a
  * candidate option on an open element — extends the wizard's creation-time
@@ -201,12 +221,10 @@ export async function submitOption(
   const validationError = validateOptionValue(type, rawValue);
   if (validationError) return { error: validationError };
 
-  const value = normalizeOptionValue(type, rawValue) as Record<string, unknown>;
-
-  if (MICRO_TYPES_WITH_LINK.includes(type) && typeof value.booking_link === "string") {
-    const preview = await fetchLinkPreview(value.booking_link);
-    Object.assign(value, preview);
-  }
+  const value = await applyLinkPreview(
+    type,
+    normalizeOptionValue(type, rawValue) as Record<string, unknown>,
+  );
 
   const { error } = await supabase.from("element_options").insert({
     element_id: elementId,
@@ -246,12 +264,10 @@ export async function updateOption(
   const validationError = validateOptionValue(type, rawValue);
   if (validationError) return { error: validationError };
 
-  const value = normalizeOptionValue(type, rawValue) as Record<string, unknown>;
-
-  if (MICRO_TYPES_WITH_LINK.includes(type) && typeof value.booking_link === "string") {
-    const preview = await fetchLinkPreview(value.booking_link);
-    Object.assign(value, preview);
-  }
+  const value = await applyLinkPreview(
+    type,
+    normalizeOptionValue(type, rawValue) as Record<string, unknown>,
+  );
 
   const { error } = await supabase.rpc("update_option", {
     p_option_id: optionId,
