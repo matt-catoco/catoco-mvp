@@ -27,6 +27,7 @@
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
 /*
@@ -159,7 +160,7 @@
 }
 .heroGrid {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
   gap: 56px;
   align-items: center;
 }
@@ -235,7 +236,7 @@
 }
 .tileGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 .tile {
@@ -271,11 +272,13 @@
   font-size: 9px;
   font-weight: 600;
   opacity: 0.75;
+  overflow-wrap: break-word;
 }
 .tile .value {
   font-family: var(--font-body);
   font-size: 9.5px;
   font-weight: 600;
+  overflow-wrap: break-word;
 }
 .tile .num {
   font-size: 10px;
@@ -591,7 +594,7 @@
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 880px) {
   .heroGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .heroH1 {
     font-size: 38px;
@@ -622,6 +625,6 @@
     grid-template-columns: 1fr 1fr;
   }
   .tileGrid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
