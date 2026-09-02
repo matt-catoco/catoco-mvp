@@ -41,9 +41,9 @@ const DEMO_TILES = DEMO_TILE_BASE.map((t) => ({
 // needs to change.
 
 export const metadata: Metadata = {
-  title: "Cataco — Plan it together. Fund it together. Go.",
+  title: "Catoco — Plan it together. Fund it together. Go.",
   description:
-    "Cataco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.",
+    "Catoco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.",
 };
 
 function CheckIcon() {
@@ -76,7 +76,7 @@ export default async function Home() {
         <nav className={`${styles.nav} ${styles.wrap}`}>
           <Link href="/" className={styles.brand}>
             <LogoMark />
-            cataco
+            catoco
           </Link>
           <div className={styles.navLinks}>
             <a href="#how">How it works</a>
@@ -114,7 +114,7 @@ export default async function Home() {
               From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
             </h1>
             <p className={styles.heroSub}>
-              Cataco turns your group chat&apos;s next trip idea into a real,
+              Catoco turns your group chat&apos;s next trip idea into a real,
               funded, booked trip — everyone votes on the details, everyone
               chips in, and no one gets stuck holding the bill.
             </p>
@@ -346,7 +346,7 @@ export default async function Home() {
                 </button>
               </div>
               <div className={styles.tfNote}>
-                Opens the real Cataco Alpha Signup form.
+                Opens the real Catoco Alpha Signup form.
               </div>
             </div>
           </div>
@@ -358,7 +358,7 @@ export default async function Home() {
           <div className={styles.footRow}>
             <Link href="/" className={styles.footBrand}>
               <LogoMark />
-              cataco
+              catoco
             </Link>
             <div className={styles.footLinks}>
               <a href="#how">How it works</a>
@@ -366,7 +366,7 @@ export default async function Home() {
               <a href="mailto:hello@catoco.co">hello@catoco.co</a>
             </div>
           </div>
-          <p className={styles.footCopy}>© 2026 Cataco.</p>
+          <p className={styles.footCopy}>© 2026 Catoco.</p>
         </div>
       </footer>
 

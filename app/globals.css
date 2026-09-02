@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /*
- * Cataco brand baseline, applied platform-wide (design-handoff/
- * cataco-brand-toolkit.md is the source of truth). This covers the
+ * Catoco brand baseline, applied platform-wide (design-handoff/
+ * catoco-brand-toolkit.md is the source of truth). This covers the
  * foundational tokens — colors, type — everywhere; it is not a per-screen
  * redesign. Component-level detail (borders, secondary text, etc. still
  * using stock Tailwind grays) is a later polish pass, not this one.

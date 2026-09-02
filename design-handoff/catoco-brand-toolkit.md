@@ -1,14 +1,14 @@
-# Cataco — Brand Toolkit
+# Catoco — Brand Toolkit
 
-Single source of truth for Cataco's visual identity — colors, type, logo usage, voice, and the design rules behind the homepage — so anyone (or Canva, or a future deck) can build on-brand without re-deriving the decisions each time.
+Single source of truth for Catoco's visual identity — colors, type, logo usage, voice, and the design rules behind the homepage — so anyone (or Canva, or a future deck) can build on-brand without re-deriving the decisions each time.
 
-Canonical reference implementation: the homepage HTML (`cataco-homepage.html`). When in doubt about how a rule looks in practice, that file is the source of truth over this page.
+Canonical reference implementation: the homepage HTML (`catoco-homepage.html`). When in doubt about how a rule looks in practice, that file is the source of truth over this page.
 
 ---
 
 ## Brand direction
 
-Cataco sits at a deliberate midpoint between two references used to calibrate it: **KLM** (institutional trust — restraint, whitespace, one confident color, clarity) as the base for anything money- or commitment-adjacent, and **Mikkeller**-style playfulness (dialed down from full craft-beer irreverence to "warm and a little cheeky") for the parts of the product that are genuinely social and low-stakes. The closer practical calibration point is **Monzo / Wise** — brands that carry real financial trust *and* real personality at the same time, because the personality lives in tone and specific moments, not in undermining clarity where money is involved.
+Catoco sits at a deliberate midpoint between two references used to calibrate it: **KLM** (institutional trust — restraint, whitespace, one confident color, clarity) as the base for anything money- or commitment-adjacent, and **Mikkeller**-style playfulness (dialed down from full craft-beer irreverence to "warm and a little cheeky") for the parts of the product that are genuinely social and low-stakes. The closer practical calibration point is **Monzo / Wise** — brands that carry real financial trust *and* real personality at the same time, because the personality lives in tone and specific moments, not in undermining clarity where money is involved.
 
 **Rule of thumb:** the closer a screen or piece of content is to money changing hands (escrow, payments, the trip-lock moment), the more it should lean KLM-restrained. The closer it is to planning, voting, and social coordination, the more room there is for warmth and personality.
 
@@ -60,7 +60,7 @@ Don't invent a second visual system for the same concept elsewhere (no separate 
 
 **Current mark ("Element Tile"), finalized Aug 2026:** a dashed rounded square (the open trip) holding one solid rotated diamond (the locked choice) — the actual in-product tile pattern, used as the mark itself. Replaces the earlier map-pin logo, which read "location" but not "group" or "convergence."
 
-Files: `cataco-mark.svg` (teal, light contexts) · `cataco-mark-dark.svg` (ink, dark contexts) · `cataco-mark-mono.svg` (single-color, transparent, for arbitrary backgrounds/merch/print) · `cataco-wordmark.svg` (horizontal lockup with wordmark) · plus PNG exports at 512px (app icon) and 32px/16px (favicon).
+Files: `catoco-mark.svg` (teal, light contexts) · `catoco-mark-dark.svg` (ink, dark contexts) · `catoco-mark-mono.svg` (single-color, transparent, for arbitrary backgrounds/merch/print) · `catoco-wordmark.svg` (horizontal lockup with wordmark) · plus PNG exports at 512px (app icon) and 32px/16px (favicon).
 
 - **Why this one, of the five explored:** it's the only concept of the three finalists that stays legible all the way down to a 16–20px favicon — the others (radiating-node and overlapping-circle concepts) blur into noise at that size. A logo has to work as a tiny browser-tab icon as often as it works as a big hero mark.
 - Minimum clear space: leave space equal to the diamond's width on all sides.
@@ -90,7 +90,7 @@ Plain, active, human. No "unlock," no arrow-suffixed links ("Learn more →"), n
 
 > 📊 **Reframe note from the alpha survey** (130 responses, Aug 2026): 87% of group trips in the dataset actually happened — only ~4% fell apart outright. The sharper, more defensible claim isn't "trips die," it's that **45% of people have delayed committing to a group trip out of fear of being financially responsible if others drop out**, and a third of trips that do happen carry real friction along the way. Worth softening "trips die in chats" language before it reaches a real audience — see the alpha discovery script for the full data.
 
-**Deliberately not using:** the chemistry/"catalyst" metaphor language from the original deck (accelerants, activation energy, etc.) — that was written for the product's old name (Catalyst) before the rename to Cataco, so it's retired unless a specific reason comes up to revive it.
+**Deliberately not using:** the chemistry/"catalyst" metaphor language from the original deck (accelerants, activation energy, etc.) — that was written for the product's old name (Catalyst) before the rename to Catoco, so it's retired unless a specific reason comes up to revive it.
 
 ---
 

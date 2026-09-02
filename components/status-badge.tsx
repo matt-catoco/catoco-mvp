@@ -2,7 +2,7 @@
  * Color-coded element status pill — mirrors the homepage hero mockup's
  * 3-item key: neutral (Collecting ideas) -> teal-wash/teal-deep (Confirmed
  * — the toolkit's own "pill/badge fills" color, design-handoff/
- * cataco-brand-toolkit.md) -> solid teal (Funded, the strongest state).
+ * catoco-brand-toolkit.md) -> solid teal (Funded, the strongest state).
  * Deliberately not amber for any of these — the toolkit calls amber "a rare
  * spark," not a status color, and these badges are on every element.
  */

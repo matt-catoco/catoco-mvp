@@ -11,7 +11,7 @@ import "server-only";
  * var this app reads directly).
  */
 
-const FROM = "Cataco <noreply@catoco.co>";
+const FROM = "Catoco <noreply@catoco.co>";
 
 export async function sendEmail({
   to,

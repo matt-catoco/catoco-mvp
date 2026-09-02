@@ -1,5 +1,5 @@
-// Exact markup from design-handoff/cataco-mark.svg (the finalized "Element
-// Tile" mark) — public/brand/cataco-mark.svg is the same file, kept there
+// Exact markup from design-handoff/catoco-mark.svg (the finalized "Element
+// Tile" mark) — public/brand/catoco-mark.svg is the same file, kept there
 // for any future non-inline use (dark/mono variants live alongside it).
 // Shared between the homepage and the site nav — moved here once it needed
 // a second caller, same reasoning as components/element-value-fields.tsx.

@@ -1,5 +1,5 @@
 /*
- * Homepage styles, ported from design-handoff/cataco-homepage.html.
+ * Homepage styles, ported from design-handoff/catoco-homepage.html.
  * Scoped under .page throughout — this file is a CSS Module, but bare
  * type/universal selectors (h1, p, a, img, :focus-visible, ...) are NOT
  * auto-scoped by CSS Modules, only class selectors are. Nesting everything

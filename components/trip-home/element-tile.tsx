@@ -30,7 +30,7 @@ export type ElementTileProps = {
  * One Trip Home tile — shared between the real dashboard (app/trips/[tripId])
  * and the homepage's demo showcase (app/page.tsx), per the 2026-08-31 decision
  * to build this once rather than maintain two hand-built copies of the same
- * dashed-vs-solid device (design-handoff/cataco-brand-toolkit.md: dashed
+ * dashed-vs-solid device (design-handoff/catoco-brand-toolkit.md: dashed
  * outline = open/still deciding, solid fill = locked in by the group) — now
  * a 3-way progression: dashed neutral (open) -> dashed teal (confirmed) ->
  * solid (funded).

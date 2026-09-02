@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
 import "./globals.css";
 
-// Brand type system (design-handoff/cataco-brand-toolkit.md), applied
+// Brand type system (design-handoff/catoco-brand-toolkit.md), applied
 // platform-wide: Bricolage Grotesque for display/headings, Inter for
 // body/UI. Loaded once here so every route inherits it — the homepage
 // previously loaded its own copy locally; now it just uses these.
@@ -17,7 +17,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Cataco",
+  title: "Catoco",
   description: "Plan group trips together — vote on the details, split the cost, go.",
 };
 

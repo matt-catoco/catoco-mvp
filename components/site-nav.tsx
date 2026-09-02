@@ -38,7 +38,7 @@ export async function SiteNav() {
           <span className="h-5 w-5">
             <LogoMark />
           </span>
-          cataco
+          catoco
         </Link>
 
         <div className="flex items-center gap-5">

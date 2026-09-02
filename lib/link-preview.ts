@@ -16,7 +16,7 @@ import "server-only";
 
 const FETCH_TIMEOUT_MS = 5000;
 const MAX_BYTES = 100_000; // OG tags are always in <head>; no need to read further
-const USER_AGENT = "Mozilla/5.0 (compatible; CatacoLinkPreview/1.0; +https://catoco.co)";
+const USER_AGENT = "Mozilla/5.0 (compatible; CatocoLinkPreview/1.0; +https://catoco.co)";
 
 export type LinkPreviewResult = {
   title?: string;
