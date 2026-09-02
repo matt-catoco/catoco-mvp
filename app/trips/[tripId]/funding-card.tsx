@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addFundingContribution,
@@ -55,6 +55,15 @@ export function FundingCard({
   const [contribPending, startContrib] = useTransition();
 
   const [deadline, setDeadline] = useState(funding.deadline?.slice(0, 10) ?? "");
+  // funding is a fresh prop after every router.refresh() (e.g. post-resolve,
+  // which clears funding_deadline server-side), but useState's initializer
+  // only runs on first mount — without this, the date input silently kept
+  // showing the pre-resolve deadline even though the real value had already
+  // cleared (the resolve buttons disappearing correctly proved the data was
+  // right; this input just never re-synced to it).
+  useEffect(() => {
+    setDeadline(funding.deadline?.slice(0, 10) ?? "");
+  }, [funding.deadline]);
   const [deadlinePending, startDeadline] = useTransition();
   const [deadlineError, setDeadlineError] = useState<string | null>(null);
 
