@@ -111,7 +111,7 @@ export default async function Home() {
               Beta opening soon
             </span>
             <h1 className={styles.heroH1}>
-              Plan it together. Fund it together. Go.
+              Plan it together. Fund it together. Go together.
             </h1>
             <p className={styles.heroSub}>From intent to itinerary</p>
             <div className={styles.heroActions}>
