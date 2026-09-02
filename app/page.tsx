@@ -190,11 +190,13 @@ export default async function Home() {
       <section className={`${styles.section} ${styles.problem}`}>
         <div className={styles.wrap}>
           <div className={styles.sectionHead}>
-            <h2>They die in chats and spreadsheets.</h2>
+            <h2>
+              From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
+            </h2>
             <p>
-              It&apos;s not that nobody wants to go. It&apos;s that &ldquo;we
-              should do this&rdquo; has nowhere to turn into &ldquo;it&apos;s
-              booked.&rdquo;
+              Catoco turns your group chat&apos;s next trip idea into a real,
+              funded, booked trip — everyone votes on the details, everyone
+              chips in, and no one gets stuck holding the bill.
             </p>
           </div>
           <div className={styles.problemGrid}>
