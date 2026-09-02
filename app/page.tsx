@@ -111,13 +111,9 @@ export default async function Home() {
               Beta opening soon
             </span>
             <h1 className={styles.heroH1}>
-              From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
+              Plan it together. Fund it together. Go.
             </h1>
-            <p className={styles.heroSub}>
-              Catoco turns your group chat&apos;s next trip idea into a real,
-              funded, booked trip — everyone votes on the details, everyone
-              chips in, and no one gets stuck holding the bill.
-            </p>
+            <p className={styles.heroSub}>From intent to itinerary</p>
             <div className={styles.heroActions}>
               <a
                 href="#signup"
@@ -233,10 +229,7 @@ export default async function Home() {
       <section className={styles.section} id="how">
         <div className={styles.wrap}>
           <div className={styles.sectionHead}>
-            <h2>From intent to itinerary</h2>
-            <p className={styles.tagline}>
-              No chasing. No heroes. No awkwardness.
-            </p>
+            <h2>No chasing. No heroes. No awkwardness.</h2>
           </div>
           <div className={styles.steps}>
             <div className={styles.step}>
