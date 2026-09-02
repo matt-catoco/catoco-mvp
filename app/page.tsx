@@ -196,11 +196,6 @@ export default async function Home() {
               Messaging apps coordinate chaos, with no clear moment of
               agreement.
             </h2>
-            <p>
-              Catoco turns your group chat&apos;s next trip idea into a real,
-              funded, booked trip — everyone votes on the details, everyone
-              chips in, and no one gets stuck holding the bill.
-            </p>
           </div>
           <div className={styles.problemGrid}>
             <div className={styles.problemCard}>
