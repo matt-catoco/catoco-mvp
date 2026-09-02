@@ -4,45 +4,121 @@ import styles from "./page.module.css";
 import { TallyEmbedScript } from "./tally-embed-script";
 import { LogoMark } from "@/components/logo-mark";
 import { ElementGrid } from "@/components/trip-home/element-grid";
-import { ELEMENT_LABELS, ELEMENT_SYMBOLS, type ElementType } from "@/lib/trip-elements";
+import {
+  ELEMENT_LABELS,
+  ELEMENT_SYMBOLS,
+  describeElementStatus,
+  type ElementState,
+  type ElementType,
+  type FundingStatus,
+} from "@/lib/trip-elements";
 import { createClient } from "@/lib/supabase/server";
 
 // Static demo data for the marketing showcase — same shared ElementGrid/
 // ElementTile the real Trip Home dashboard uses (components/trip-home/),
-// fed demo values instead of a real trip's. Labels/symbols pull from
-// lib/trip-elements so this can't drift from the real dashboard's vocabulary.
-// All 3 states shown at once, matching the hero mockup's key: Dates and
-// Destination are confirmed/locked in by the group, Accommodations is
-// funded (the strongest, solid state — the one type here that actually
-// takes payment, per the real funding model), the rest are still open.
-const DEMO_TILE_BASE: {
+// fed synthetic per-element inputs run through the real describeElementStatus()
+// instead of hand-typed label strings, so this section can't drift from the
+// real dashboard's vocabulary and behavior again (2026-09-xx). There are 7
+// possible labels and only 6 tiles — this mix skips "Open — Voting" (looks
+// identical to "Open — Submitting" but for the label text, lowest showcase
+// value of the seven) to fit "Confirmed" in instead. Destination is locked
+// but non-price-bearing like Dates, so it can never really show "Locked by
+// organizer" once run through the real function — it shows "Booked — ready
+// to go" instead, which also avoids two tiles saying the same "Confirmed."
+type DemoElementSpec = {
   key: ElementType;
   num: string;
-  state: "locked" | "open";
-  funded?: boolean;
-  statusLabel: string;
-  detail?: string;
-}[] = [
-  { key: "dates", num: "01", state: "locked", statusLabel: "Confirmed" },
-  { key: "destination", num: "02", state: "locked", statusLabel: "Locked by organizer" },
-  { key: "travel", num: "03", state: "open", statusLabel: "Open — voting" },
+  state: ElementState;
+  lockedVia: "organizer" | "vote" | null;
+  fundingStatus: FundingStatus;
+  optionCount: number;
+  optionsDeadline: string | null;
+  lockedValue: Record<string, unknown> | null;
+  bookedAt: string | null;
+};
+
+const DEMO_ELEMENT_SPECS: DemoElementSpec[] = [
+  {
+    key: "dates",
+    num: "01",
+    state: "locked",
+    lockedVia: "organizer",
+    fundingStatus: null,
+    optionCount: 0,
+    optionsDeadline: null,
+    lockedValue: { start_date: "Sep 12", end_date: "Sep 19" },
+    bookedAt: null,
+  },
+  {
+    key: "destination",
+    num: "02",
+    state: "locked",
+    lockedVia: "vote",
+    fundingStatus: null,
+    optionCount: 0,
+    optionsDeadline: null,
+    lockedValue: { name: "Sevilla, ES" },
+    bookedAt: "2026-09-01T00:00:00Z",
+  },
+  {
+    key: "travel",
+    num: "03",
+    state: "locked",
+    lockedVia: "organizer",
+    fundingStatus: null,
+    optionCount: 0,
+    optionsDeadline: null,
+    lockedValue: { mode: "Flights" },
+    bookedAt: null,
+  },
   {
     key: "accommodation",
     num: "04",
     state: "locked",
-    funded: true,
-    statusLabel: "Funded",
-    detail: "Villa",
+    lockedVia: "organizer",
+    fundingStatus: "ready_to_purchase",
+    optionCount: 0,
+    optionsDeadline: null,
+    lockedValue: { name: "Villa" },
+    bookedAt: null,
   },
-  { key: "experience", num: "05", state: "open", statusLabel: "Open — submitting" },
-  { key: "dining", num: "06", state: "open", statusLabel: "Open — voting" },
+  {
+    key: "experience",
+    num: "05",
+    state: "locked",
+    lockedVia: "vote",
+    fundingStatus: null,
+    optionCount: 0,
+    optionsDeadline: null,
+    lockedValue: { name: "Flamenco show" },
+    bookedAt: null,
+  },
+  {
+    key: "dining",
+    num: "06",
+    state: "open",
+    lockedVia: null,
+    fundingStatus: null,
+    optionCount: 2,
+    optionsDeadline: null,
+    lockedValue: null,
+    bookedAt: null,
+  },
 ];
 
-const DEMO_TILES = DEMO_TILE_BASE.map((t) => ({
-  ...t,
-  symbol: ELEMENT_SYMBOLS[t.key],
-  label: ELEMENT_LABELS[t.key],
-}));
+const DEMO_TILES = DEMO_ELEMENT_SPECS.map((spec) => {
+  const info = describeElementStatus({ ...spec, type: spec.key });
+  return {
+    key: spec.key,
+    num: spec.num,
+    state: info.state,
+    funded: info.funded,
+    statusLabel: info.statusLabel,
+    detail: info.detail,
+    symbol: ELEMENT_SYMBOLS[spec.key],
+    label: ELEMENT_LABELS[spec.key],
+  };
+});
 
 // Bricolage Grotesque + Inter are now loaded once, platform-wide, in
 // app/layout.tsx — page.module.css's --font-display/--font-body already

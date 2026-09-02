@@ -91,14 +91,27 @@ export function emptyMetadataFor(type: ElementType): Record<string, string> {
 }
 
 // ---- Trip Home tile status --------------------------------------------
-// One place implementing the status vocabulary for a single element
-// instance — mirrors the homepage hero mockup's 3-item key: Collecting
-// ideas (open — including a zero-candidates case, worded "No ideas yet"
-// rather than a 0) / Confirmed (locked in by the group) / Funded (locked
-// AND marked funded — no real payment mechanism behind this yet, it's a
-// manually-settable milestone beyond Confirmed). There's no "not started"
-// bucket — an element only exists once someone's actually created it;
-// nothing to show for types nobody's added yet.
+// One place implementing the real status vocabulary for a single element
+// instance. `trip_elements.state` is still just open/locked in the DB —
+// this computes a richer *label* from that plus a few other columns.
+// There's no "not started" bucket — an element only exists once someone's
+// actually created it; nothing to show for types nobody's added yet.
+//
+// Two label tracks depending on type (confirmed with the founder,
+// 2026-09-xx):
+//   - Travel/Accommodation/Experience/Dining (PRICE_BEARING_TYPES — the
+//     types that actually get a funding_request, per
+//     create_funding_request_for_element()'s type exclusion): Open —
+//     Submitting -> Open — Voting -> Locked by Organizer or Locked by
+//     Group -> Funded -> Booked — ready to go.
+//   - Dates/Destination (never priced, never get a funding_request):
+//     Open — Submitting -> Open — Voting -> Confirmed -> Booked — ready
+//     to go. These two skip the Organizer-vs-Group split and skip Funded
+//     entirely — Confirmed is their one milestone between locking and
+//     booking, standing in for what Funded means to the other four types.
+//     locked_via is still recorded in the DB for every type regardless
+//     (cheap, keeps the locking RPCs simple) — the type-based branch that
+//     hides it for these two lives here, not in the database.
 
 // A locked element's funding lifecycle (flow #4) — null when it has no
 // funding_request at all (Dates/Destination, or an unpriced locked value).
@@ -113,24 +126,42 @@ export type ElementTileInfo = {
 
 export function describeElementStatus(row: {
   state: ElementState;
+  lockedVia: "organizer" | "vote" | null;
   fundingStatus: FundingStatus;
   optionCount: number;
+  optionsDeadline: string | null;
   lockedValue: Record<string, unknown> | null;
   type: ElementType;
+  // trip_elements.booked_at directly — Dates/Destination (and any unpriced
+  // locked value) never get a funding_request at all, so fundingStatus can
+  // never read "booked" for them; booked_at is the only signal that works
+  // for every type, priced or not.
+  bookedAt: string | null;
 }): ElementTileInfo {
   if (row.state === "locked") {
-    const funded = row.fundingStatus === "ready_to_purchase" || row.fundingStatus === "booked";
+    const booked = row.fundingStatus === "booked" || row.bookedAt != null;
+    const funded = row.fundingStatus === "ready_to_purchase";
+    const statusLabel = booked
+      ? "Booked — ready to go"
+      : funded
+        ? "Funded"
+        : !PRICE_BEARING_TYPES.includes(row.type)
+          ? "Confirmed"
+          : row.lockedVia === "vote"
+            ? "Locked by Group"
+            : "Locked by Organizer";
     return {
       state: "locked",
-      funded,
-      statusLabel: row.fundingStatus === "booked" ? "Booked" : funded ? "Funded" : "Confirmed",
+      funded: funded || booked,
+      statusLabel,
       detail: row.lockedValue ? summarizeOptionValue(row.type, row.lockedValue) : "?",
     };
   }
+  const stillSubmitting = !row.optionsDeadline || new Date(row.optionsDeadline) > new Date();
   return {
     state: "open",
     funded: false,
-    statusLabel: "Collecting ideas",
+    statusLabel: stillSubmitting ? "Open — Submitting" : "Open — Voting",
     detail:
       row.optionCount > 0
         ? `${row.optionCount} idea${row.optionCount === 1 ? "" : "s"}`

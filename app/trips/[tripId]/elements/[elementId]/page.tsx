@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ELEMENT_METADATA_FIELDS, type ElementType } from "@/lib/trip-elements";
+import {
+  ELEMENT_METADATA_FIELDS,
+  describeElementStatus,
+  type ElementType,
+} from "@/lib/trip-elements";
 import { OptionSummary } from "@/components/option-summary";
 import { StatusBadge } from "@/components/status-badge";
 import { SubmitOptionForm } from "../../submit-option-form";
@@ -23,6 +27,7 @@ type ElementRow = {
   tie_notified: boolean;
   empty_notified: boolean;
   locked_option_id: string | null;
+  locked_via: "organizer" | "vote" | null;
   booked_at: string | null;
   created_by: string | null;
 };
@@ -100,7 +105,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, booked_at, created_by",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -160,11 +165,16 @@ export default async function ElementDetailPage({
       };
     }
 
-    const badgeLabel = element.booked_at
-      ? "Booked"
-      : funding?.status === "ready_to_purchase"
-        ? "Funded"
-        : "Confirmed";
+    const status = describeElementStatus({
+      type: element.type,
+      state: "locked",
+      lockedVia: element.locked_via,
+      fundingStatus: funding?.status ?? null,
+      optionCount: 0,
+      optionsDeadline: null,
+      lockedValue: option?.value ?? null,
+      bookedAt: element.booked_at,
+    });
 
     body = (
       <div className="w-full max-w-xl rounded-xl border border-black/[.1] p-4 text-left dark:border-white/[.14]">
@@ -172,10 +182,7 @@ export default async function ElementDetailPage({
           <span className="text-sm font-medium text-black dark:text-zinc-50">
             {element.label}
           </span>
-          <StatusBadge
-            state={element.booked_at ? "funded" : funding?.status === "ready_to_purchase" ? "funded" : "locked"}
-            label={badgeLabel}
-          />
+          <StatusBadge state={status.funded ? "funded" : "locked"} label={status.statusLabel} />
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
         <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
@@ -240,13 +247,24 @@ export default async function ElementDetailPage({
     );
     const myRanking = (myVotes ?? []).map((v) => v.option_id);
 
+    const status = describeElementStatus({
+      type: element.type,
+      state: "open",
+      lockedVia: null,
+      fundingStatus: null,
+      optionCount: (options ?? []).length,
+      optionsDeadline: element.options_deadline,
+      lockedValue: null,
+      bookedAt: null,
+    });
+
     body = (
       <div className="w-full max-w-xl text-left">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium text-black dark:text-zinc-50">
             {element.label}
           </span>
-          <StatusBadge state="open" label="Collecting ideas" />
+          <StatusBadge state="open" label={status.statusLabel} />
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
         {canEdit && (
