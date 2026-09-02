@@ -5,6 +5,7 @@ import { TallyEmbedScript } from "./tally-embed-script";
 import { LogoMark } from "@/components/logo-mark";
 import { ElementGrid } from "@/components/trip-home/element-grid";
 import { ELEMENT_LABELS, ELEMENT_SYMBOLS, type ElementType } from "@/lib/trip-elements";
+import { createClient } from "@/lib/supabase/server";
 
 // Static demo data for the marketing showcase — same shared ElementGrid/
 // ElementTile the real Trip Home dashboard uses (components/trip-home/),
@@ -59,7 +60,16 @@ function CheckIcon() {
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  // The homepage got its own auth-aware header (2026-09-02) instead of
+  // stacking the global SiteNav on top of it — same createClient() +
+  // auth.getUser() pattern SiteNav itself uses, so the sign-in state stays
+  // consistent everywhere without a second source of truth.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -73,6 +83,15 @@ export default function Home() {
             <a href="#elements">The elements</a>
           </div>
           <div className={styles.navCtaWrap}>
+            {user ? (
+              <Link href="/trips" className={styles.linkQuiet}>
+                My Trips
+              </Link>
+            ) : (
+              <Link href="/sign-in" className={styles.linkQuiet}>
+                Sign in
+              </Link>
+            )}
             <a
               href="#signup"
               data-tally-open="J94zBo"
@@ -248,7 +267,7 @@ export default function Home() {
             <div className={styles.step}>
               <div className={styles.stepRail} />
               <h3>Go</h3>
-              <p>Funded means booked. That&apos;s it.</p>
+              <p>Funded means booked. Easy peasy.</p>
             </div>
           </div>
         </div>
