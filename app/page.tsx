@@ -235,6 +235,7 @@ export default async function Home() {
         <div className={styles.wrap}>
           <div className={styles.sectionHead}>
             <h2>No chasing. No heroes. No awkwardness.</h2>
+            <p className={styles.tagline}>From intent to itinerary</p>
           </div>
           <div className={styles.steps}>
             <div className={styles.step}>
