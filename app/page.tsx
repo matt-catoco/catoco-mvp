@@ -113,7 +113,9 @@ export default async function Home() {
             <h1 className={styles.heroH1}>
               Plan it together. Fund it together. Go together.
             </h1>
-            <p className={styles.heroSub}>From intent to itinerary</p>
+            <p className={styles.heroSub}>
+              From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
+            </p>
             <div className={styles.heroActions}>
               <a
                 href="#signup"
@@ -191,7 +193,8 @@ export default async function Home() {
         <div className={styles.wrap}>
           <div className={styles.sectionHead}>
             <h2>
-              From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
+              Messaging apps coordinate chaos, with no clear moment of
+              agreement.
             </h2>
             <p>
               Catoco turns your group chat&apos;s next trip idea into a real,
