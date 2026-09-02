@@ -8,9 +8,11 @@ export type ElementTileProps = {
   state: "locked" | "open";
   /** Only meaningful when state === "locked" — a locked-but-not-yet-funded
    * element renders as "Confirmed" (dashed teal), a funded one as the
-   * strongest, solid-fill state. Mirrors the homepage hero mockup's 3-item
-   * key: open/still voting -> confirmed/locked in by the group -> funded/
-   * ready to go. No real funding mechanism exists behind this yet. */
+   * strongest state: solid brand-teal fill (not solid white/paper — that
+   * read as a plain "selected" state rather than the standout, money-moved
+   * one). Mirrors the homepage hero mockup's 3-item key: open/still voting
+   * -> confirmed/locked in by the group -> funded/ready to go. No real
+   * funding mechanism exists behind this yet. */
   funded?: boolean;
   statusLabel: string;
   detail?: string;
@@ -46,9 +48,7 @@ export function ElementTile({
   href,
   onDark = false,
 }: ElementTileProps) {
-  const fundedClasses = onDark
-    ? "bg-[#FAFAF7] text-[#0D2020] border-brand-teal"
-    : "bg-background text-foreground border-brand-teal";
+  const fundedClasses = "bg-brand-teal text-[#0D2020] border-brand-teal";
   const confirmedClasses = onDark
     ? "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep"
     : "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep";

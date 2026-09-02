@@ -11,20 +11,30 @@ import { createClient } from "@/lib/supabase/server";
 // ElementTile the real Trip Home dashboard uses (components/trip-home/),
 // fed demo values instead of a real trip's. Labels/symbols pull from
 // lib/trip-elements so this can't drift from the real dashboard's vocabulary.
-// Dates and Destination are both confirmed/locked in by the group, the
-// rest are still open.
+// All 3 states shown at once, matching the hero mockup's key: Dates and
+// Destination are confirmed/locked in by the group, Accommodations is
+// funded (the strongest, solid state — the one type here that actually
+// takes payment, per the real funding model), the rest are still open.
 const DEMO_TILE_BASE: {
   key: ElementType;
   num: string;
   state: "locked" | "open";
   funded?: boolean;
   statusLabel: string;
+  detail?: string;
 }[] = [
   { key: "dates", num: "01", state: "locked", statusLabel: "Confirmed" },
   { key: "destination", num: "02", state: "locked", statusLabel: "Locked by organizer" },
   { key: "travel", num: "03", state: "open", statusLabel: "Open — voting" },
-  { key: "accommodation", num: "04", state: "open", statusLabel: "Open — voting" },
-  { key: "experience", num: "05", state: "open", statusLabel: "Open — voting" },
+  {
+    key: "accommodation",
+    num: "04",
+    state: "locked",
+    funded: true,
+    statusLabel: "Funded",
+    detail: "Villa",
+  },
+  { key: "experience", num: "05", state: "open", statusLabel: "Open — submitting" },
   { key: "dining", num: "06", state: "open", statusLabel: "Open — voting" },
 ];
 
