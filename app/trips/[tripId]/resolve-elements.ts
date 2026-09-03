@@ -19,9 +19,18 @@ export async function resolveAndNotify(
   organizerId: string,
   tripName: string,
 ): Promise<void> {
-  const { data: resolvedData } = await supabase.rpc("resolve_due_elements", {
+  const { data: resolvedData, error: resolveError } = await supabase.rpc("resolve_due_elements", {
     p_trip_id: tripId,
   });
+  if (resolveError) {
+    // This RPC silently rolled back on every call for a long time (a check
+    // constraint violation on the auto-lock UPDATE, fixed in
+    // 20260914000000) with zero trace anywhere — logging server-side so a
+    // regression like that surfaces immediately instead of needing another
+    // from-scratch investigation.
+    console.error("resolve_due_elements failed", { tripId, error: resolveError });
+    return;
+  }
   const resolved = (resolvedData ?? null) as ResolvedRow[] | null;
   if (!resolved || resolved.length === 0) return;
 
