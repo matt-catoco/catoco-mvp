@@ -53,9 +53,11 @@ export function AddElementForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const canLock =
-    isOrganizer ||
-    (scopeMode === "custom" && customScope.size === 1 && customScope.has(currentUserId));
+  // Self-locking a solo-scoped element used to be reachable here too (scope
+  // of exactly {you}), but a regular participant can no longer choose any
+  // custom scope at all (organizer-only now, see the "Who's this for"
+  // block below) -- only the organizer/co-organizer can lock at creation.
+  const canLock = isOrganizer;
 
   function onTypeChange(next: ElementType) {
     setType(next);
@@ -75,10 +77,8 @@ export function AddElementForm({
 
   const lockDisabledReason = useMemo(() => {
     if (canLock) return null;
-    return isOrganizer
-      ? null
-      : "Only available when it's scoped to just you — anyone else and it needs a vote.";
-  }, [canLock, isOrganizer]);
+    return "Only the organizer can lock an element in immediately — everyone else's needs a vote.";
+  }, [canLock]);
 
   function submit() {
     setError(null);
@@ -138,42 +138,49 @@ export function AddElementForm({
 
       <ElementMetadataFields type={type} value={metadata} onChange={setMetadata} />
 
-      <div className="flex flex-col gap-2">
-        <span className={labelClass}>Who's this for</span>
-        <div className="flex gap-1.5">
-          {(["everyone", "custom"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setScopeMode(m)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                scopeMode === m
-                  ? "border-transparent bg-foreground text-background"
-                  : "border-black/[.12] text-zinc-600 hover:bg-black/[.03] dark:border-white/[.16] dark:text-zinc-400 dark:hover:bg-white/[.05]"
-              }`}
-            >
-              {m === "everyone" ? "Everyone" : "Choose people"}
-            </button>
-          ))}
-        </div>
-        {scopeMode === "custom" && (
-          <ul className="mt-1 flex flex-col gap-1">
-            {roster.map((r) => (
-              <li key={r.userId}>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={customScope.has(r.userId)}
-                    onChange={() => toggleScopeMember(r.userId)}
-                  />
-                  {r.displayName}
-                  {r.userId === currentUserId && " (you)"}
-                </label>
-              </li>
+      {isOrganizer ? (
+        <div className="flex flex-col gap-2">
+          <span className={labelClass}>Who's this for</span>
+          <div className="flex gap-1.5">
+            {(["everyone", "custom"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setScopeMode(m)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  scopeMode === m
+                    ? "border-transparent bg-foreground text-background"
+                    : "border-black/[.12] text-zinc-600 hover:bg-black/[.03] dark:border-white/[.16] dark:text-zinc-400 dark:hover:bg-white/[.05]"
+                }`}
+              >
+                {m === "everyone" ? "Everyone" : "Choose people"}
+              </button>
             ))}
-          </ul>
-        )}
-      </div>
+          </div>
+          {scopeMode === "custom" && (
+            <ul className="mt-1 flex flex-col gap-1">
+              {roster.map((r) => (
+                <li key={r.userId}>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={customScope.has(r.userId)}
+                      onChange={() => toggleScopeMember(r.userId)}
+                    />
+                    {r.displayName}
+                    {r.userId === currentUserId && " (you)"}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-500">
+          Visible to everyone on the trip — only the organizer can scope an element to specific
+          people.
+        </p>
+      )}
 
       <div className="flex flex-col gap-2">
         <span className={labelClass}>State</span>
