@@ -196,7 +196,7 @@ export default async function Home() {
               Beta opening soon
             </span>
             <h1 className={styles.heroH1}>
-              Plan it together. Fund it together. Go together.
+              Plan it together. Fund it together. Go.
             </h1>
             <p className={styles.heroSub}>
               From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
