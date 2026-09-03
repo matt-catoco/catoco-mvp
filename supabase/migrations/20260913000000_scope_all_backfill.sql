@@ -199,3 +199,23 @@ begin
   on conflict (element_id, participant_id) do nothing;
 end;
 $$;
+
+-- ---- one-time backfill for elements created before this migration --------
+-- The original creation-time intent (was p_scope_user_ids null?) is gone
+-- for existing rows -- approximate it instead: if every CURRENT trip
+-- participant already has an element_participants row for this element,
+-- it was very likely "Everyone" scope (a genuinely subgroup-scoped element
+-- coincidentally matching 100% of the current roster is unlikely). Not
+-- perfectly reliable, but a safe-enough approximation so existing test data
+-- doesn't need to be recreated to pick up this fix.
+update public.trip_elements e
+set scope_all = true
+where exists (select 1 from public.trip_participants tp where tp.trip_id = e.trip_id)
+  and not exists (
+    select 1 from public.trip_participants tp
+    where tp.trip_id = e.trip_id
+      and not exists (
+        select 1 from public.element_participants ep
+        where ep.element_id = e.id and ep.participant_id = tp.user_id and ep.opted_in = true
+      )
+  );
