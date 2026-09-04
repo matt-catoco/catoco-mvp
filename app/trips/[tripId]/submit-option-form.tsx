@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { emptyValueFor, type ElementType } from "@/lib/trip-elements";
 import { submitOption } from "./actions";
@@ -12,6 +13,7 @@ export function SubmitOptionForm({
   elementId: string;
   type: ElementType;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState<Record<string, unknown>>(() => emptyValueFor(type));
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export function SubmitOptionForm({
       }
       setValue(emptyValueFor(type));
       setOpen(false);
+      router.refresh();
     });
   }
 

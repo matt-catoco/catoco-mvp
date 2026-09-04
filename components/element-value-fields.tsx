@@ -84,7 +84,7 @@ export function ElementValueFields({
           <input
             type="url"
             className={field}
-            placeholder="Booking link — e.g. a flight or booking page"
+            placeholder="Booking link (required) — e.g. a flight or booking page"
             required
             value={str("booking_link")}
             onChange={(e) => set("booking_link", e.target.value)}
@@ -113,7 +113,7 @@ export function ElementValueFields({
           <input
             type="url"
             className={field}
-            placeholder="Booking link — e.g. an Airbnb, hotel, or restaurant page"
+            placeholder="Booking link (required) — e.g. an Airbnb, hotel, or restaurant page"
             required
             value={str("booking_link")}
             onChange={(e) => set("booking_link", e.target.value)}

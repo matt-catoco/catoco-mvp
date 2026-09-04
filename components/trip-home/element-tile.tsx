@@ -60,7 +60,7 @@ export function ElementTile({
     state === "locked" ? (funded ? fundedClasses : confirmedClasses) : openClasses;
 
   const tileClasses = [
-    "flex min-h-[128px] flex-col justify-between rounded-2xl border-2 p-5 text-left transition-colors",
+    "flex min-h-[128px] flex-col justify-between overflow-hidden rounded-2xl border-2 p-5 text-left transition-colors",
     variantClasses,
     href ? "hover:border-brand-teal-deep cursor-pointer" : "",
   ]
@@ -74,7 +74,7 @@ export function ElementTile({
         {symbol}
       </span>
       <span className="text-xs font-semibold">{label}</span>
-      <span className="mt-2.5 text-[10.5px] opacity-70">
+      <span className="mt-2.5 line-clamp-2 text-[10.5px] opacity-70">
         {statusLabel}
         {detail ? ` — ${detail}` : ""}
       </span>

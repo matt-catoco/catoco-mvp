@@ -451,12 +451,16 @@ export function summarizeOptionValue(
       return flex ? `${base} · ±${flex}d` : base;
     }
     case "travel": {
-      const base =
-        [str("mode"), str("note"), str("booking_link")].filter(Boolean).join(" — ") || "?";
+      // No raw booking_link here — it's not even a clickable link as tile
+      // text, just a wall of characters that can run past 200+ chars with
+      // query params and blow out the tile's box. Prefer the server-scraped
+      // title (applyLinkPreview(), Open Graph tags) when the link resolved;
+      // otherwise fall back to what was actually typed in.
+      const base = str("title") || [str("mode"), str("note")].filter(Boolean).join(" — ") || "?";
       return str("price") ? `${base} · ${priceLabel(value)}` : base;
     }
     default: {
-      const base = [str("name"), str("booking_link")].filter(Boolean).join(" — ") || "?";
+      const base = str("title") || str("name") || "?";
       return str("price") ? `${base} · ${priceLabel(value)}` : base;
     }
   }

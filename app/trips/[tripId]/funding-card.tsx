@@ -75,6 +75,7 @@ export function FundingCard({
   const [reportError, setReportError] = useState<string | null>(null);
 
   const deadlinePassed = funding.deadline ? new Date(funding.deadline) <= new Date() : false;
+  const isFullyFunded = funding.collected >= funding.requiredAmount;
   const pct = funding.requiredAmount > 0
     ? Math.min(100, Math.round((funding.collected / funding.requiredAmount) * 100))
     : 0;
@@ -177,8 +178,9 @@ export function FundingCard({
               {funding.deadline && deadlinePassed && (
                 <div className="mt-3">
                   <p className="text-xs text-zinc-500">
-                    Deadline passed — resolve the outcome. If unfunded, is the locked choice still
-                    available at this price?
+                    {isFullyFunded
+                      ? "Deadline passed — you've hit the funding goal. Resolve to mark it ready to purchase."
+                      : "Deadline passed — resolve the outcome. If unfunded, is the locked choice still available at this price?"}
                   </p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <button
@@ -197,31 +199,33 @@ export function FundingCard({
                       }}
                       className="rounded-lg border border-black/[.12] px-3 py-1.5 text-xs font-medium hover:bg-black/[.03] disabled:opacity-40 dark:border-white/[.16] dark:hover:bg-white/[.05]"
                     >
-                      Resolve — still viable
+                      {isFullyFunded ? "Resolve" : "Resolve — still viable"}
                     </button>
-                    <button
-                      type="button"
-                      disabled={resolvePending}
-                      onClick={() => {
-                        setResolveError(null);
-                        startResolve(async () => {
-                          const res = await resolveFundingOutcome(
-                            tripId,
-                            elementId,
-                            funding.id,
-                            false,
-                          );
-                          if (res.error) {
-                            setResolveError(res.error);
-                            return;
-                          }
-                          router.refresh();
-                        });
-                      }}
-                      className="rounded-lg border border-black/[.12] px-3 py-1.5 text-xs font-medium hover:bg-black/[.03] disabled:opacity-40 dark:border-white/[.16] dark:hover:bg-white/[.05]"
-                    >
-                      Resolve — no longer viable
-                    </button>
+                    {!isFullyFunded && (
+                      <button
+                        type="button"
+                        disabled={resolvePending}
+                        onClick={() => {
+                          setResolveError(null);
+                          startResolve(async () => {
+                            const res = await resolveFundingOutcome(
+                              tripId,
+                              elementId,
+                              funding.id,
+                              false,
+                            );
+                            if (res.error) {
+                              setResolveError(res.error);
+                              return;
+                            }
+                            router.refresh();
+                          });
+                        }}
+                        className="rounded-lg border border-black/[.12] px-3 py-1.5 text-xs font-medium hover:bg-black/[.03] disabled:opacity-40 dark:border-white/[.16] dark:hover:bg-white/[.05]"
+                      >
+                        Resolve — no longer viable
+                      </button>
+                    )}
                   </div>
                   {resolveError && <p className="mt-1 text-xs text-red-500">{resolveError}</p>}
                 </div>
