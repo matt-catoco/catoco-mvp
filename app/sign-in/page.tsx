@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { requestMagicLink } from "./actions";
 
 function SignInForm() {
   const router = useRouter();
@@ -20,22 +20,11 @@ function SignInForm() {
     setStatus("sending");
     setErrorMsg("");
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-          next,
-        )}`,
-        // Read by the handle_new_user() DB trigger. Supabase only applies this
-        // when a brand-new user is created, so re-invites don't overwrite it.
-        data: tripId ? { invited_via_trip_id: tripId } : undefined,
-      },
-    });
+    const { error } = await requestMagicLink(email, tripId, next);
 
     if (error) {
       setStatus("error");
-      setErrorMsg(error.message);
+      setErrorMsg(error);
       return;
     }
 
