@@ -3,14 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  ACCEPTED_ICON_TYPES,
-  ICON_BUCKET,
-  MAX_ICON_BYTES,
-  PRESET_ICONS,
-  PRESET_PREFIX,
-  resolveIcon,
-} from "@/lib/trip-icons";
+import { ACCEPTED_ICON_TYPES, ICON_BUCKET, MAX_ICON_BYTES, resolveIcon } from "@/lib/trip-icons";
 
 export function IconPicker({
   value,
@@ -54,8 +47,7 @@ export function IconPicker({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-black/[.1] text-2xl dark:border-white/[.14]">
-          {resolved?.kind === "preset" && <span>{resolved.emoji}</span>}
+        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-brand-line text-2xl">
           {resolved?.kind === "image" && (
             <Image
               src={resolved.url}
@@ -66,10 +58,10 @@ export function IconPicker({
               unoptimized
             />
           )}
-          {!resolved && <span className="text-zinc-400">＋</span>}
+          {!resolved && <span className="text-brand-muted">＋</span>}
         </div>
-        <div className="text-xs text-zinc-500 dark:text-zinc-400">
-          Optional. Pick one below or upload your own.
+        <div className="text-xs text-brand-muted">
+          Optional. Upload an image for this trip.
           {value && (
             <button
               type="button"
@@ -82,29 +74,8 @@ export function IconPicker({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {PRESET_ICONS.map((p) => {
-          const active = value === `${PRESET_PREFIX}${p.id}`;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              title={p.label}
-              onClick={() => onChange(`${PRESET_PREFIX}${p.id}`)}
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border text-lg transition-colors ${
-                active
-                  ? "border-transparent bg-foreground"
-                  : "border-black/[.12] hover:bg-black/[.03] dark:border-white/[.16] dark:hover:bg-white/[.05]"
-              }`}
-            >
-              {p.emoji}
-            </button>
-          );
-        })}
-      </div>
-
       <label className="self-start">
-        <span className="cursor-pointer rounded-lg border border-black/[.12] px-3 py-1.5 text-xs font-medium hover:bg-black/[.03] dark:border-white/[.16] dark:hover:bg-white/[.05]">
+        <span className="cursor-pointer rounded-lg border border-brand-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-foreground">
           {uploading ? "Uploading…" : "Upload image"}
         </span>
         <input

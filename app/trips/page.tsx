@@ -16,7 +16,6 @@ function TripIcon({ icon }: { icon: string | null }) {
   const resolved = resolveIcon(icon);
   return (
     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-brand-line text-lg">
-      {resolved?.kind === "preset" && <span>{resolved.emoji}</span>}
       {resolved?.kind === "image" && (
         <Image
           src={resolved.url}
