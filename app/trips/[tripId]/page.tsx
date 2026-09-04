@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -9,6 +10,9 @@ import {
 } from "@/lib/trip-elements";
 import { ElementGrid } from "@/components/trip-home/element-grid";
 import { resolveAndNotify } from "./resolve-elements";
+import { notifyInvited } from "@/lib/notifications";
+
+type RosterRow = { user_id: string; display_name: string | null; is_organizer: boolean };
 
 type ElementRow = {
   id: string;
@@ -59,7 +63,9 @@ export default async function TripLandingPage({
   // Ensure roster membership before reading anything — the "Trip members can
   // view" policies require a trip_participants row (or being the organizer)
   // to grant read access at all, so this has to run first, every visit.
-  await supabase.rpc("join_trip", { p_trip_id: tripId });
+  // The return signals whether this was a genuinely new join (vs. an
+  // existing member just revisiting) — that's the real "invited" moment.
+  const { data: justJoined } = await supabase.rpc("join_trip", { p_trip_id: tripId });
 
   const { data: trip } = await supabase
     .from("trips")
@@ -87,6 +93,24 @@ export default async function TripLandingPage({
   // Lazy auto-lock, shared with the drill-in page — either can be the first
   // page visited after a deadline passes.
   await resolveAndNotify(supabase, tripId, trip.organizer_id, trip.name);
+
+  if (justJoined && user.email) {
+    const { data: rosterData } = await supabase.rpc("get_trip_roster", { p_trip_id: tripId });
+    const organizer = ((rosterData ?? []) as RosterRow[]).find((r) => r.is_organizer);
+    const h = await headers();
+    const host = h.get("host");
+    const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+    const origin = host ? `${proto}://${host}` : "https://catoco.co";
+    await notifyInvited({
+      supabase,
+      tripId,
+      tripName: trip.name,
+      organizerName: organizer?.display_name?.trim() || "Your trip organizer",
+      userId: user.id,
+      userEmail: user.email,
+      origin,
+    });
+  }
 
   const { data: elements } = await supabase
     .from("trip_elements")

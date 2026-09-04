@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   extractPricing,
@@ -9,6 +10,7 @@ import {
   type ElementType,
 } from "@/lib/trip-elements";
 import { fetchLinkPreview } from "@/lib/link-preview";
+import { sendCoreLoopEmail } from "@/lib/notifications";
 
 const MICRO_TYPES_WITH_LINK: ElementType[] = [
   "travel",
@@ -449,6 +451,49 @@ export async function resolveFundingOutcome(
     p_still_viable: stillViable,
   });
   if (error) return { error: error.message };
+
+  // Trigger #2 (funding ready to purchase): re-select rather than trusting
+  // stillViable alone — resolve_funding_outcome() also independently checks
+  // collected >= required first, regardless of which button was clicked, so
+  // the actual resulting status is the only reliable signal.
+  const { data: fr } = await supabase
+    .from("funding_requests")
+    .select("status, purchaser_id, required_amount")
+    .eq("id", fundingRequestId)
+    .maybeSingle();
+
+  if (fr?.status === "ready_to_purchase" && fr.purchaser_id) {
+    const [{ data: purchaserEmail }, { data: trip }, { data: element }] = await Promise.all([
+      supabase.rpc("get_user_email", { p_user_id: fr.purchaser_id }),
+      supabase.from("trips").select("name").eq("id", tripId).maybeSingle(),
+      supabase.from("trip_elements").select("label").eq("id", elementId).maybeSingle(),
+    ]);
+
+    if (purchaserEmail && trip && element) {
+      const h = await headers();
+      const host = h.get("host");
+      const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+      const origin = host ? `${proto}://${host}` : "https://catoco.co";
+      const url = `${origin}/trips/${tripId}/elements/${elementId}`;
+
+      await sendCoreLoopEmail({
+        supabase,
+        userId: fr.purchaser_id,
+        email: purchaserEmail as string,
+        kind: "funding_ready",
+        subjectId: fundingRequestId,
+        subject: `Funding hit the goal for ${element.label} — ${trip.name}`,
+        html: `
+          <p>Funding hit the goal for <strong>${element.label}</strong> on <strong>${trip.name}</strong> — ${fr.required_amount.toFixed(2)} collected. Go ahead and complete the purchase.</p>
+          <p><a href="${url}">Take a look</a></p>
+        `,
+        origin,
+      });
+    }
+  }
+  // purchaser_id null shouldn't happen per the current purchaser-assignment
+  // logic, but don't let a missing purchaser or a failed email block the
+  // resolve action that already succeeded above.
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);

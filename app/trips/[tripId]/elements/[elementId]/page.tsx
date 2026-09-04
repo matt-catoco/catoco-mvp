@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { notifyInvited } from "@/lib/notifications";
 import {
   ELEMENT_METADATA_FIELDS,
   describeElementStatus,
@@ -89,7 +91,7 @@ export default async function ElementDetailPage({
     );
   }
 
-  await supabase.rpc("join_trip", { p_trip_id: tripId });
+  const { data: justJoined } = await supabase.rpc("join_trip", { p_trip_id: tripId });
 
   const { data: trip } = await supabase
     .from("trips")
@@ -102,6 +104,24 @@ export default async function ElementDetailPage({
   // Lazy auto-lock, shared with the dashboard — a direct link to this page
   // (skipping the dashboard) must still catch a just-passed deadline.
   await resolveAndNotify(supabase, tripId, trip.organizer_id, trip.name);
+
+  if (justJoined && user.email) {
+    const { data: rosterData } = await supabase.rpc("get_trip_roster", { p_trip_id: tripId });
+    const organizer = ((rosterData ?? []) as RosterRow[]).find((r) => r.is_organizer);
+    const h = await headers();
+    const host = h.get("host");
+    const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+    const origin = host ? `${proto}://${host}` : "https://catoco.co";
+    await notifyInvited({
+      supabase,
+      tripId,
+      tripName: trip.name,
+      organizerName: organizer?.display_name?.trim() || "Your trip organizer",
+      userId: user.id,
+      userEmail: user.email,
+      origin,
+    });
+  }
 
   const { data: element } = await supabase
     .from("trip_elements")
