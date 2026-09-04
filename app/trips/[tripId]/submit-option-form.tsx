@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { emptyValueFor, type ElementType } from "@/lib/trip-elements";
+import { btnPrimary, btnSecondary } from "@/lib/ui";
 import { submitOption } from "./actions";
 
 export function SubmitOptionForm({
@@ -24,7 +25,7 @@ export function SubmitOptionForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="self-start rounded-lg border border-black/[.12] px-3 py-1.5 text-xs font-medium hover:bg-black/[.03] dark:border-white/[.16] dark:hover:bg-white/[.05]"
+        className={`self-start px-3 py-1.5 text-xs ${btnSecondary}`}
       >
         + Propose an option
       </button>
@@ -46,7 +47,7 @@ export function SubmitOptionForm({
   }
 
   return (
-    <div className="rounded-lg border border-black/[.08] p-3 dark:border-white/[.1]">
+    <div className="rounded-lg border border-brand-line p-3">
       <ElementValueFields type={type} value={value} onChange={setValue} />
       {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
       <div className="mt-3 flex items-center gap-2">
@@ -54,7 +55,7 @@ export function SubmitOptionForm({
           type="button"
           onClick={submit}
           disabled={pending}
-          className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+          className={`px-3 py-1.5 text-xs ${btnPrimary}`}
         >
           {pending ? "Submitting…" : "Submit"}
         </button>
@@ -62,7 +63,7 @@ export function SubmitOptionForm({
           type="button"
           onClick={() => setOpen(false)}
           disabled={pending}
-          className="text-xs text-zinc-500 underline hover:text-red-500 disabled:opacity-40"
+          className={`px-3 py-1.5 text-xs ${btnSecondary}`}
         >
           Cancel
         </button>

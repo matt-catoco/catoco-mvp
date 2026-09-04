@@ -15,7 +15,7 @@ type TripRow = {
 function TripIcon({ icon }: { icon: string | null }) {
   const resolved = resolveIcon(icon);
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-black/[.1] text-lg dark:border-white/[.14]">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-brand-line text-lg">
       {resolved?.kind === "preset" && <span>{resolved.emoji}</span>}
       {resolved?.kind === "image" && (
         <Image
@@ -27,7 +27,7 @@ function TripIcon({ icon }: { icon: string | null }) {
           unoptimized
         />
       )}
-      {!resolved && <span className="text-zinc-400">🧳</span>}
+      {!resolved && <span className="text-brand-muted">🧳</span>}
     </div>
   );
 }
@@ -74,13 +74,13 @@ export default async function TripsPage() {
             <li key={trip.id}>
               <Link
                 href={`/trips/${trip.id}`}
-                className="flex items-center gap-3 rounded-lg border border-black/[.1] p-3 transition-colors hover:bg-black/[.03] dark:border-white/[.14] dark:hover:bg-white/[.05]"
+                className="flex items-center gap-3 rounded-lg border border-brand-line p-3 transition-colors hover:bg-brand-teal-wash"
               >
                 <TripIcon icon={trip.icon} />
                 <span className="flex-1 truncate text-sm font-medium text-black dark:text-zinc-50">
                   {trip.name}
                 </span>
-                <span className="rounded-full border border-black/[.12] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-white/[.16]">
+                <span className="rounded-full border border-brand-line px-2 py-0.5 text-[10px] uppercase tracking-wide text-brand-muted">
                   {trip.status}
                 </span>
               </Link>

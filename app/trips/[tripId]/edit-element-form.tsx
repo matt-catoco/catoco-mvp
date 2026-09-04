@@ -6,10 +6,9 @@ import { ElementValueFields } from "@/components/element-value-fields";
 import { ElementMetadataFields } from "@/components/element-metadata-fields";
 import type { ElementType } from "@/lib/trip-elements";
 import { deleteElement, updateElement } from "./actions";
+import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 
-const field =
-  "h-10 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]";
-const labelClass = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
+const field = `h-10 ${fieldClass}`;
 
 /**
  * Fix a mistake on an already-created element — collapsed behind an "Edit"
@@ -63,7 +62,7 @@ export function EditElementForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="self-start text-xs font-medium text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
+        className="self-start text-xs font-medium text-brand-muted underline hover:text-black dark:hover:text-zinc-50"
       >
         Edit
       </button>
@@ -94,7 +93,7 @@ export function EditElementForm({
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-3 rounded-lg border border-black/[.08] p-3 dark:border-white/[.1]">
+    <div className="mt-3 flex flex-col gap-3 rounded-lg border border-brand-line p-3">
       <label className="flex flex-col gap-1">
         <span className={labelClass}>Label</span>
         <input className={field} value={label} onChange={(e) => setLabel(e.target.value)} />
@@ -137,7 +136,7 @@ export function EditElementForm({
           type="button"
           onClick={submit}
           disabled={pending || !label.trim()}
-          className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+          className={`px-3 py-1.5 text-xs ${btnPrimary}`}
         >
           {pending ? "Saving…" : "Save"}
         </button>
@@ -145,13 +144,13 @@ export function EditElementForm({
           type="button"
           onClick={() => setOpen(false)}
           disabled={pending}
-          className="text-xs text-zinc-500 underline hover:text-red-500 disabled:opacity-40"
+          className={`px-3 py-1.5 text-xs ${btnSecondary}`}
         >
           Cancel
         </button>
       </div>
 
-      <div className="mt-1 border-t border-black/[.08] pt-3 dark:border-white/[.1]">
+      <div className="mt-1 border-t border-brand-line pt-3">
         {confirmingDelete ? (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs">
             <p className="text-red-700 dark:text-red-400">
@@ -185,7 +184,7 @@ export function EditElementForm({
                   setDeleteError(null);
                   setConfirmingDelete(false);
                 }}
-                className="text-zinc-500 underline hover:text-black dark:hover:text-zinc-50 disabled:opacity-40"
+                className="text-brand-muted underline hover:text-black dark:hover:text-zinc-50 disabled:opacity-40"
               >
                 Cancel
               </button>

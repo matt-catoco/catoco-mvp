@@ -8,10 +8,9 @@ import {
   resolveFundingOutcome,
   setFundingDeadline,
 } from "./actions";
+import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 
-const field =
-  "h-9 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]";
-const labelClass = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
+const field = `h-9 ${fieldClass}`;
 
 export type FundingRequestInfo = {
   id: string;
@@ -81,18 +80,18 @@ export function FundingCard({
     : 0;
 
   return (
-    <div className="mt-3 rounded-lg border border-black/[.08] p-3 dark:border-white/[.1]">
+    <div className="mt-3 rounded-lg border border-brand-line p-3">
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-black dark:text-zinc-50">
           {funding.status === "booked" ? "Booked" : "Funding"}
         </span>
-        <span className="text-zinc-500">Purchaser: {funding.purchaserName}</span>
+        <span className="text-brand-muted">Purchaser: {funding.purchaserName}</span>
       </div>
 
-      <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+      <div className="mt-2 text-xs text-brand-muted">
         {funding.collected.toFixed(2)} / {funding.requiredAmount.toFixed(2)} collected
       </div>
-      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-black/[.06] dark:bg-white/[.08]">
+      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-brand-line">
         <div className="h-full bg-brand-teal" style={{ width: `${pct}%` }} />
       </div>
 
@@ -130,7 +129,7 @@ export function FundingCard({
                   router.refresh();
                 });
               }}
-              className="h-9 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+              className={`h-9 px-3 text-xs ${btnPrimary}`}
             >
               {contribPending ? "Adding…" : "Add"}
             </button>
@@ -138,7 +137,7 @@ export function FundingCard({
           {contribError && <p className="mt-1 text-xs text-red-500">{contribError}</p>}
 
           {canManage && (
-            <div className="mt-3 border-t border-black/[.08] pt-3 dark:border-white/[.1]">
+            <div className="mt-3 border-t border-brand-line pt-3">
               <div className="flex items-end gap-2">
                 <label className="flex flex-col gap-1">
                   <span className={labelClass}>Funding deadline</span>
@@ -168,7 +167,7 @@ export function FundingCard({
                       router.refresh();
                     });
                   }}
-                  className="h-9 rounded-lg border border-black/[.12] px-3 text-xs font-medium hover:bg-black/[.03] disabled:opacity-40 dark:border-white/[.16] dark:hover:bg-white/[.05]"
+                  className={`h-9 px-3 text-xs ${btnSecondary}`}
                 >
                   {deadlinePending ? "Saving…" : "Set"}
                 </button>
@@ -177,7 +176,7 @@ export function FundingCard({
 
               {funding.deadline && deadlinePassed && (
                 <div className="mt-3">
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-brand-muted">
                     {isFullyFunded
                       ? "Deadline passed — you've hit the funding goal. Resolve to mark it ready to purchase."
                       : "Deadline passed — resolve the outcome. If unfunded, is the locked choice still available at this price?"}
@@ -197,7 +196,7 @@ export function FundingCard({
                           router.refresh();
                         });
                       }}
-                      className="rounded-lg border border-black/[.12] px-3 py-1.5 text-xs font-medium hover:bg-black/[.03] disabled:opacity-40 dark:border-white/[.16] dark:hover:bg-white/[.05]"
+                      className={`px-3 py-1.5 text-xs ${btnSecondary}`}
                     >
                       {isFullyFunded ? "Resolve" : "Resolve — still viable"}
                     </button>
@@ -221,7 +220,7 @@ export function FundingCard({
                             router.refresh();
                           });
                         }}
-                        className="rounded-lg border border-black/[.12] px-3 py-1.5 text-xs font-medium hover:bg-black/[.03] disabled:opacity-40 dark:border-white/[.16] dark:hover:bg-white/[.05]"
+                        className={`px-3 py-1.5 text-xs ${btnSecondary}`}
                       >
                         Resolve — no longer viable
                       </button>
@@ -236,8 +235,8 @@ export function FundingCard({
       )}
 
       {funding.status === "ready_to_purchase" && canAct && (
-        <div className="mt-3 border-t border-black/[.08] pt-3 dark:border-white/[.1]">
-          <p className="text-xs text-zinc-500">Funded — go ahead and purchase it.</p>
+        <div className="mt-3 border-t border-brand-line pt-3">
+          <p className="text-xs text-brand-muted">Funded — go ahead and purchase it.</p>
           <div className="mt-1.5 flex items-end gap-2">
             <label className="flex flex-col gap-1">
               <span className={labelClass}>Actual amount paid (optional)</span>
@@ -270,7 +269,7 @@ export function FundingCard({
                   router.refresh();
                 });
               }}
-              className="h-9 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+              className={`h-9 px-3 text-xs ${btnPrimary}`}
             >
               {reportPending ? "Saving…" : "Mark booked"}
             </button>
@@ -298,7 +297,7 @@ export function FundingCard({
       )}
 
       {funding.status === "booked" && (
-        <p className="mt-3 border-t border-black/[.08] pt-3 text-xs text-zinc-600 dark:border-white/[.1] dark:text-zinc-400">
+        <p className="mt-3 border-t border-brand-line pt-3 text-xs text-brand-muted">
           Actual: {(funding.actualAmountPaid ?? funding.requiredAmount).toFixed(2)}
         </p>
       )}

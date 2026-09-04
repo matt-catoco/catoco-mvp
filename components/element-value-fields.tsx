@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { CURRENCIES, PRICING_BASES, PRICING_BASIS_LABELS, type ElementType } from "@/lib/trip-elements";
+import { fieldClass, labelClass, pillInactive } from "@/lib/ui";
 
 // Shared between the trip-creation wizard (app/trips/new) and the post-
 // creation option-submission form (app/trips/[tripId]) — same input shapes,
 // same validation, so it lives here rather than under either caller's folder.
 
-const field =
-  "h-10 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]";
-const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
+const field = `h-10 ${fieldClass}`;
+const label = labelClass;
 
 function ModeToggle<T extends string>({
   value,
@@ -28,9 +28,7 @@ function ModeToggle<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-            value === o.value
-              ? "border-transparent bg-foreground text-background"
-              : "border-black/[.12] text-zinc-600 hover:bg-black/[.03] dark:border-white/[.16] dark:text-zinc-400 dark:hover:bg-white/[.05]"
+            value === o.value ? "border-transparent bg-foreground text-background" : pillInactive
           }`}
         >
           {o.label}

@@ -433,6 +433,27 @@ export function extractPricing(
   return { unitPrice: Number(price), pricingBasis: validBasis };
 }
 
+/**
+ * Human-readable date, e.g. "Nov 2, 2026" — the one consistent format used
+ * everywhere a date is *shown* (not inside a form input, which keeps native
+ * <input type="date"> as-is). Formats in UTC deliberately: these are bare
+ * YYYY-MM-DD strings with no time component, and letting the browser's local
+ * timezone interpret them can shift the displayed date by a day in either
+ * direction (e.g. "2026-11-02" parsed as UTC midnight reads as "Nov 1" for
+ * anyone west of UTC) — UTC formatting keeps what's shown matching exactly
+ * what was typed in, everywhere.
+ */
+export function formatDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function summarizeOptionValue(
   type: ElementType,
   value: Record<string, unknown>,
@@ -445,8 +466,8 @@ export function summarizeOptionValue(
       if (str("nights")) {
         base = `${str("nights")} nights`;
       } else {
-        base = str("start_date") || "?";
-        if (str("end_date")) base += ` → ${str("end_date")}`;
+        base = str("start_date") ? formatDate(str("start_date")) : "?";
+        if (str("end_date")) base += ` → ${formatDate(str("end_date"))}`;
       }
       return flex ? `${base} · ±${flex}d` : base;
     }

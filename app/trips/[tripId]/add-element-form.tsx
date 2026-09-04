@@ -13,10 +13,9 @@ import {
   type ElementType,
 } from "@/lib/trip-elements";
 import { createElement } from "./actions";
+import { btnPrimary, fieldClass, labelClass, pillInactive } from "@/lib/ui";
 
-const field =
-  "h-10 w-full rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.45] dark:border-white/[.16] dark:focus:border-white/[.45]";
-const labelClass = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
+const field = `h-10 ${fieldClass}`;
 
 type RosterEntry = { userId: string; displayName: string; isOrganizer: boolean };
 
@@ -148,9 +147,7 @@ export function AddElementForm({
                 type="button"
                 onClick={() => setScopeMode(m)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  scopeMode === m
-                    ? "border-transparent bg-foreground text-background"
-                    : "border-black/[.12] text-zinc-600 hover:bg-black/[.03] dark:border-white/[.16] dark:text-zinc-400 dark:hover:bg-white/[.05]"
+                  scopeMode === m ? "border-transparent bg-foreground text-background" : pillInactive
                 }`}
               >
                 {m === "everyone" ? "Everyone" : "Choose people"}
@@ -176,7 +173,7 @@ export function AddElementForm({
           )}
         </div>
       ) : (
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-brand-muted">
           Visible to everyone on the trip — only the organizer can scope an element to specific
           people.
         </p>
@@ -189,9 +186,7 @@ export function AddElementForm({
             type="button"
             onClick={() => setState("open")}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-              state === "open"
-                ? "border-transparent bg-foreground text-background"
-                : "border-black/[.12] text-zinc-600 hover:bg-black/[.03] dark:border-white/[.16] dark:text-zinc-400 dark:hover:bg-white/[.05]"
+              state === "open" ? "border-transparent bg-foreground text-background" : pillInactive
             }`}
           >
             Open for voting
@@ -201,19 +196,17 @@ export function AddElementForm({
             disabled={!canLock}
             onClick={() => setState("locked")}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              state === "locked"
-                ? "border-transparent bg-foreground text-background"
-                : "border-black/[.12] text-zinc-600 hover:bg-black/[.03] dark:border-white/[.16] dark:text-zinc-400 dark:hover:bg-white/[.05]"
+              state === "locked" ? "border-transparent bg-foreground text-background" : pillInactive
             }`}
           >
             Lock it in now
           </button>
         </div>
-        {lockDisabledReason && <p className="text-xs text-zinc-500">{lockDisabledReason}</p>}
+        {lockDisabledReason && <p className="text-xs text-brand-muted">{lockDisabledReason}</p>}
       </div>
 
       {state === "locked" ? (
-        <div className="rounded-lg border border-black/[.08] p-3 dark:border-white/[.1]">
+        <div className="rounded-lg border border-brand-line p-3">
           <span className={`${labelClass} mb-2 block`}>Value</span>
           <ElementValueFields type={type} value={lockedValue} onChange={setLockedValue} />
         </div>
@@ -246,7 +239,7 @@ export function AddElementForm({
         type="button"
         onClick={submit}
         disabled={pending || !label.trim()}
-        className="self-start rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+        className={`self-start px-4 py-2 text-sm ${btnPrimary}`}
       >
         {pending ? "Adding…" : "Add element"}
       </button>

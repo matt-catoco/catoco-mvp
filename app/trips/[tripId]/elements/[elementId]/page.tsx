@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   ELEMENT_METADATA_FIELDS,
   describeElementStatus,
+  formatDate,
   type ElementType,
 } from "@/lib/trip-elements";
 import { OptionSummary } from "@/components/option-summary";
@@ -60,7 +61,7 @@ function MetadataLine({ type, metadata }: { type: ElementType; metadata: Record<
     })
     .filter(Boolean);
   if (parts.length === 0) return null;
-  return <p className="mt-1 text-xs text-zinc-500">{parts.join(" · ")}</p>;
+  return <p className="mt-1 text-xs text-brand-muted">{parts.join(" · ")}</p>;
 }
 
 /**
@@ -177,7 +178,7 @@ export default async function ElementDetailPage({
     });
 
     body = (
-      <div className="w-full max-w-xl rounded-xl border border-black/[.1] p-4 text-left dark:border-white/[.14]">
+      <div className="w-full max-w-xl rounded-xl border border-brand-line p-4 text-left">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium text-black dark:text-zinc-50">
             {element.label}
@@ -284,10 +285,10 @@ export default async function ElementDetailPage({
         )}
 
         {(element.options_deadline || element.voting_deadline) && (
-          <p className="mt-2 text-xs text-zinc-500">
-            {element.options_deadline && `Submissions by ${element.options_deadline.slice(0, 10)}`}
+          <p className="mt-2 text-xs text-brand-muted">
+            {element.options_deadline && `Submissions by ${formatDate(element.options_deadline)}`}
             {element.options_deadline && element.voting_deadline && " · "}
-            {element.voting_deadline && `Vote by ${element.voting_deadline.slice(0, 10)}`}
+            {element.voting_deadline && `Vote by ${formatDate(element.voting_deadline)}`}
           </p>
         )}
 
@@ -320,7 +321,7 @@ export default async function ElementDetailPage({
               canManage={Boolean(canManage)}
             />
           ) : (
-            <p className="text-xs text-zinc-500">No options yet.</p>
+            <p className="text-xs text-brand-muted">No options yet.</p>
           )}
 
           <SubmitOptionForm elementId={element.id} type={element.type} />
@@ -334,7 +335,7 @@ export default async function ElementDetailPage({
       <div className="w-full max-w-xl text-left">
         <Link
           href={`/trips/${tripId}`}
-          className="text-xs font-medium text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+          className="text-xs font-medium text-brand-muted hover:text-black dark:hover:text-zinc-50"
         >
           ← {trip.name}
         </Link>
