@@ -68,8 +68,11 @@ function MetadataLine({ type, metadata }: { type: ElementType; metadata: Record<
 
 /**
  * Drill-in target for a Trip Home tile — one element's full detail. Locked
- * renders read-only; open reuses VotingSection + SubmitOptionForm exactly
- * as before. RLS (is_element_member) does the scope enforcement — this page
+ * renders read-only. Open phase-gates on options_deadline (§11): before it
+ * passes, SubmitOptionForm shows alongside a read-only VotingSection (options
+ * visible, not yet rankable); once it passes, submissions close and
+ * VotingSection becomes interactive — never both propose and rank at once.
+ * RLS (is_element_member) does the scope enforcement — this page
  * doesn't need its own membership check beyond what the queries already
  * rely on.
  */
@@ -296,6 +299,15 @@ export default async function ElementDetailPage({
       bookedAt: null,
     });
 
+    // §11 phase gate: propose and rank never show at once. Before the
+    // submission deadline, options are visible but not yet rankable; once
+    // it passes, submissions close and only the ranking view remains, all
+    // the way through to lock-in. Deadlines are now mandatory at creation
+    // (§1/§2), so every open element has a clean, unambiguous point to gate
+    // on — no manual "close submissions" step needed.
+    const stillSubmitting =
+      !element.options_deadline || new Date(element.options_deadline) > new Date();
+
     body = (
       <div className="w-full max-w-xl text-left">
         <div className="flex items-center justify-between gap-2">
@@ -356,12 +368,13 @@ export default async function ElementDetailPage({
               votingDeadline={element.voting_deadline}
               currentUserId={user.id}
               canManage={Boolean(canManage)}
+              readOnly={stillSubmitting}
             />
           ) : (
             <p className="text-xs text-brand-muted">No options yet.</p>
           )}
 
-          <SubmitOptionForm elementId={element.id} type={element.type} />
+          {stillSubmitting && <SubmitOptionForm elementId={element.id} type={element.type} />}
         </div>
       </div>
     );

@@ -27,6 +27,7 @@ export function VotingSection({
   votingDeadline,
   currentUserId,
   canManage,
+  readOnly = false,
 }: {
   tripId: string;
   elementId: string;
@@ -36,6 +37,11 @@ export function VotingSection({
   votingDeadline: string | null;
   currentUserId: string;
   canManage: boolean;
+  /** Submission phase (before options_deadline) — options are visible but
+   * not yet rankable. §11: the two phases must never show both the propose
+   * form and ranking UI at once; this is the "show the list, not the
+   * ranking" half of that gate. */
+  readOnly?: boolean;
 }) {
   const [ranking, setRanking] = useState<string[]>(myRanking);
   const [dirty, setDirty] = useState(false);
@@ -46,6 +52,7 @@ export function VotingSection({
   const deadlineLabel = votingDeadline ? votingDeadline.slice(0, 10) : null;
 
   function toggle(optionId: string) {
+    if (readOnly) return;
     setError(null);
     setDirty(true);
     setRanking((prev) => {
@@ -67,17 +74,19 @@ export function VotingSection({
   return (
     <div className="mt-3 flex flex-col gap-2">
       <p className="rounded-lg bg-black/[.03] px-3 py-2 text-xs text-zinc-600 dark:bg-white/[.05] dark:text-zinc-400">
-        {options.length === 1
-          ? `This is the only option${deadlineLabel ? ` — it locks in automatically on ${deadlineLabel} unless another is added` : ""}.`
-          : deadlineLabel
-            ? `Top choice locks in automatically on ${deadlineLabel} — no confirmation needed.`
-            : "Top choice locks in automatically once a voting deadline is set — no confirmation needed."}
+        {readOnly
+          ? "Submissions are still open — ranking opens once the submission deadline passes."
+          : options.length === 1
+            ? `This is the only option${deadlineLabel ? ` — it locks in automatically on ${deadlineLabel} unless another is added` : ""}.`
+            : deadlineLabel
+              ? `Top choice locks in automatically on ${deadlineLabel} — no confirmation needed.`
+              : "Top choice locks in automatically once a voting deadline is set — no confirmation needed."}
       </p>
 
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {sorted.map((opt, index) => {
           const rankIndex = ranking.indexOf(opt.id);
-          const myRank = rankIndex >= 0 ? rankIndex + 1 : null;
+          const myRank = !readOnly && rankIndex >= 0 ? rankIndex + 1 : null;
           // Current standing across everyone's votes — the list is already
           // sorted by score, this just labels the position instead of
           // showing raw points (which don't mean anything on their own).
@@ -93,16 +102,17 @@ export function VotingSection({
               myRank={myRank}
               groupRank={groupRank}
               canEdit={canEdit}
-              canLock={canManage}
+              canLock={!readOnly && canManage}
+              readOnly={readOnly}
               onToggle={() => toggle(opt.id)}
             />
           );
         })}
       </ul>
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {!readOnly && error && <p className="text-xs text-red-500">{error}</p>}
 
-      {dirty && (
+      {!readOnly && dirty && (
         <button
           type="button"
           onClick={save}
@@ -125,6 +135,7 @@ function OptionRow({
   groupRank,
   canEdit,
   canLock,
+  readOnly = false,
   onToggle,
 }: {
   tripId: string;
@@ -135,6 +146,7 @@ function OptionRow({
   groupRank: number;
   canEdit: boolean;
   canLock: boolean;
+  readOnly?: boolean;
   onToggle: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -229,6 +241,18 @@ function OptionRow({
     );
   }
 
+  const cardInner = (
+    <>
+      {!readOnly && (
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          {myRank ? <span className="font-semibold">#{myRank}</span> : <span />}
+          <span className={myRank ? "opacity-80" : "text-zinc-500"}>#{groupRank} overall</span>
+        </div>
+      )}
+      <OptionSummary type={elementType} value={option.value} />
+    </>
+  );
+
   return (
     <li
       className={`overflow-hidden rounded-lg border text-xs transition-colors ${
@@ -237,19 +261,19 @@ function OptionRow({
           : "border-black/[.1] dark:border-white/[.14]"
       }`}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`block w-full p-2.5 text-left ${
-          myRank ? "" : "hover:bg-black/[.03] dark:hover:bg-white/[.05]"
-        }`}
-      >
-        <div className="mb-1.5 flex items-center justify-between gap-2">
-          {myRank ? <span className="font-semibold">#{myRank}</span> : <span />}
-          <span className={myRank ? "opacity-80" : "text-zinc-500"}>#{groupRank} overall</span>
-        </div>
-        <OptionSummary type={elementType} value={option.value} />
-      </button>
+      {readOnly ? (
+        <div className="block w-full p-2.5 text-left">{cardInner}</div>
+      ) : (
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`block w-full p-2.5 text-left ${
+            myRank ? "" : "hover:bg-black/[.03] dark:hover:bg-white/[.05]"
+          }`}
+        >
+          {cardInner}
+        </button>
+      )}
       {(canEdit || canLock) && (
         <div
           className={`flex items-center gap-3 border-t px-2.5 py-1.5 ${
