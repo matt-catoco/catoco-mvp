@@ -422,7 +422,17 @@ begin
     end if;
 
     update public.trip_elements
-      set state = 'locked', locked_option_id = v_winner_option_id, locked_via = 'vote'
+      set state = 'locked',
+          locked_option_id = v_winner_option_id,
+          locked_via = 'vote',
+          -- 20260914000000_resolve_due_elements_clear_deadlines.sql's fix,
+          -- carried forward -- dropping this reintroduces the check
+          -- constraint violation (trip_elements_deadlines_only_open) that
+          -- silently broke auto-lock entirely until that fix, confirmed
+          -- live. This file was written without knowing that migration
+          -- existed; caught and fixed before either shipped.
+          options_deadline = null,
+          voting_deadline = null
       where id = v_el.id;
 
     perform public.create_funding_request_for_element(v_el.id);
