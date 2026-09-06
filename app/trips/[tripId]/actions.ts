@@ -238,7 +238,7 @@ export async function submitOption(
 
   const { data: element } = await supabase
     .from("trip_elements")
-    .select("trip_id, type")
+    .select("trip_id, type, voting_deadline")
     .eq("id", elementId)
     .maybeSingle();
   if (!element) return { error: "Couldn't find that element." };
@@ -263,6 +263,40 @@ export async function submitOption(
   });
 
   if (error) return { error: error.message };
+
+  // §2: a Nights-mode Dates option auto-creates a second Dates element
+  // (exact-dates mode) for the group to pin down real calendar dates, once
+  // this one locks in. Only once per original element, even if several
+  // different Nights options get proposed for it -- guarded by
+  // derived_from_element_id, not just "did this call submit a nights value."
+  if (type === "dates" && "nights" in value && element.voting_deadline) {
+    const { data: existingDerived } = await supabase
+      .from("trip_elements")
+      .select("id")
+      .eq("derived_from_element_id", elementId)
+      .maybeSingle();
+
+    if (!existingDerived) {
+      const votingDeadline = new Date(element.voting_deadline);
+      const newOptionsDeadline = new Date(votingDeadline.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const newVotingDeadline = new Date(votingDeadline.getTime() + 14 * 24 * 60 * 60 * 1000);
+      await supabase.rpc("create_element", {
+        p_trip_id: element.trip_id,
+        p_type: "dates",
+        p_label: "Dates",
+        p_metadata: {},
+        p_scope_user_ids: null,
+        p_state: "open",
+        p_options_deadline: newOptionsDeadline.toISOString(),
+        p_voting_deadline: newVotingDeadline.toISOString(),
+        p_options: [],
+        p_derived_from_element_id: elementId,
+      });
+      // Best-effort: a failure here shouldn't undo the option that already
+      // saved successfully above -- no error surfaced to the proposer for
+      // this secondary step.
+    }
+  }
 
   revalidatePath(`/trips/${element.trip_id}`);
   revalidatePath(`/trips/${element.trip_id}/elements/${elementId}`);

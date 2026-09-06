@@ -142,16 +142,37 @@ function DatesFields({
   // mode. The two modes are independent, not derived from each other —
   // Nights means "we know the length, not yet when" (no start date at all,
   // suggesting one would be misleading); Exact dates means real anchored
-  // dates. Switching modes clears the other mode's fields.
+  // dates.
   const [mode, setMode] = useState<"exact" | "nights">(str("nights") ? "nights" : "exact");
+
+  // Bug fix: switching modes used to wipe whatever was typed in the other
+  // mode by clearing it straight out of the submitted value. Each mode's
+  // fields now live in their own local state instead, seeded once from the
+  // incoming value — switching modes never touches the other mode's state,
+  // it just changes which one gets merged into what's actually submitted
+  // (normalizeOptionValue only ever looks at one shape at a time anyway).
+  const [startDate, setStartDate] = useState(str("start_date"));
+  const [endDate, setEndDate] = useState(str("end_date"));
+  const [nights, setNights] = useState(str("nights"));
+  const [flexDays, setFlexDays] = useState(str("flexibility_days"));
+
+  function emit(next: {
+    mode: "exact" | "nights";
+    startDate: string;
+    endDate: string;
+    nights: string;
+    flexDays: string;
+  }) {
+    const shape =
+      next.mode === "nights"
+        ? { nights: next.nights }
+        : { start_date: next.startDate, end_date: next.endDate, flexibility_days: next.flexDays };
+    onChange(shape);
+  }
 
   function switchMode(next: "exact" | "nights") {
     setMode(next);
-    if (next === "nights") {
-      onChange({ ...value, start_date: "", end_date: "" });
-    } else {
-      onChange({ ...value, nights: "" });
-    }
+    emit({ mode: next, startDate, endDate, nights, flexDays });
   }
 
   return (
@@ -168,53 +189,79 @@ function DatesFields({
       {mode === "exact" ? (
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1">
-            <span className={label}>Start date</span>
+            <span className={label}>
+              Start date <span className="text-red-500">*</span>
+            </span>
             <input
               type="date"
+              required
               className={field}
-              value={str("start_date")}
-              onChange={(e) => onChange({ ...value, start_date: e.target.value })}
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                emit({ mode, startDate: e.target.value, endDate, nights, flexDays });
+              }}
             />
           </label>
           <label className="flex flex-1 flex-col gap-1">
-            <span className={label}>End date</span>
+            <span className={label}>
+              End date <span className="text-red-500">*</span>
+            </span>
             <input
               type="date"
+              required
               className={field}
-              value={str("end_date")}
-              min={str("start_date") || undefined}
-              onChange={(e) => onChange({ ...value, end_date: e.target.value })}
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                emit({ mode, startDate, endDate: e.target.value, nights, flexDays });
+              }}
             />
           </label>
         </div>
       ) : (
-        <label className="flex flex-col gap-1">
-          <span className={label}>Nights</span>
-          <input
-            type="number"
-            min={1}
-            step={1}
-            className={`${field} max-w-[120px]`}
-            placeholder="7"
-            value={str("nights")}
-            onChange={(e) => onChange({ ...value, nights: e.target.value })}
-          />
-        </label>
+        <>
+          <label className="flex flex-col gap-1">
+            <span className={label}>Nights</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              className={`${field} max-w-[120px]`}
+              placeholder="7"
+              value={nights}
+              onChange={(e) => {
+                setNights(e.target.value);
+                emit({ mode, startDate, endDate, nights: e.target.value, flexDays });
+              }}
+            />
+          </label>
+          <p className="rounded-lg bg-brand-teal-wash px-3 py-2 text-xs text-brand-teal-deep">
+            Submitting this will also create a second Dates element (in exact-dates mode, sized to
+            this many nights) for the group to pin down actual calendar dates once this locks in.
+          </p>
+        </>
       )}
 
-      <label className="flex flex-col gap-1">
-        <span className={label}>Flexibility (optional)</span>
-        <select
-          className={`${field} w-40`}
-          value={str("flexibility_days")}
-          onChange={(e) => onChange({ ...value, flexibility_days: e.target.value })}
-        >
-          <option value="">Exact dates only</option>
-          <option value="1">± 1 day</option>
-          <option value="2">± 2 days</option>
-          <option value="3">± 3 days</option>
-        </select>
-      </label>
+      {mode === "exact" && (
+        <label className="flex flex-col gap-1">
+          <span className={label}>Flexibility (optional)</span>
+          <select
+            className={`${field} w-40`}
+            value={flexDays}
+            onChange={(e) => {
+              setFlexDays(e.target.value);
+              emit({ mode, startDate, endDate, nights, flexDays: e.target.value });
+            }}
+          >
+            <option value="">Exact dates only</option>
+            <option value="1">± 1 day</option>
+            <option value="2">± 2 days</option>
+            <option value="3">± 3 days</option>
+          </select>
+        </label>
+      )}
     </div>
   );
 }

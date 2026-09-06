@@ -84,6 +84,11 @@ export function AddElementForm({
     if (state === "locked") {
       const err = validateOptionValue(type, lockedValue);
       if (err) return setError(err);
+    } else {
+      // §1: deadlines are required for every type now (only relevant when
+      // open — a locked-at-creation element never has them at all).
+      if (!optionsDeadline) return setError("Pick a submission deadline.");
+      if (!votingDeadline) return setError("Pick a voting deadline.");
     }
     startTransition(async () => {
       const res = await createElement({
@@ -122,18 +127,20 @@ export function AddElementForm({
         </select>
       </label>
 
-      <label className="flex flex-col gap-1.5">
-        <span className={labelClass}>Label</span>
-        <input
-          className={field}
-          value={label}
-          onChange={(e) => {
-            setLabel(e.target.value);
-            setLabelTouched(true);
-          }}
-          placeholder="e.g. Friday night dinner"
-        />
-      </label>
+      {type !== "dates" && (
+        <label className="flex flex-col gap-1.5">
+          <span className={labelClass}>Label</span>
+          <input
+            className={field}
+            value={label}
+            onChange={(e) => {
+              setLabel(e.target.value);
+              setLabelTouched(true);
+            }}
+            placeholder="e.g. Friday night dinner"
+          />
+        </label>
+      )}
 
       <ElementMetadataFields type={type} value={metadata} onChange={setMetadata} />
 
@@ -213,18 +220,24 @@ export function AddElementForm({
       ) : (
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1">
-            <span className={labelClass}>Submission deadline (optional)</span>
+            <span className={labelClass}>
+              Submission deadline <span className="text-red-500">*</span>
+            </span>
             <input
               type="date"
+              required
               className={field}
               value={optionsDeadline}
               onChange={(e) => setOptionsDeadline(e.target.value)}
             />
           </label>
           <label className="flex flex-1 flex-col gap-1">
-            <span className={labelClass}>Voting deadline (optional)</span>
+            <span className={labelClass}>
+              Voting deadline <span className="text-red-500">*</span>
+            </span>
             <input
               type="date"
+              required
               className={field}
               value={votingDeadline}
               onChange={(e) => setVotingDeadline(e.target.value)}
@@ -238,7 +251,7 @@ export function AddElementForm({
       <button
         type="button"
         onClick={submit}
-        disabled={pending || !label.trim()}
+        disabled={pending || !label.trim() || (state === "open" && (!optionsDeadline || !votingDeadline))}
         className={`self-start px-4 py-2 text-sm ${btnPrimary}`}
       >
         {pending ? "Adding…" : "Add element"}

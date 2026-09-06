@@ -352,8 +352,8 @@ export function validateOptionValue(
         return null;
       }
       if (!str("start_date")) return "Pick a start date";
-      if (str("end_date") && str("end_date") < str("start_date"))
-        return "End date is before the start date";
+      if (!str("end_date")) return "Pick an end date";
+      if (str("end_date") < str("start_date")) return "End date is before the start date";
       return null;
     }
     case "destination":
