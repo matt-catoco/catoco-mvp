@@ -1,8 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { CURRENCIES, PRICING_BASES, PRICING_BASIS_LABELS, type ElementType } from "@/lib/trip-elements";
+import {
+  CURRENCIES,
+  PRICING_BASES,
+  PRICING_BASIS_LABELS,
+  TRAVEL_MODES,
+  TRAVEL_MODE_LABELS,
+  ACCOMMODATION_SUBTYPES,
+  ACCOMMODATION_SUBTYPE_LABELS,
+  ACCOMMODATION_SUBTYPE_FIELDS,
+  ACCOMMODATION_FIELD_LABELS,
+  EXPERIENCE_SUBTYPES,
+  EXPERIENCE_SUBTYPE_LABELS,
+  CUISINE_GROUPS,
+  PRICING_TIERS,
+  type ElementType,
+  type TravelMode,
+  type AccommodationSubtype,
+  type AccommodationFieldKey,
+  type ExperienceSubtype,
+  type PricingTier,
+} from "@/lib/trip-elements";
 import { fieldClass, labelClass, pillInactive } from "@/lib/ui";
+import { PlacePicker, type GeoPlaceValue } from "@/components/place-picker";
 
 // Shared between the trip-creation wizard (app/trips/new) and the post-
 // creation option-submission form (app/trips/[tripId]) — same input shapes,
@@ -56,29 +77,85 @@ export function ElementValueFields({
 
     case "destination":
       return (
-        <input
-          className={field}
+        <PlacePicker
           placeholder="e.g. Lisbon, Portugal"
-          value={str("name")}
-          onChange={(e) => set("name", e.target.value)}
+          value={{ name: str("name"), lat: value.lat ? Number(value.lat) : undefined, lng: value.lng ? Number(value.lng) : undefined, place_id: str("place_id") || undefined }}
+          onChange={(next: GeoPlaceValue) =>
+            onChange({ ...value, name: next.name, lat: next.lat ?? "", lng: next.lng ?? "", place_id: next.place_id ?? "" })
+          }
         />
       );
 
-    case "travel":
+    case "travel": {
+      const mode = str("mode") as TravelMode | "";
+      const isOther = mode === "other";
       return (
         <div className="flex flex-col gap-2">
-          <input
-            className={field}
-            placeholder="Mode — e.g. flights, train, road trip"
-            value={str("mode")}
-            onChange={(e) => set("mode", e.target.value)}
-          />
-          <input
-            className={field}
-            placeholder="Note (optional)"
-            value={str("note")}
-            onChange={(e) => set("note", e.target.value)}
-          />
+          <label className="flex flex-col gap-1">
+            <span className={label}>
+              Mode <span className="text-red-500">*</span>
+            </span>
+            <select
+              className={field}
+              required
+              value={mode}
+              onChange={(e) => set("mode", e.target.value)}
+            >
+              <option value="">Select a mode</option>
+              {TRAVEL_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {TRAVEL_MODE_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {isOther ? (
+            <label className="flex flex-col gap-1">
+              <span className={label}>
+                Describe the mode <span className="text-red-500">*</span>
+              </span>
+              <input
+                className={field}
+                required
+                placeholder="e.g. rideshare, private transfer"
+                value={str("note")}
+                onChange={(e) => set("note", e.target.value)}
+              />
+            </label>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  className={field}
+                  placeholder="From"
+                  value={str("start_location")}
+                  onChange={(e) => set("start_location", e.target.value)}
+                />
+                <input
+                  className={field}
+                  placeholder="To"
+                  value={str("destination_location")}
+                  onChange={(e) => set("destination_location", e.target.value)}
+                />
+              </div>
+              <ModeToggle
+                value={value.round_trip === false ? "one_way" : "round_trip"}
+                onChange={(v) => set("round_trip", v === "round_trip")}
+                options={[
+                  { value: "round_trip", label: "Round trip" },
+                  { value: "one_way", label: "One-way" },
+                ]}
+              />
+              <input
+                className={field}
+                placeholder="Note (optional)"
+                value={str("note")}
+                onChange={(e) => set("note", e.target.value)}
+              />
+            </>
+          )}
+
           <input
             type="url"
             className={field}
@@ -91,15 +168,22 @@ export function ElementValueFields({
             price={str("price")}
             currency={str("currency")}
             pricingBasis={str("pricing_basis")}
+            optional={isOther}
             onChangePrice={(v) => set("price", v)}
             onChangeCurrency={(v) => set("currency", v)}
             onChangePricingBasis={(v) => set("pricing_basis", v)}
           />
         </div>
       );
+    }
 
-    // accommodation | experience | dining
-    default:
+    case "accommodation": {
+      const subtype = str("subtype") as AccommodationSubtype | "";
+      const fieldKeys = subtype ? ACCOMMODATION_SUBTYPE_FIELDS[subtype] : [];
+      const fields = (value.accommodation_fields ?? {}) as Record<string, string>;
+      const setField = (k: AccommodationFieldKey, v: string) =>
+        set("accommodation_fields", { ...fields, [k]: v });
+
       return (
         <div className="flex flex-col gap-2">
           <input
@@ -108,10 +192,113 @@ export function ElementValueFields({
             value={str("name")}
             onChange={(e) => set("name", e.target.value)}
           />
+          <label className="flex flex-col gap-1">
+            <span className={label}>
+              Property type <span className="text-red-500">*</span>
+            </span>
+            <select
+              className={field}
+              required
+              value={subtype}
+              onChange={(e) => set("subtype", e.target.value)}
+            >
+              <option value="">Select a type</option>
+              {ACCOMMODATION_SUBTYPES.map((s) => (
+                <option key={s} value={s}>
+                  {ACCOMMODATION_SUBTYPE_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {fieldKeys.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {fieldKeys.map((k) => (
+                <AccommodationField key={k} fieldKey={k} value={fields[k] ?? ""} onChange={(v) => setField(k, v)} />
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-brand-line p-2">
+            <span className={`${label} mb-1 block`}>Dates (optional)</span>
+            <DatesFields
+              value={(value.dates as Record<string, unknown>) ?? {}}
+              onChange={(next) => set("dates", next)}
+              required={false}
+            />
+          </div>
+
           <input
             type="url"
             className={field}
-            placeholder="Booking link (required) — e.g. an Airbnb, hotel, or restaurant page"
+            placeholder="Booking link (required) — e.g. an Airbnb or hotel page"
+            required
+            value={str("booking_link")}
+            onChange={(e) => set("booking_link", e.target.value)}
+          />
+          <PriceField
+            price={str("price")}
+            currency={str("currency")}
+            pricingBasis={str("pricing_basis")}
+            optional={subtype === "other"}
+            onChangePrice={(v) => set("price", v)}
+            onChangeCurrency={(v) => set("currency", v)}
+            onChangePricingBasis={(v) => set("pricing_basis", v)}
+          />
+        </div>
+      );
+    }
+
+    case "experience": {
+      const subtype = str("experience_subtype") as ExperienceSubtype | "";
+      return (
+        <div className="flex flex-col gap-2">
+          <input
+            className={field}
+            placeholder="Name"
+            value={str("name")}
+            onChange={(e) => set("name", e.target.value)}
+          />
+          <label className="flex flex-col gap-1">
+            <span className={label}>
+              Category <span className="text-red-500">*</span>
+            </span>
+            <select
+              className={field}
+              required
+              value={subtype}
+              onChange={(e) => set("experience_subtype", e.target.value)}
+            >
+              <option value="">Select a category</option>
+              {EXPERIENCE_SUBTYPES.map((s) => (
+                <option key={s} value={s}>
+                  {EXPERIENCE_SUBTYPE_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <PlacePicker
+            placeholder="Location (optional)"
+            value={{
+              name: str("location_name"),
+              lat: value.location_lat ? Number(value.location_lat) : undefined,
+              lng: value.location_lng ? Number(value.location_lng) : undefined,
+              place_id: str("location_place_id") || undefined,
+            }}
+            onChange={(next: GeoPlaceValue) =>
+              onChange({
+                ...value,
+                location_name: next.name,
+                location_lat: next.lat ?? "",
+                location_lng: next.lng ?? "",
+                location_place_id: next.place_id ?? "",
+              })
+            }
+          />
+          <input
+            type="url"
+            className={field}
+            placeholder="Booking link (required) — e.g. a tour or ticketing page"
             required
             value={str("booking_link")}
             onChange={(e) => set("booking_link", e.target.value)}
@@ -126,15 +313,171 @@ export function ElementValueFields({
           />
         </div>
       );
+    }
+
+    case "dining": {
+      return (
+        <div className="flex flex-col gap-2">
+          <input
+            className={field}
+            placeholder="Name"
+            value={str("name")}
+            onChange={(e) => set("name", e.target.value)}
+          />
+          <PlacePicker
+            placeholder="Location (optional)"
+            value={{
+              name: str("location_name"),
+              lat: value.location_lat ? Number(value.location_lat) : undefined,
+              lng: value.location_lng ? Number(value.location_lng) : undefined,
+              place_id: str("location_place_id") || undefined,
+            }}
+            onChange={(next: GeoPlaceValue) =>
+              onChange({
+                ...value,
+                location_name: next.name,
+                location_lat: next.lat ?? "",
+                location_lng: next.lng ?? "",
+                location_place_id: next.place_id ?? "",
+              })
+            }
+          />
+          <div className="flex gap-2">
+            <label className="flex flex-1 flex-col gap-1">
+              <span className={label}>Party size (optional)</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                className={field}
+                value={str("guests")}
+                onChange={(e) => set("guests", e.target.value)}
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className={label}>Cuisine (optional)</span>
+              <select className={field} value={str("cuisine")} onChange={(e) => set("cuisine", e.target.value)}>
+                <option value="">Select a cuisine</option>
+                {CUISINE_GROUPS.map((g) => (
+                  <optgroup key={g.group} label={g.group}>
+                    {g.cuisines.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="flex flex-col gap-1">
+            <span className={label}>
+              Price range <span className="text-red-500">*</span>
+            </span>
+            <div className="flex gap-1.5">
+              {PRICING_TIERS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => set("price_tier", t)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    str("price_tier") === t ? "border-transparent bg-foreground text-background" : pillInactive
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </label>
+          <input
+            type="url"
+            className={field}
+            placeholder="Reservation link (required) — e.g. OpenTable or the restaurant's page"
+            required
+            value={str("booking_link")}
+            onChange={(e) => set("booking_link", e.target.value)}
+          />
+        </div>
+      );
+    }
   }
+}
+
+const ACCOMMODATION_FIELD_KIND: Record<AccommodationFieldKey, "number" | "yesno" | "select"> = {
+  rooms: "number",
+  guests: "number",
+  breakfast: "yesno",
+  bedrooms: "number",
+  beds: "number",
+  bathrooms: "number",
+  max_guests: "number",
+  room_type_private_dorm: "select",
+  num_beds: "number",
+  unit_type: "select",
+  room_type_private_shared: "select",
+  bedding_provided: "yesno",
+  sleeping_capacity: "number",
+  num_vehicles: "number",
+  berths: "number",
+  num_sites: "number",
+};
+
+const ACCOMMODATION_FIELD_SELECT_OPTIONS: Partial<Record<AccommodationFieldKey, string[]>> = {
+  room_type_private_dorm: ["Private room", "Dorm bed"],
+  room_type_private_shared: ["Private", "Shared"],
+  unit_type: ["Tent", "Yurt", "Treehouse", "Cabin", "Dome", "Other"],
+};
+
+function AccommodationField({
+  fieldKey,
+  value,
+  onChange,
+}: {
+  fieldKey: AccommodationFieldKey;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const kind = ACCOMMODATION_FIELD_KIND[fieldKey];
+  return (
+    <label className="flex flex-col gap-1">
+      <span className={label}>{ACCOMMODATION_FIELD_LABELS[fieldKey]}</span>
+      {kind === "number" ? (
+        <input
+          type="number"
+          min={0}
+          step={1}
+          className={field}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : kind === "yesno" ? (
+        <select className={field} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">—</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      ) : (
+        <select className={field} value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">—</option>
+          {(ACCOMMODATION_FIELD_SELECT_OPTIONS[fieldKey] ?? []).map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      )}
+    </label>
+  );
 }
 
 function DatesFields({
   value,
   onChange,
+  required = true,
 }: {
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
+  required?: boolean;
 }) {
   const str = (k: string) => String(value[k] ?? "");
   // UI-only: which entry mode is active. Seeded from whatever's already in
@@ -190,11 +533,11 @@ function DatesFields({
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1">
             <span className={label}>
-              Start date <span className="text-red-500">*</span>
+              Start date {required && <span className="text-red-500">*</span>}
             </span>
             <input
               type="date"
-              required
+              required={required}
               className={field}
               value={startDate}
               onChange={(e) => {
@@ -205,11 +548,11 @@ function DatesFields({
           </label>
           <label className="flex flex-1 flex-col gap-1">
             <span className={label}>
-              End date <span className="text-red-500">*</span>
+              End date {required && <span className="text-red-500">*</span>}
             </span>
             <input
               type="date"
-              required
+              required={required}
               className={field}
               value={endDate}
               min={startDate || undefined}
@@ -270,6 +613,7 @@ function PriceField({
   price,
   currency,
   pricingBasis,
+  optional = false,
   onChangePrice,
   onChangeCurrency,
   onChangePricingBasis,
@@ -277,6 +621,7 @@ function PriceField({
   price: string;
   currency: string;
   pricingBasis: string;
+  optional?: boolean;
   onChangePrice: (v: string) => void;
   onChangeCurrency: (v: string) => void;
   onChangePricingBasis: (v: string) => void;
@@ -285,12 +630,19 @@ function PriceField({
     <div className="flex flex-col gap-2">
       <div className="flex items-end gap-2">
         <label className="flex flex-col gap-1">
-          <span className={label}>Estimated price (optional)</span>
+          <span className={label}>
+            {optional ? "Estimated price (optional)" : (
+              <>
+                Price <span className="text-red-500">*</span>
+              </>
+            )}
+          </span>
           <input
             type="number"
             min={0}
             step="any"
             inputMode="decimal"
+            required={!optional}
             className={`${field} max-w-[140px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
             placeholder="0"
             value={price}

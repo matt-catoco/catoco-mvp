@@ -183,7 +183,16 @@ export type DatesValue = {
   nights?: number;
   flexibility_days?: 0 | 1 | 2 | 3;
 };
-export type DestinationValue = { name: string };
+// §3: lat/lng/place_id are the Mapbox-resolved fields (components/
+// place-picker.tsx) — undefined until a real geocoding call is wired (see
+// app/api/geocode/route.ts), harmless either way since name alone is what
+// validateOptionValue actually requires.
+export type DestinationValue = {
+  name: string;
+  lat?: number;
+  lng?: number;
+  place_id?: string;
+};
 // `price` (optional) is in whatever currency the group is using, manually
 // entered by whoever submits the option — the only surviving piece of the
 // old Budget element, now per-candidate instead of trip-wide.
@@ -196,20 +205,220 @@ export type LinkPreview = {
   description?: string;
   thumbnail_url?: string;
 };
+// ---- §5 Travel: fixed Mode enum, not free text/autocomplete — clean enum
+// values for vendor-API routing later (Travelpayouts for flights, etc.);
+// free text would reintroduce the "Flights/Fights/flight/plane" mess.
+export const TRAVEL_MODES = ["flight", "train", "bus", "rental_car", "ferry", "other"] as const;
+export type TravelMode = (typeof TRAVEL_MODES)[number];
+export const TRAVEL_MODE_LABELS: Record<TravelMode, string> = {
+  flight: "Flight",
+  train: "Train",
+  bus: "Bus",
+  rental_car: "Rental car",
+  ferry: "Ferry",
+  other: "Other",
+};
+
 export type TravelValue = LinkPreview & {
-  mode: string;
+  mode: TravelMode | "";
   note?: string;
+  start_location?: string;
+  destination_location?: string;
+  round_trip?: boolean;
   booking_link?: string;
   price?: number;
   currency?: string;
   pricing_basis?: string;
 };
+
+// ---- §6 Accommodations: Subtype + conditional fields. Practical starting
+// draft, not gospel — confirm against whatever live vendor endpoint gets
+// integrated later (Booking.com's /accommodations/constants, or
+// Travelpayouts/Hotellook's hotel-type list) before treating this as final.
+export const ACCOMMODATION_SUBTYPES = [
+  "hotel",
+  "bnb",
+  "home_apartment",
+  "villa",
+  "chalet",
+  "cabin_cottage",
+  "guesthouse",
+  "hostel",
+  "glamping",
+  "hut",
+  "camper_van",
+  "boat_houseboat",
+  "campsite",
+  "farm_stay",
+  "aparthotel",
+  "resort",
+  "other",
+] as const;
+export type AccommodationSubtype = (typeof ACCOMMODATION_SUBTYPES)[number];
+export const ACCOMMODATION_SUBTYPE_LABELS: Record<AccommodationSubtype, string> = {
+  hotel: "Hotel",
+  bnb: "B&B",
+  home_apartment: "Home/apartment",
+  villa: "Villa",
+  chalet: "Chalet",
+  cabin_cottage: "Cabin/Cottage",
+  guesthouse: "Guesthouse",
+  hostel: "Hostel",
+  glamping: "Glamping",
+  hut: "Hut (mountain/refuge-style)",
+  camper_van: "Camper van/RV",
+  boat_houseboat: "Boat/houseboat",
+  campsite: "Campsite",
+  farm_stay: "Farm stay",
+  aparthotel: "Aparthotel",
+  resort: "Resort",
+  other: "Other",
+};
+
+// Which conditional fields (§6) apply per subtype — data-driven instead of a
+// giant per-subtype switch, so adding/adjusting a subtype's fields later is
+// a one-line change here, not a new UI branch.
+export type AccommodationFieldKey =
+  | "rooms"
+  | "guests"
+  | "breakfast"
+  | "bedrooms"
+  | "beds"
+  | "bathrooms"
+  | "max_guests"
+  | "room_type_private_dorm"
+  | "num_beds"
+  | "unit_type"
+  | "room_type_private_shared"
+  | "bedding_provided"
+  | "sleeping_capacity"
+  | "num_vehicles"
+  | "berths"
+  | "num_sites";
+
+export const ACCOMMODATION_SUBTYPE_FIELDS: Record<AccommodationSubtype, AccommodationFieldKey[]> = {
+  hotel: ["rooms", "guests", "breakfast"],
+  bnb: ["rooms", "guests", "breakfast"],
+  home_apartment: ["bedrooms", "beds", "bathrooms", "max_guests"],
+  villa: ["bedrooms", "beds", "bathrooms", "max_guests"],
+  chalet: ["bedrooms", "beds", "bathrooms", "max_guests"],
+  cabin_cottage: ["bedrooms", "beds", "bathrooms", "max_guests"],
+  farm_stay: ["bedrooms", "beds", "bathrooms", "max_guests"],
+  aparthotel: ["bedrooms", "beds", "bathrooms", "max_guests"],
+  resort: ["bedrooms", "beds", "bathrooms", "max_guests"],
+  guesthouse: [],
+  hostel: ["room_type_private_dorm", "num_beds", "guests"],
+  glamping: ["guests", "unit_type"],
+  hut: ["guests", "room_type_private_shared", "bedding_provided"],
+  camper_van: ["sleeping_capacity", "num_vehicles"],
+  boat_houseboat: ["berths", "guests"],
+  campsite: ["num_sites", "guests"],
+  other: [],
+};
+
+export const ACCOMMODATION_FIELD_LABELS: Record<AccommodationFieldKey, string> = {
+  rooms: "# of rooms",
+  guests: "# of guests",
+  breakfast: "Breakfast included",
+  bedrooms: "Bedrooms",
+  beds: "Beds",
+  bathrooms: "Bathrooms",
+  max_guests: "Max guests",
+  room_type_private_dorm: "Room type",
+  num_beds: "# of beds",
+  unit_type: "Unit type",
+  room_type_private_shared: "Room type",
+  bedding_provided: "Bedding provided",
+  sleeping_capacity: "Sleeping capacity",
+  num_vehicles: "# of vehicles",
+  berths: "# of berths",
+  num_sites: "# of sites/tents",
+};
+
+// ---- §7 Experiences: Subtype/genre. Sports/concert ticketing will
+// eventually need a different vendor category (Ticketmaster/SeatGeek-style,
+// not activity-tour APIs like Viator) — this field lays that groundwork,
+// not building the second integration now.
+export const EXPERIENCE_SUBTYPES = [
+  "tour_sightseeing",
+  "sporting_event",
+  "concert_show",
+  "museum_attraction",
+  "outdoor_adventure",
+  "class_workshop",
+  "nightlife",
+  "other",
+] as const;
+export type ExperienceSubtype = (typeof EXPERIENCE_SUBTYPES)[number];
+export const EXPERIENCE_SUBTYPE_LABELS: Record<ExperienceSubtype, string> = {
+  tour_sightseeing: "Tour/Sightseeing",
+  sporting_event: "Sporting event",
+  concert_show: "Concert/Show",
+  museum_attraction: "Museum/Attraction",
+  outdoor_adventure: "Outdoor/Adventure",
+  class_workshop: "Class/Workshop",
+  nightlife: "Nightlife",
+  other: "Other",
+};
+
+// ---- §8 Dining: cuisine, grouped for maintainability (not a flat 60-item
+// dropdown with no structure).
+export const CUISINE_GROUPS: { group: string; cuisines: string[] }[] = [
+  {
+    group: "Regional/national",
+    cuisines: [
+      "Italian", "French", "Spanish", "Greek", "Mediterranean", "American",
+      "Southern/Soul food", "Cajun/Creole", "Tex-Mex", "Mexican", "Latin American",
+      "Peruvian", "Brazilian", "Caribbean", "Cuban", "Chinese", "Japanese", "Korean",
+      "Thai", "Vietnamese", "Filipino", "Indonesian", "Malaysian", "Indian", "Pakistani",
+      "Middle Eastern", "Lebanese", "Turkish", "Moroccan", "Ethiopian", "West African",
+      "German", "British", "Irish", "Scandinavian/Nordic", "Portuguese",
+      "Eastern European/Russian", "Hawaiian/Polynesian",
+    ],
+  },
+  {
+    group: "Format/style",
+    cuisines: [
+      "Seafood", "Steakhouse/BBQ", "Pizza", "Burgers", "Sushi", "Ramen/Noodles",
+      "Sandwiches/Deli", "Bakery/Café", "Breakfast/Brunch", "Buffet", "Fine dining",
+      "Fast food/Casual", "Food truck/Street food", "Fusion", "Dessert/Ice cream",
+      "Wine bar/Tapas", "Brewery/Gastropub",
+    ],
+  },
+  {
+    group: "Dietary",
+    cuisines: ["Vegetarian/Vegan", "Gluten-free", "Farm-to-table"],
+  },
+  {
+    group: "Other",
+    cuisines: ["Other"],
+  },
+];
+
+export const PRICING_TIERS = ["$", "$$", "$$$", "$$$$"] as const;
+export type PricingTier = (typeof PRICING_TIERS)[number];
+
 export type PlaceValue = LinkPreview & {
   name: string;
   booking_link?: string;
   price?: number;
   currency?: string;
   pricing_basis?: string;
+  // §6 Accommodations
+  subtype?: AccommodationSubtype | "";
+  accommodation_fields?: Partial<Record<AccommodationFieldKey, string>>;
+  dates?: DatesValue;
+  // §7 Experiences
+  experience_subtype?: ExperienceSubtype | "";
+  // §7/§8 location (Mapbox-backed, same shape as Destination)
+  location_name?: string;
+  location_lat?: number;
+  location_lng?: number;
+  location_place_id?: string;
+  // §8 Dining
+  guests?: number;
+  cuisine?: string;
+  price_tier?: PricingTier | "";
 };
 
 export const PRICE_BEARING_TYPES: ElementType[] = [
@@ -274,31 +483,68 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
         flexibility_days: "",
       };
     case "destination":
-      return { name: "" };
+      return { name: "", lat: "", lng: "", place_id: "" };
     case "travel":
       return {
         mode: "",
         note: "",
+        start_location: "",
+        destination_location: "",
+        round_trip: true,
         booking_link: "",
         price: "",
         currency: "USD",
         pricing_basis: defaultPricingBasisFor("travel"),
       };
-    default:
+    case "accommodation":
       return {
         name: "",
+        subtype: "",
+        accommodation_fields: {},
+        dates: { start_date: "", end_date: "", nights: "", flexibility_days: "" },
         booking_link: "",
         price: "",
         currency: "USD",
-        pricing_basis: defaultPricingBasisFor(type),
+        pricing_basis: defaultPricingBasisFor("accommodation"),
+      };
+    case "experience":
+      return {
+        name: "",
+        experience_subtype: "",
+        location_name: "",
+        location_lat: "",
+        location_lng: "",
+        location_place_id: "",
+        booking_link: "",
+        price: "",
+        currency: "USD",
+        pricing_basis: defaultPricingBasisFor("experience"),
+      };
+    case "dining":
+      return {
+        name: "",
+        location_name: "",
+        location_lat: "",
+        location_lng: "",
+        location_place_id: "",
+        booking_link: "",
+        guests: "",
+        cuisine: "",
+        price_tier: "",
       };
   }
 }
 
-/** Error message if the optional `price` field is present but not a number >= 0. */
-function priceError(value: Record<string, unknown>): string | null {
+/**
+ * Error message for the `price` field. Required by default (§1) — the one
+ * exception is a type/subtype-specific "Other" selection (Travel's Mode =
+ * Other, Accommodations' Subtype = Other), where a price can't reasonably be
+ * pinned down yet and stays optional.
+ */
+function priceError(value: Record<string, unknown>, opts?: { optional?: boolean }): string | null {
   const raw = value.price;
-  if (raw === undefined || raw === null || String(raw).trim() === "") return null;
+  const isEmpty = raw === undefined || raw === null || String(raw).trim() === "";
+  if (isEmpty) return opts?.optional ? null : "Enter a price";
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) return "Price must be 0 or more";
   // A price with no pricing_basis can't drive the funding calculation once
@@ -358,16 +604,29 @@ export function validateOptionValue(
     }
     case "destination":
       return str("name") ? null : "Enter a destination";
-    case "travel":
-      if (!str("mode")) return "Enter a travel mode";
-      return bookingLinkError(value) ?? priceError(value);
-    case "accommodation":
-    case "experience":
-    case "dining":
+    case "travel": {
+      if (!(TRAVEL_MODES as readonly string[]).includes(str("mode"))) return "Pick a travel mode";
+      if (str("mode") === "other" && !str("note")) return "Describe the travel mode";
+      return bookingLinkError(value) ?? priceError(value, { optional: str("mode") === "other" });
+    }
+    case "accommodation": {
       if (!str("name")) return "Enter a name";
+      if (!(ACCOMMODATION_SUBTYPES as readonly string[]).includes(str("subtype")))
+        return "Pick a property type";
+      return bookingLinkError(value) ?? priceError(value, { optional: str("subtype") === "other" });
+    }
+    case "experience": {
+      if (!str("name")) return "Enter a name";
+      if (!(EXPERIENCE_SUBTYPES as readonly string[]).includes(str("experience_subtype")))
+        return "Pick a category";
       return bookingLinkError(value) ?? priceError(value);
-    default:
-      return "Unknown element type";
+    }
+    case "dining": {
+      if (!str("name")) return "Enter a name";
+      if (!(PRICING_TIERS as readonly string[]).includes(str("price_tier")))
+        return "Pick a price range";
+      return bookingLinkError(value);
+    }
   }
 }
 
@@ -409,11 +668,21 @@ export function normalizeOptionValue(
         out.flexibility_days = Number(value.flexibility_days) as 0 | 1 | 2 | 3;
       return out;
     }
-    case "destination":
-      return { name: str("name") };
+    case "destination": {
+      const out: DestinationValue = { name: str("name") };
+      if (str("lat")) out.lat = Number(value.lat);
+      if (str("lng")) out.lng = Number(value.lng);
+      if (str("place_id")) out.place_id = str("place_id");
+      return out;
+    }
     case "travel": {
-      const out: TravelValue = { mode: str("mode") };
+      const out: TravelValue = { mode: str("mode") as TravelMode | "" };
       if (str("note")) out.note = str("note");
+      if (str("mode") !== "other") {
+        if (str("start_location")) out.start_location = str("start_location");
+        if (str("destination_location")) out.destination_location = str("destination_location");
+        out.round_trip = Boolean(value.round_trip);
+      }
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("price")) {
         out.price = Number(value.price);
@@ -422,14 +691,61 @@ export function normalizeOptionValue(
       }
       return out;
     }
-    default: {
-      const out: PlaceValue = { name: str("name") };
+    case "accommodation": {
+      const out: PlaceValue = { name: str("name"), subtype: str("subtype") as AccommodationSubtype | "" };
+      const fieldKeys = ACCOMMODATION_SUBTYPE_FIELDS[str("subtype") as AccommodationSubtype] ?? [];
+      if (fieldKeys.length) {
+        const raw = (value.accommodation_fields ?? {}) as Record<string, unknown>;
+        const fields: Partial<Record<AccommodationFieldKey, string>> = {};
+        for (const k of fieldKeys) {
+          const v = String(raw[k] ?? "").trim();
+          if (v) fields[k] = v;
+        }
+        if (Object.keys(fields).length) out.accommodation_fields = fields;
+      }
+      const rawDates = (value.dates ?? {}) as Record<string, unknown>;
+      if (String(rawDates.start_date ?? "").trim() || String(rawDates.nights ?? "").trim()) {
+        out.dates = normalizeOptionValue("dates", rawDates) as DatesValue;
+      }
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("price")) {
         out.price = Number(value.price);
         out.currency = str("currency") || "USD";
         out.pricing_basis = str("pricing_basis");
       }
+      return out;
+    }
+    case "experience": {
+      const out: PlaceValue = {
+        name: str("name"),
+        experience_subtype: str("experience_subtype") as ExperienceSubtype | "",
+      };
+      if (str("location_name")) {
+        out.location_name = str("location_name");
+        if (str("location_lat")) out.location_lat = Number(value.location_lat);
+        if (str("location_lng")) out.location_lng = Number(value.location_lng);
+        if (str("location_place_id")) out.location_place_id = str("location_place_id");
+      }
+      if (str("booking_link")) out.booking_link = str("booking_link");
+      if (str("price")) {
+        out.price = Number(value.price);
+        out.currency = str("currency") || "USD";
+        out.pricing_basis = str("pricing_basis");
+      }
+      return out;
+    }
+    case "dining": {
+      const out: PlaceValue = { name: str("name") };
+      if (str("location_name")) {
+        out.location_name = str("location_name");
+        if (str("location_lat")) out.location_lat = Number(value.location_lat);
+        if (str("location_lng")) out.location_lng = Number(value.location_lng);
+        if (str("location_place_id")) out.location_place_id = str("location_place_id");
+      }
+      if (str("booking_link")) out.booking_link = str("booking_link");
+      if (str("guests")) out.guests = Number(value.guests);
+      if (str("cuisine")) out.cuisine = str("cuisine");
+      if (str("price_tier")) out.price_tier = str("price_tier") as PricingTier;
       return out;
     }
   }
@@ -493,18 +809,26 @@ export function summarizeOptionValue(
       }
       return flex ? `${base} · ±${flex}d` : base;
     }
+    case "destination":
+      return str("name") || "?";
     case "travel": {
       // No raw booking_link here — it's not even a clickable link as tile
       // text, just a wall of characters that can run past 200+ chars with
       // query params and blow out the tile's box. Prefer the server-scraped
       // title (applyLinkPreview(), Open Graph tags) when the link resolved;
       // otherwise fall back to what was actually typed in.
-      const base = str("title") || [str("mode"), str("note")].filter(Boolean).join(" — ") || "?";
+      const modeLabel = str("mode") ? TRAVEL_MODE_LABELS[str("mode") as TravelMode] ?? str("mode") : "";
+      const base = str("title") || [modeLabel, str("note")].filter(Boolean).join(" — ") || "?";
       return str("price") ? `${base} · ${priceLabel(value)}` : base;
     }
-    default: {
+    case "accommodation":
+    case "experience": {
       const base = str("title") || str("name") || "?";
       return str("price") ? `${base} · ${priceLabel(value)}` : base;
+    }
+    case "dining": {
+      const base = str("title") || str("name") || "?";
+      return str("price_tier") ? `${base} · ${str("price_tier")}` : base;
     }
   }
 }
