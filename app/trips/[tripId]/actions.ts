@@ -429,6 +429,33 @@ export async function setFundingDeadline(
   return {};
 }
 
+export type ReassignPurchaserResult = { error?: string };
+
+/**
+ * Organizer/co-organizer only. Purchaser defaults to the trip organizer at
+ * lock-in (create_funding_request_for_element) -- this lets them hand it off
+ * to any other participant instead. isPurchaser-gated functional access
+ * (contribute, Mark booked, Report unavailable) is a separate, still
+ * user-ID-based check that isn't affected by who can see this control.
+ */
+export async function reassignPurchaser(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  purchaserId: string,
+): Promise<ReassignPurchaserResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reassign_purchaser", {
+    p_funding_request_id: fundingRequestId,
+    p_purchaser_id: purchaserId,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
+}
+
 export type ResolveFundingOutcomeResult = { error?: string };
 
 /**

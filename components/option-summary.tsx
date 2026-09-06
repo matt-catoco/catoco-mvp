@@ -1,10 +1,11 @@
-import { PRICE_BEARING_TYPES, summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
+import { formatCurrency, PRICE_BEARING_TYPES, summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
 
 function priceLine(value: Record<string, unknown>): string | null {
   const raw = value.price;
   if (raw === undefined || raw === null || String(raw).trim() === "") return null;
   const currency = typeof value.currency === "string" && value.currency ? value.currency : "USD";
-  return `${currency} ${raw}`;
+  const amount = Number(raw);
+  return Number.isFinite(amount) ? formatCurrency(amount, currency) : `${currency} ${raw}`;
 }
 
 /**
@@ -26,11 +27,29 @@ export function OptionSummary({
   const title = typeof value.title === "string" ? value.title.trim() : "";
   const description = typeof value.description === "string" ? value.description.trim() : "";
   const thumbnail = typeof value.thumbnail_url === "string" ? value.thumbnail_url.trim() : "";
+  const bookingLink = typeof value.booking_link === "string" ? value.booking_link.trim() : "";
   const price = priceLine(value);
   const fallback = summarizeOptionValue(type, value);
 
+  const linkLine = bookingLink && (
+    <a
+      href={bookingLink}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-0.5 block truncate text-[11px] font-medium text-brand-teal-deep underline"
+      onClick={(e) => e.stopPropagation()}
+    >
+      Open listing ↗
+    </a>
+  );
+
   if (!PRICE_BEARING_TYPES.includes(type) || (!title && !thumbnail)) {
-    return <span className="block">{fallback}</span>;
+    return (
+      <span className="block">
+        {fallback}
+        {linkLine}
+      </span>
+    );
   }
 
   return (
@@ -53,6 +72,7 @@ export function OptionSummary({
           <span className="mt-0.5 block line-clamp-2 text-[11px] opacity-70">{description}</span>
         )}
         {price && <span className="mt-0.5 block text-[11px] opacity-70">{price}</span>}
+        {linkLine}
       </span>
     </span>
   );

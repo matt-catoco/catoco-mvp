@@ -164,12 +164,21 @@ export default async function ElementDetailPage({
       .returns<FundingRow>();
 
     let funding: FundingRequestInfo | null = null;
+    let fundingRoster: RosterRow[] = [];
+    let scopedParticipantCount = 0;
     if (fundingRow) {
+      const { count } = await supabase
+        .from("element_participants")
+        .select("participant_id", { count: "exact", head: true })
+        .eq("element_id", element.id)
+        .eq("opted_in", true);
+      scopedParticipantCount = count ?? 0;
       const [{ data: collected }, { data: rosterData }] = await Promise.all([
         supabase.rpc("get_funding_collected", { p_funding_request_id: fundingRow.id }),
         supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
       ]);
       const roster = (rosterData ?? []) as RosterRow[];
+      fundingRoster = roster;
       const purchaser = roster.find((r) => r.user_id === fundingRow.purchaser_id);
       funding = {
         id: fundingRow.id,
@@ -233,6 +242,14 @@ export default async function ElementDetailPage({
               currentUserId={user.id}
               canManage={Boolean(canManage)}
               funding={funding}
+              roster={fundingRoster.map((r) => ({
+                userId: r.user_id,
+                displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
+              }))}
+              currency={
+                (option?.value as Record<string, unknown> | undefined)?.currency as string | undefined
+              }
+              scopedParticipantCount={scopedParticipantCount}
             />
           ) : (
             canEdit && <BookingConfirmation tripId={tripId} elementId={element.id} />

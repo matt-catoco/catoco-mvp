@@ -221,6 +221,28 @@ export const PRICE_BEARING_TYPES: ElementType[] = [
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  CAD: "$",
+  AUD: "$",
+};
+
+/**
+ * "$20 USD" style — symbol for quick visual recognition, ISO code kept
+ * alongside since a bare symbol is ambiguous (e.g. "$" alone doesn't
+ * distinguish USD/CAD/AUD). Used everywhere a price/amount renders (option
+ * tiles, funding required/collected, contributions) — never a bare
+ * "USD 20" string. Exact visual styling is a design-chat follow-up; this is
+ * the content rule.
+ */
+export function formatCurrency(amount: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? "";
+  const value = amount.toFixed(2);
+  return symbol ? `${symbol}${value} ${currency}` : `${value} ${currency}`;
+}
+
 // ---- flow #4: pricing basis for real funding-amount calculation -----------
 // unit_price/pricing_basis are real columns on element_options (not part of
 // the jsonb value like price/currency above) — they drive actual SQL
@@ -492,5 +514,9 @@ function priceLabel(value: Record<string, unknown>): string {
   const basis = str("pricing_basis");
   const suffix =
     basis === "per_night" ? "/night" : basis === "per_person" ? "/person" : "";
-  return `${str("currency") || "USD"} ${str("price")}${suffix}`;
+  const price = Number(str("price"));
+  const formatted = Number.isFinite(price)
+    ? formatCurrency(price, str("currency") || "USD")
+    : `${str("currency") || "USD"} ${str("price")}`;
+  return `${formatted}${suffix}`;
 }
