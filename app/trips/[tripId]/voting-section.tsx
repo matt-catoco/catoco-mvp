@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { OptionSummary } from "@/components/option-summary";
 import { summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
@@ -48,8 +48,52 @@ export function VotingSection({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const sorted = [...options].sort((a, b) => b.score - a.score);
+  // §10: tiles are ordered by current standing (group score) by default, but
+  // your own picks jump to the top in rank order the moment you tap them —
+  // the reorder is what makes tap-to-rank legible as a real ranking instead
+  // of a set of checkboxes. groupRank (shown on every tile) still reflects
+  // the score-only order regardless, so "#2 overall" never changes just
+  // because you personally reordered the list.
+  const scoreSorted = [...options].sort((a, b) => b.score - a.score);
+  const groupRankById = new Map(scoreSorted.map((o, i) => [o.id, i + 1]));
+  const rankedIds = readOnly ? [] : ranking;
+  const rankedOptions = rankedIds
+    .map((id) => options.find((o) => o.id === id))
+    .filter((o): o is OptionWithScore => Boolean(o));
+  const remaining = scoreSorted.filter((o) => !rankedIds.includes(o.id));
+  const sorted = [...rankedOptions, ...remaining];
   const deadlineLabel = votingDeadline ? votingDeadline.slice(0, 10) : null;
+
+  // FLIP reorder animation: capture each tile's position before a reorder,
+  // then on the next layout, offset it back to where it was and transition
+  // to zero — the tile appears to glide into its new slot instead of
+  // snapping there. No animation library involved, just getBoundingClientRect
+  // before/after (the standard FLIP technique).
+  const nodeRefs = useRef(new Map<string, HTMLLIElement>());
+  const prevRects = useRef(new Map<string, DOMRect>());
+  const registerNode = (id: string, el: HTMLLIElement | null) => {
+    if (el) nodeRefs.current.set(id, el);
+    else nodeRefs.current.delete(id);
+  };
+  useLayoutEffect(() => {
+    const nextRects = new Map<string, DOMRect>();
+    nodeRefs.current.forEach((el, id) => nextRects.set(id, el.getBoundingClientRect()));
+    nodeRefs.current.forEach((el, id) => {
+      const prev = prevRects.current.get(id);
+      const next = nextRects.get(id);
+      if (!prev || !next) return;
+      const dy = prev.top - next.top;
+      if (!dy) return;
+      el.style.transform = `translateY(${dy}px)`;
+      el.style.transition = "transform 0s";
+      requestAnimationFrame(() => {
+        el.style.transform = "";
+        el.style.transition = "transform 250ms ease";
+      });
+    });
+    prevRects.current = nextRects;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sorted.map((o) => o.id).join(",")]);
 
   function toggle(optionId: string) {
     if (readOnly) return;
@@ -83,14 +127,11 @@ export function VotingSection({
               : "Top choice locks in automatically once a voting deadline is set — no confirmation needed."}
       </p>
 
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {sorted.map((opt, index) => {
+      <ul className="flex flex-col gap-3">
+        {sorted.map((opt) => {
           const rankIndex = ranking.indexOf(opt.id);
           const myRank = !readOnly && rankIndex >= 0 ? rankIndex + 1 : null;
-          // Current standing across everyone's votes — the list is already
-          // sorted by score, this just labels the position instead of
-          // showing raw points (which don't mean anything on their own).
-          const groupRank = index + 1;
+          const groupRank = groupRankById.get(opt.id) ?? 0;
           const canEdit = canManage || opt.proposedBy === currentUserId;
           return (
             <OptionRow
@@ -105,6 +146,7 @@ export function VotingSection({
               canLock={!readOnly && canManage}
               readOnly={readOnly}
               onToggle={() => toggle(opt.id)}
+              registerNode={registerNode}
             />
           );
         })}
@@ -137,6 +179,7 @@ function OptionRow({
   canLock,
   readOnly = false,
   onToggle,
+  registerNode,
 }: {
   tripId: string;
   elementId: string;
@@ -148,6 +191,7 @@ function OptionRow({
   canLock: boolean;
   readOnly?: boolean;
   onToggle: () => void;
+  registerNode: (id: string, el: HTMLLIElement | null) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [confirmingLock, setConfirmingLock] = useState(false);
@@ -159,7 +203,10 @@ function OptionRow({
 
   if (confirmingLock) {
     return (
-      <li className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs sm:col-span-2">
+      <li
+        ref={(el) => registerNode(option.id, el)}
+        className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs"
+      >
         <p className="text-amber-800 dark:text-amber-300">
           Lock in &ldquo;{summarizeOptionValue(elementType, option.value)}&rdquo; now? This ends
           voting immediately — no confirmation from anyone else needed.
@@ -202,7 +249,10 @@ function OptionRow({
 
   if (editing) {
     return (
-      <li className="rounded-lg border border-black/[.1] p-3 dark:border-white/[.14] sm:col-span-2">
+      <li
+        ref={(el) => registerNode(option.id, el)}
+        className="rounded-lg border border-black/[.1] p-3 dark:border-white/[.14]"
+      >
         <ElementValueFields type={elementType} value={draft} onChange={setDraft} />
         {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
         <div className="mt-2 flex items-center gap-2">
@@ -255,6 +305,7 @@ function OptionRow({
 
   return (
     <li
+      ref={(el) => registerNode(option.id, el)}
       className={`overflow-hidden rounded-lg border text-xs transition-colors ${
         myRank
           ? "border-transparent bg-foreground text-background"
