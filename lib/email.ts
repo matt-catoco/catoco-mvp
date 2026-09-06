@@ -13,6 +13,21 @@ import "server-only";
 
 const FROM = "Catoco <noreply@catoco.co>";
 
+/**
+ * Staging/prod split: nothing here should ever email a real person outside
+ * of production. `EMAIL_SENDING_ENABLED` is an explicit override (set it
+ * per-environment in Vercel if the default below is ever wrong for a given
+ * environment); absent that, only Vercel's Production environment sends for
+ * real. VERCEL_ENV is unset outside Vercel entirely (local `next dev`) —
+ * that keeps sending, since that's how email templates get tested locally.
+ */
+export function emailSendingEnabled(): boolean {
+  const override = process.env.EMAIL_SENDING_ENABLED;
+  if (override === "true") return true;
+  if (override === "false") return false;
+  return !process.env.VERCEL_ENV || process.env.VERCEL_ENV === "production";
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -22,6 +37,13 @@ export async function sendEmail({
   subject: string;
   html: string;
 }): Promise<{ error?: string }> {
+  if (!emailSendingEnabled()) {
+    console.log(
+      `[email suppressed, VERCEL_ENV=${process.env.VERCEL_ENV ?? "local"}] would have sent "${subject}" to ${to}`,
+    );
+    return {};
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return { error: "RESEND_API_KEY is not set" };

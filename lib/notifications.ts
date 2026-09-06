@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/email";
+import { emailSendingEnabled, sendEmail } from "@/lib/email";
 
 // Cross-cutting: needs to be importable from a server action (page-load
 // invite trigger, funding-resolve trigger) and the cron route handler alike,
@@ -34,6 +34,16 @@ export async function sendCoreLoopEmail(opts: {
   html: string;
   origin: string;
 }): Promise<void> {
+  // Check before prepare_notification, not after — that RPC atomically
+  // claims the notification_log row for this user+kind+subject, so calling
+  // it while suppressed would mark a never-sent email as sent and block a
+  // real send later if sending gets turned back on for this environment.
+  if (!emailSendingEnabled()) {
+    console.log(
+      `[email suppressed, VERCEL_ENV=${process.env.VERCEL_ENV ?? "local"}] would have sent ${opts.kind}/${opts.subjectId} to ${opts.email}`,
+    );
+    return;
+  }
   try {
     const { data, error } = await opts.supabase.rpc("prepare_notification", {
       p_user_id: opts.userId,

@@ -21,6 +21,14 @@ const ALLOWED_EMAILS = new Set(
   ].map((e) => e.toLowerCase()),
 );
 
+/**
+ * Staging/prod split: gated behind ALLOWLIST_ENABLED so it can be turned off
+ * per-environment (Vercel env var) instead of a code change — e.g. staging,
+ * while the founder is its only tester, has no need to gate sign-in at all.
+ * Defaults to enabled (current behavior) when unset, so production stays
+ * exactly as it is today without needing to explicitly opt in.
+ */
 export function isAllowedEmail(email: string): boolean {
+  if (process.env.ALLOWLIST_ENABLED === "false") return true;
   return ALLOWED_EMAILS.has(email.trim().toLowerCase());
 }
