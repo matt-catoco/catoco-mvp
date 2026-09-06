@@ -6,7 +6,12 @@ import { sendEmail } from "@/lib/email";
 // invite trigger, funding-resolve trigger) and the cron route handler alike,
 // so it can't live under app/trips/[tripId]/ like notify.ts does.
 
-export type NotificationKind = "invited" | "funding_ready" | "vote_needed" | "funding_needed";
+export type NotificationKind =
+  | "invited"
+  | "funding_ready"
+  | "vote_needed"
+  | "funding_needed"
+  | "funding_deadline_set";
 
 /**
  * The one send path for all four core-loop triggers. Checks eligibility

@@ -28,7 +28,21 @@ type FundingRow = {
   trip_id: string;
   required_amount: number;
   funding_deadline: string | null;
+  created_at: string;
 };
+
+type NewFundingRow = {
+  id: string;
+  trip_id: string;
+  required_amount: number;
+  funding_deadline: string | null;
+  trips: { name: string; organizer_id: string } | { name: string; organizer_id: string }[] | null;
+};
+
+// §13: the 24h grace window after a funding_request is created -- freely
+// editable by the organizer during it, and no funding_needed reminder fires
+// for it until this elapses. Derived from created_at, no separate column.
+const GRACE_WINDOW_HOURS = 24;
 
 function tripName(row: ElementRow): string {
   const t = Array.isArray(row.trips) ? row.trips[0] : row.trips;
@@ -45,13 +59,14 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const nowIso = now.toISOString();
   const windowEndIso = new Date(now.getTime() + LOOKAHEAD_HOURS * 60 * 60 * 1000).toISOString();
+  const graceCutoffIso = new Date(now.getTime() - GRACE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
   const origin = request.nextUrl.origin;
 
   // ---- gather every candidate recipient across both triggers first, so
   // emails can be looked up in one batched call instead of N round trips ----
   const pending: {
     userId: string;
-    kind: "vote_needed" | "funding_needed";
+    kind: "vote_needed" | "funding_needed" | "funding_deadline_set";
     subjectId: string;
     subject: string;
     html: string;
@@ -146,12 +161,19 @@ export async function GET(request: NextRequest) {
   }
 
   // ---- Trigger #4: funding deadline approaching ----------------------------
+  // §13: no lower bound on funding_deadline here (unlike the vote triggers
+  // above) -- if the organizer shortens a deadline during/after its grace
+  // window to something already within the lookahead or even already past,
+  // this still needs to catch it and fire on the very next run rather than
+  // waiting for a moment that's already gone. Grace window itself is
+  // enforced via created_at <= graceCutoffIso: nothing created within the
+  // last 24h is eligible yet, regardless of what its deadline says.
   const { data: fundingDue } = await supabase
     .from("funding_requests")
-    .select("id, trip_id, required_amount, funding_deadline")
+    .select("id, trip_id, required_amount, funding_deadline, created_at")
     .eq("status", "collecting")
-    .gte("funding_deadline", nowIso)
     .lte("funding_deadline", windowEndIso)
+    .lte("created_at", graceCutoffIso)
     .returns<FundingRow[]>();
 
   for (const fr of fundingDue ?? []) {
@@ -200,6 +222,37 @@ export async function GET(request: NextRequest) {
         `,
       });
     }
+  }
+
+  // ---- Trigger #13 FYI: funding deadline was auto-set at lock-in ----------
+  // Non-blocking, informational only -- the deadline being set never depends
+  // on this being seen or acted on. Fires from here (not at the moment of
+  // creation) because create_funding_request_for_element() is a Postgres
+  // function with no email-sending capability; catching anything created
+  // since the last run and not yet notified is a fine fit for something
+  // this low-stakes, given daily granularity is already the norm for
+  // everything else in this route.
+  const { data: newlyCreated } = await supabase
+    .from("funding_requests")
+    .select("id, trip_id, required_amount, funding_deadline, trips(name, organizer_id)")
+    .eq("status", "collecting")
+    .gte("created_at", graceCutoffIso)
+    .returns<NewFundingRow[]>();
+
+  for (const fr of newlyCreated ?? []) {
+    const trip = Array.isArray(fr.trips) ? fr.trips[0] : fr.trips;
+    if (!trip || !fr.funding_deadline) continue;
+    const deadline = fr.funding_deadline.slice(0, 10);
+    pending.push({
+      userId: trip.organizer_id,
+      kind: "funding_deadline_set",
+      subjectId: fr.id,
+      subject: `Funding deadline auto-set to ${deadline} — ${trip.name}`,
+      html: `
+        <p>A funding deadline was auto-set to <strong>${deadline}</strong> (14 days out) on <strong>${trip.name}</strong>. You've got 24 hours to adjust it if that doesn't work — update if needed.</p>
+        <p><a href="${origin}/trips/${fr.trip_id}">Take a look</a></p>
+      `,
+    });
   }
 
   // ---- resolve emails in one batch, then send (prepare_notification still
