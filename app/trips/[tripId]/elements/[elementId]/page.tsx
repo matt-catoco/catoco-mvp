@@ -18,6 +18,7 @@ import { resolveAndNotify } from "../../resolve-elements";
 import { EditElementForm } from "../../edit-element-form";
 import { FundingCard, type FundingRequestInfo } from "../../funding-card";
 import { BookingConfirmation } from "../../booking-confirmation";
+import { getTripContext } from "../../trip-context";
 
 type ElementRow = {
   id: string;
@@ -260,11 +261,14 @@ export default async function ElementDetailPage({
       </div>
     );
   } else {
-    const { data: options } = await supabase
-      .from("element_options")
-      .select("id, value, proposed_by")
-      .eq("element_id", element.id)
-      .returns<OptionRow[]>();
+    const [{ data: options }, tripContext] = await Promise.all([
+      supabase
+        .from("element_options")
+        .select("id, value, proposed_by")
+        .eq("element_id", element.id)
+        .returns<OptionRow[]>(),
+      getTripContext(supabase, tripId),
+    ]);
 
     const optionIds = (options ?? []).map((o) => o.id);
 
@@ -374,7 +378,9 @@ export default async function ElementDetailPage({
             <p className="text-xs text-brand-muted">No options yet.</p>
           )}
 
-          {stillSubmitting && <SubmitOptionForm elementId={element.id} type={element.type} />}
+          {stillSubmitting && (
+            <SubmitOptionForm elementId={element.id} type={element.type} tripContext={tripContext} />
+          )}
         </div>
       </div>
     );

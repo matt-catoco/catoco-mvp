@@ -7,10 +7,12 @@ import { ElementMetadataFields } from "@/components/element-metadata-fields";
 import {
   ELEMENT_LABELS,
   ELEMENT_TYPES,
+  applyTripContext,
   emptyMetadataFor,
   emptyValueFor,
   validateOptionValue,
   type ElementType,
+  type TripContext,
 } from "@/lib/trip-elements";
 import { createElement } from "./actions";
 import { btnPrimary, fieldClass, labelClass, pillInactive } from "@/lib/ui";
@@ -32,11 +34,13 @@ export function AddElementForm({
   currentUserId,
   isOrganizer,
   roster,
+  tripContext,
 }: {
   tripId: string;
   currentUserId: string;
   isOrganizer: boolean;
   roster: RosterEntry[];
+  tripContext?: TripContext;
 }) {
   const router = useRouter();
   const [type, setType] = useState<ElementType>("dates");
@@ -46,7 +50,9 @@ export function AddElementForm({
   const [scopeMode, setScopeMode] = useState<"everyone" | "custom">("everyone");
   const [customScope, setCustomScope] = useState<Set<string>>(() => new Set([currentUserId]));
   const [state, setState] = useState<"open" | "locked">("open");
-  const [lockedValue, setLockedValue] = useState<Record<string, unknown>>(() => emptyValueFor("dates"));
+  const [lockedValue, setLockedValue] = useState<Record<string, unknown>>(() =>
+    applyTripContext("dates", emptyValueFor("dates"), tripContext),
+  );
   const [optionsDeadline, setOptionsDeadline] = useState("");
   const [votingDeadline, setVotingDeadline] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +68,7 @@ export function AddElementForm({
     setType(next);
     if (!labelTouched) setLabel(ELEMENT_LABELS[next]);
     setMetadata(emptyMetadataFor(next));
-    setLockedValue(emptyValueFor(next));
+    setLockedValue(applyTripContext(next, emptyValueFor(next), tripContext));
   }
 
   function toggleScopeMember(userId: string) {

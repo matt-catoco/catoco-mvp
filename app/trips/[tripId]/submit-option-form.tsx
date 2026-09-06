@@ -3,20 +3,24 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ElementValueFields } from "@/components/element-value-fields";
-import { emptyValueFor, type ElementType } from "@/lib/trip-elements";
+import { applyTripContext, emptyValueFor, type ElementType, type TripContext } from "@/lib/trip-elements";
 import { btnPrimary, btnSecondary } from "@/lib/ui";
 import { submitOption } from "./actions";
 
 export function SubmitOptionForm({
   elementId,
   type,
+  tripContext,
 }: {
   elementId: string;
   type: ElementType;
+  tripContext?: TripContext;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState<Record<string, unknown>>(() => emptyValueFor(type));
+  const [value, setValue] = useState<Record<string, unknown>>(() =>
+    applyTripContext(type, emptyValueFor(type), tripContext),
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -40,7 +44,7 @@ export function SubmitOptionForm({
         setError(res.error);
         return;
       }
-      setValue(emptyValueFor(type));
+      setValue(applyTripContext(type, emptyValueFor(type), tripContext));
       setOpen(false);
       router.refresh();
     });

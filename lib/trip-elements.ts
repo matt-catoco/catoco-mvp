@@ -473,6 +473,54 @@ export function defaultPricingBasisFor(type: ElementType): PricingBasis {
 
 export type OptionValue = DatesValue | DestinationValue | TravelValue | PlaceValue;
 
+// §4: cross-element trip-level data sharing. The trip's locked
+// Destination/Dates elements (see app/trips/[tripId]/trip-context.ts,
+// which does the actual DB read) are context every other element's forms
+// can be pre-filled from instead of asking the same thing per element.
+export type TripContext = {
+  destination?: { name: string; lat?: number; lng?: number; place_id?: string };
+  dates?: { start_date?: string; end_date?: string; nights?: number };
+};
+
+/**
+ * Seeds an otherwise-empty draft value with trip-level context — only fills
+ * fields the draft hasn't already got something in, so it never clobbers
+ * what someone typed. Destination context pre-fills Travel's destination
+ * leg and Experiences'/Dining's location; Dates context pre-fills
+ * Accommodations' optional Dates sub-field.
+ */
+export function applyTripContext(
+  type: ElementType,
+  value: Record<string, unknown>,
+  ctx: TripContext | null | undefined,
+): Record<string, unknown> {
+  if (!ctx) return value;
+  const out = { ...value };
+  if (ctx.destination) {
+    if ((type === "experience" || type === "dining") && !String(out.location_name ?? "").trim()) {
+      out.location_name = ctx.destination.name;
+      if (ctx.destination.lat !== undefined) out.location_lat = ctx.destination.lat;
+      if (ctx.destination.lng !== undefined) out.location_lng = ctx.destination.lng;
+      if (ctx.destination.place_id) out.location_place_id = ctx.destination.place_id;
+    }
+    if (type === "travel" && !String(out.destination_location ?? "").trim()) {
+      out.destination_location = ctx.destination.name;
+    }
+  }
+  if (ctx.dates && type === "accommodation") {
+    const existingDates = (out.dates ?? {}) as Record<string, unknown>;
+    if (!String(existingDates.start_date ?? "").trim() && !String(existingDates.nights ?? "").trim()) {
+      out.dates = {
+        start_date: ctx.dates.start_date ?? "",
+        end_date: ctx.dates.end_date ?? "",
+        nights: ctx.dates.nights ? String(ctx.dates.nights) : "",
+        flexibility_days: "",
+      };
+    }
+  }
+  return out;
+}
+
 export function emptyValueFor(type: ElementType): Record<string, unknown> {
   switch (type) {
     case "dates":

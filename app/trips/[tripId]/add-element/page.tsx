@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AddElementForm } from "../add-element-form";
+import { getTripContext } from "../trip-context";
 
 type RosterRow = { user_id: string; display_name: string | null; is_organizer: boolean };
 
@@ -32,9 +33,10 @@ export default async function AddElementPage({
 
   if (!trip) redirect(`/trips/${tripId}`);
 
-  const [{ data: rosterData }, { data: canManage }] = await Promise.all([
+  const [{ data: rosterData }, { data: canManage }, tripContext] = await Promise.all([
     supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
     supabase.rpc("is_trip_organizer", { p_trip_id: tripId }),
+    getTripContext(supabase, tripId),
   ]);
   const roster = ((rosterData ?? []) as RosterRow[]).map((r) => ({
     userId: r.user_id,
@@ -55,6 +57,7 @@ export default async function AddElementPage({
           currentUserId={user.id}
           isOrganizer={Boolean(canManage)}
           roster={roster}
+          tripContext={tripContext}
         />
       </div>
     </div>
