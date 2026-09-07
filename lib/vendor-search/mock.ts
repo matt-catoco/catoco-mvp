@@ -68,7 +68,7 @@ function mockTrains(params: VendorSearchParams): VendorSearchResult[] {
     price: 35 + i * 15,
     currency: "USD",
     pricing_basis: "per_person",
-    extra: { depart_date: params.startDate || "" },
+    extra: { depart_date: params.startDate || "", return_date: params.endDate || "" },
   }));
 }
 
@@ -82,7 +82,7 @@ function mockBuses(params: VendorSearchParams): VendorSearchResult[] {
     price: 18 + i * 6,
     currency: "USD",
     pricing_basis: "per_person",
-    extra: { depart_date: params.startDate || "" },
+    extra: { depart_date: params.startDate || "", return_date: params.endDate || "" },
   }));
 }
 

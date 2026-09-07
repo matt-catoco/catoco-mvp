@@ -203,7 +203,7 @@ export function VendorSearchModal({
       location: location || undefined,
       destination: destination || undefined,
       startDate: startDate || undefined,
-      endDate: subtype === "flight" && !roundTrip ? undefined : endDate || undefined,
+      endDate: subtype !== "rental_car" && !roundTrip ? undefined : endDate || undefined,
       time: time || undefined,
       partySize: elementType === "dining" ? partySize : undefined,
       travelers: elementType === "travel" && subtype === "flight" ? travelers : elementType === "accommodation" ? travelers : undefined,
@@ -222,7 +222,7 @@ export function VendorSearchModal({
         if (!endDate) return "Pick a drop-off date";
       } else {
         if (!startDate) return "Pick a travel date";
-        if (subtype === "flight" && roundTrip && !endDate) return "Pick a return date";
+        if (roundTrip && !endDate) return "Pick a return date";
       }
     }
     if (elementType === "accommodation") {
@@ -332,14 +332,12 @@ export function VendorSearchModal({
             <input className={field} placeholder="From" value={location} onChange={(e) => setLocation(e.target.value)} />
             <input className={field} placeholder="To" value={destination} onChange={(e) => setDestination(e.target.value)} />
           </div>
-          {subtype === "flight" && (
-            <PillRow
-              value={roundTrip ? "round_trip" : "one_way"}
-              options={["round_trip", "one_way"] as const}
-              labels={{ round_trip: "Round trip", one_way: "One-way" }}
-              onChange={(v) => setRoundTrip(v === "round_trip")}
-            />
-          )}
+          <PillRow
+            value={roundTrip ? "round_trip" : "one_way"}
+            options={["round_trip", "one_way"] as const}
+            labels={{ round_trip: "Round trip", one_way: "One-way" }}
+            onChange={(v) => setRoundTrip(v === "round_trip")}
+          />
           <div className="flex gap-3">
             <label className="flex flex-1 flex-col gap-1">
               <span className={labelClass}>
@@ -347,7 +345,7 @@ export function VendorSearchModal({
               </span>
               <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
-            {subtype === "flight" && roundTrip && (
+            {roundTrip && (
               <label className="flex flex-1 flex-col gap-1">
                 <span className={labelClass}>
                   Return <span className="text-red-500">*</span>
