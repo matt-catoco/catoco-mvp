@@ -7,10 +7,12 @@ import type { VendorSearchParams, VendorSearchResponse, VendorSearchResult } fro
 // /destinations endpoint — simpler for a first pass, and destination-ID
 // resolution can be layered in later if free-text search proves too broad.
 //
-// Response shape below is a best-effort read of Viator's documented Partner
-// API v2.0 contract, not yet verified against a real sandbox response —
-// per the build prompt's own note, check this against actual responses once
-// VIATOR_API_KEY is live and fix field paths here if they don't match.
+// Verified against a real sandbox call (searchTerm "Paris") with key #B5B1
+// — response shape matches what's read below (products.results[], each with
+// productCode/title/description/images[].variants[]/pricing.summary.
+// fromPrice/pricing.currency/productUrl). One thing the docs didn't make
+// obvious: the request needs a top-level `currency` field or it 400s with
+// "Missing currency" — included below.
 const VIATOR_BASE = "https://api.sandbox.viator.com/partner";
 
 type ViatorProduct = {
@@ -45,6 +47,7 @@ export async function viatorSearch(params: VendorSearchParams): Promise<VendorSe
     },
     body: JSON.stringify({
       searchTerm,
+      currency: "USD", // required — a bare search request 400s without it ("Missing currency"), confirmed against the live sandbox
       productFiltering: {},
       searchTypes: [{ searchType: "PRODUCTS", pagination: { start: 1, count: 12 } }],
     }),
