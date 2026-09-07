@@ -219,12 +219,39 @@ export const TRAVEL_MODE_LABELS: Record<TravelMode, string> = {
   other: "Other",
 };
 
+// ---- Vendor search: traveler/guest breakdown, shared by Travel-Flight and
+// Accommodations search (and stored on whichever option was searched from).
+// Children/infants carry per-person ages since vendor pricing/eligibility
+// depends on them (a child fare isn't one flat rate).
+export type TravelersBreakdown = {
+  adults: number;
+  children_ages?: number[];
+  infants_ages?: number[];
+};
+
+export function defaultTravelers(adults: number): TravelersBreakdown {
+  return { adults: Math.max(1, adults) };
+}
+
 export type TravelValue = LinkPreview & {
   mode: TravelMode | "";
   note?: string;
   start_location?: string;
   destination_location?: string;
   round_trip?: boolean;
+  // Vendor search-derived (Flight/Rental Car/Train/Bus) — optional, only
+  // present when this option came from a vendor search rather than manual
+  // entry. Kept on the same loosely-typed `value` blob as everything else
+  // here, not a separate metadata column — one place to look, consistent
+  // with how Mode/Subtype/etc. were added earlier.
+  depart_date?: string;
+  return_date?: string;
+  travelers?: TravelersBreakdown;
+  pickup_location?: string;
+  pickup_datetime?: string;
+  dropoff_datetime?: string;
+  vehicle_type?: string;
+  transmission?: "automatic" | "manual" | "";
   booking_link?: string;
   price?: number;
   currency?: string;
@@ -361,6 +388,46 @@ export const EXPERIENCE_SUBTYPE_LABELS: Record<ExperienceSubtype, string> = {
   other: "Other",
 };
 
+// ---- Vendor search-subtype taxonomies. Simpler than the detailed manual
+// Subtype dropdowns above — matches what a vendor API actually filters
+// search results on, not the full manual-entry taxonomy. A selected result
+// pre-guesses the detailed Subtype via the *_SEARCH_SUBTYPE_TO_DETAILED maps
+// below (no review step to confirm/adjust it — see submitOption's vendor
+// path); editing an already-submitted option can still change it later.
+//
+// Travel doesn't need its own search-subtype enum — TRAVEL_MODES already is
+// one (flight/rental_car/train/bus have a search scene; ferry/other don't).
+export const TRAVEL_SEARCH_MODES: TravelMode[] = ["flight", "rental_car", "train", "bus"];
+
+export const ACCOMMODATION_SEARCH_SUBTYPES = ["hotel", "vacation_rental", "hostel"] as const;
+export type AccommodationSearchSubtype = (typeof ACCOMMODATION_SEARCH_SUBTYPES)[number];
+export const ACCOMMODATION_SEARCH_SUBTYPE_LABELS: Record<AccommodationSearchSubtype, string> = {
+  hotel: "Hotel",
+  vacation_rental: "Vacation Rental",
+  hostel: "Hostel",
+};
+export const ACCOMMODATION_SEARCH_SUBTYPE_TO_DETAILED: Record<
+  AccommodationSearchSubtype,
+  AccommodationSubtype
+> = {
+  hotel: "hotel",
+  vacation_rental: "home_apartment",
+  hostel: "hostel",
+};
+
+export const EXPERIENCE_SEARCH_SUBTYPES = ["tours", "activities", "shows_events"] as const;
+export type ExperienceSearchSubtype = (typeof EXPERIENCE_SEARCH_SUBTYPES)[number];
+export const EXPERIENCE_SEARCH_SUBTYPE_LABELS: Record<ExperienceSearchSubtype, string> = {
+  tours: "Tours",
+  activities: "Activities",
+  shows_events: "Shows & Events",
+};
+export const EXPERIENCE_SEARCH_SUBTYPE_TO_DETAILED: Record<ExperienceSearchSubtype, ExperienceSubtype> = {
+  tours: "tour_sightseeing",
+  activities: "outdoor_adventure",
+  shows_events: "concert_show",
+};
+
 // ---- §8 Dining: cuisine, grouped for maintainability (not a flat 60-item
 // dropdown with no structure).
 export const CUISINE_GROUPS: { group: string; cuisines: string[] }[] = [
@@ -408,6 +475,7 @@ export type PlaceValue = LinkPreview & {
   subtype?: AccommodationSubtype | "";
   accommodation_fields?: Partial<Record<AccommodationFieldKey, string>>;
   dates?: DatesValue;
+  travelers?: TravelersBreakdown;
   // §7 Experiences
   experience_subtype?: ExperienceSubtype | "";
   // §7/§8 location (Mapbox-backed, same shape as Destination)
@@ -419,6 +487,7 @@ export type PlaceValue = LinkPreview & {
   guests?: number;
   cuisine?: string;
   price_tier?: PricingTier | "";
+  dining_time?: string;
 };
 
 export const PRICE_BEARING_TYPES: ElementType[] = [
@@ -480,6 +549,10 @@ export type OptionValue = DatesValue | DestinationValue | TravelValue | PlaceVal
 export type TripContext = {
   destination?: { name: string; lat?: number; lng?: number; place_id?: string };
   dates?: { start_date?: string; end_date?: string; nights?: number };
+  // Vendor search: a starting traveler count so it doesn't need re-entering
+  // per search — derived from the trip's participant count (see
+  // trip-context.ts), always overridable per search like everything else here.
+  travelers?: TravelersBreakdown;
 };
 
 /**

@@ -1,0 +1,77 @@
+import "server-only";
+import type { VendorSearchParams, VendorSearchResponse, VendorSearchResult } from "./types";
+
+// Viator Partner API — the one vendor confirmed live this pass (Experiences).
+// Uses the free-text search endpoint (searches by place/activity name
+// directly) rather than pre-resolving a Viator destination ID via their
+// /destinations endpoint — simpler for a first pass, and destination-ID
+// resolution can be layered in later if free-text search proves too broad.
+//
+// Response shape below is a best-effort read of Viator's documented Partner
+// API v2.0 contract, not yet verified against a real sandbox response —
+// per the build prompt's own note, check this against actual responses once
+// VIATOR_API_KEY is live and fix field paths here if they don't match.
+const VIATOR_BASE = "https://api.sandbox.viator.com/partner";
+
+type ViatorProduct = {
+  productCode?: string;
+  title?: string;
+  description?: string;
+  productUrl?: string;
+  images?: { variants?: { url?: string; width?: number }[] }[];
+  pricing?: { summary?: { fromPrice?: number }; currency?: string };
+};
+
+export async function viatorSearch(params: VendorSearchParams): Promise<VendorSearchResponse> {
+  const apiKey = process.env.VIATOR_API_KEY;
+  if (!apiKey) {
+    // No key configured — degrade to the same mock/empty shape rather than
+    // throw, so a missing env var reads as "nothing found" not a crash.
+    return { status: "mock", vendorLabel: "Mock data — Viator key not configured", results: [] };
+  }
+
+  const searchTerm = (params.location || params.destination || "").trim();
+  if (!searchTerm) {
+    return { status: "live", vendorLabel: "Viator", results: [] };
+  }
+
+  const res = await fetch(`${VIATOR_BASE}/search/freetext`, {
+    method: "POST",
+    headers: {
+      "exp-api-key": apiKey,
+      Accept: "application/json;version=2.0",
+      "Accept-Language": "en-US",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      searchTerm,
+      productFiltering: {},
+      searchTypes: [{ searchType: "PRODUCTS", pagination: { start: 1, count: 12 } }],
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Viator search failed (${res.status})`);
+  }
+
+  const data = await res.json();
+  const products: ViatorProduct[] =
+    data?.products?.results ?? data?.products ?? [];
+
+  const results: VendorSearchResult[] = products.map((p, i) => {
+    const thumb = p.images?.[0]?.variants?.find((v) => (v.width ?? 0) >= 400)?.url ?? p.images?.[0]?.variants?.[0]?.url;
+    return {
+      id: p.productCode ?? `viator-${i}`,
+      title: p.title ?? "Untitled experience",
+      description: p.description,
+      thumbnail_url: thumb,
+      booking_link: p.productUrl,
+      price: p.pricing?.summary?.fromPrice,
+      currency: p.pricing?.currency ?? "USD",
+      pricing_basis: "per_person",
+      extra: {},
+    };
+  });
+
+  return { status: "live", vendorLabel: "Viator", results };
+}

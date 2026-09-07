@@ -22,6 +22,19 @@ export async function getTripContext(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tripId: string,
 ): Promise<TripContext> {
+  const ctx: TripContext = {};
+
+  // Vendor search: a starting traveler count, so it doesn't need re-entering
+  // per search — the trip's actual participant count, not a guess. Always
+  // overridable per search (see applyTripContext's own rule).
+  const { count: participantCount } = await supabase
+    .from("trip_participants")
+    .select("user_id", { count: "exact", head: true })
+    .eq("trip_id", tripId);
+  if (participantCount && participantCount > 0) {
+    ctx.travelers = { adults: participantCount };
+  }
+
   const { data: elements } = await supabase
     .from("trip_elements")
     .select("type, locked_option_id")
@@ -31,7 +44,6 @@ export async function getTripContext(
     .returns<LockedElementRow[]>();
 
   const optionIds = (elements ?? []).map((e) => e.locked_option_id).filter((id): id is string => id != null);
-  const ctx: TripContext = {};
   if (optionIds.length === 0) return ctx;
 
   const { data: options } = await supabase
