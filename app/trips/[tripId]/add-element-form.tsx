@@ -15,7 +15,7 @@ import {
   type TripContext,
 } from "@/lib/trip-elements";
 import { createElement } from "./actions";
-import { btnPrimary, fieldClass, labelClass, pillInactive } from "@/lib/ui";
+import { btnPrimary, fieldClass, labelClass, pillActiveTeal, pillInactive } from "@/lib/ui";
 
 const field = `h-10 ${fieldClass}`;
 
@@ -118,20 +118,23 @@ export function AddElementForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className={labelClass}>Type</span>
-        <select
-          className={field}
-          value={type}
-          onChange={(e) => onTypeChange(e.target.value as ElementType)}
-        >
+        <div className="flex flex-wrap gap-1.5">
           {ELEMENT_TYPES.map((t) => (
-            <option key={t} value={t}>
+            <button
+              key={t}
+              type="button"
+              onClick={() => onTypeChange(t)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                type === t ? pillActiveTeal : pillInactive
+              }`}
+            >
               {ELEMENT_LABELS[t]}
-            </option>
+            </button>
           ))}
-        </select>
-      </label>
+        </div>
+      </div>
 
       {type !== "dates" && (
         <label className="flex flex-col gap-1.5">
@@ -160,7 +163,7 @@ export function AddElementForm({
                 type="button"
                 onClick={() => setScopeMode(m)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  scopeMode === m ? "border-transparent bg-foreground text-background" : pillInactive
+                  scopeMode === m ? pillActiveTeal : pillInactive
                 }`}
               >
                 {m === "everyone" ? "Everyone" : "Choose people"}
@@ -199,7 +202,7 @@ export function AddElementForm({
             type="button"
             onClick={() => setState("open")}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-              state === "open" ? "border-transparent bg-foreground text-background" : pillInactive
+              state === "open" ? pillActiveTeal : pillInactive
             }`}
           >
             Open for voting
@@ -209,7 +212,7 @@ export function AddElementForm({
             disabled={!canLock}
             onClick={() => setState("locked")}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              state === "locked" ? "border-transparent bg-foreground text-background" : pillInactive
+              state === "locked" ? pillActiveTeal : pillInactive
             }`}
           >
             Lock it in now

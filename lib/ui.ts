@@ -24,7 +24,13 @@ export const fieldClass =
 // Field labels and other secondary/caption text.
 export const labelClass = "text-xs font-medium text-brand-muted";
 
-// Inactive state for pill-style toggle buttons (active state stays
-// bg-foreground text-background, same solid-ink treatment as btnPrimary).
+// Inactive state for pill-style toggle buttons. Two active treatments exist
+// on purpose: bg-foreground/text-background (solid ink) is the original,
+// still used by pills that don't sit inside the same view as a teal-active
+// group. pillActiveTeal is for pill groups that share a screen with each
+// other (e.g. the Add Element modal's Type/scope/state pills) -- one
+// consistent selected-color per screen, not two competing conventions.
 export const pillInactive =
   "border-brand-line text-brand-muted hover:bg-brand-teal-wash hover:text-brand-teal-deep";
+
+export const pillActiveTeal = "border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep";

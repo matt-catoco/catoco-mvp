@@ -11,6 +11,8 @@ import {
 import { ElementGrid } from "@/components/trip-home/element-grid";
 import { resolveAndNotify } from "./resolve-elements";
 import { notifyInvited } from "@/lib/notifications";
+import { AddElementModal } from "./add-element-modal";
+import { getTripContext } from "./trip-context";
 
 type RosterRow = { user_id: string; display_name: string | null; is_organizer: boolean };
 
@@ -112,14 +114,25 @@ export default async function TripLandingPage({
     });
   }
 
-  const { data: elements } = await supabase
-    .from("trip_elements")
-    .select(
-      "id, type, label, state, locked_option_id, locked_via, options_deadline, booked_at, created_at",
-    )
-    .eq("trip_id", tripId)
-    .order("created_at", { ascending: true })
-    .returns<ElementRow[]>();
+  const [{ data: elements }, { data: rosterData }, { data: canManage }, tripContext] =
+    await Promise.all([
+      supabase
+        .from("trip_elements")
+        .select(
+          "id, type, label, state, locked_option_id, locked_via, options_deadline, booked_at, created_at",
+        )
+        .eq("trip_id", tripId)
+        .order("created_at", { ascending: true })
+        .returns<ElementRow[]>(),
+      supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
+      supabase.rpc("is_trip_organizer", { p_trip_id: tripId }),
+      getTripContext(supabase, tripId),
+    ]);
+  const addElementRoster = ((rosterData ?? []) as RosterRow[]).map((r) => ({
+    userId: r.user_id,
+    displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
+    isOrganizer: r.is_organizer,
+  }));
 
   const rows = elements ?? [];
 
@@ -201,12 +214,13 @@ export default async function TripLandingPage({
           {trip.name}
         </h1>
         <div className="flex gap-4 text-xs font-medium">
-          <Link
-            href={`/trips/${tripId}/add-element`}
-            className="text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
-          >
-            + Add element
-          </Link>
+          <AddElementModal
+            tripId={tripId}
+            currentUserId={user.id}
+            isOrganizer={Boolean(canManage)}
+            roster={addElementRoster}
+            tripContext={tripContext}
+          />
           <Link
             href={`/trips/${tripId}/participants`}
             className="text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
