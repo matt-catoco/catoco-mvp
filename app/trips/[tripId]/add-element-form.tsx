@@ -88,7 +88,7 @@ export function AddElementForm({
   function submit() {
     setError(null);
     if (state === "locked") {
-      const err = validateOptionValue(type, lockedValue);
+      const err = validateOptionValue(type, lockedValue, { requireDates: false });
       if (err) return setError(err);
     } else {
       // §1: deadlines are required for every type now (only relevant when
@@ -118,9 +118,9 @@ export function AddElementForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col items-center gap-1.5">
         <span className={labelClass}>Type</span>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap justify-center gap-1.5">
           {ELEMENT_TYPES.map((t) => (
             <button
               key={t}
@@ -136,27 +136,25 @@ export function AddElementForm({
         </div>
       </div>
 
-      {type !== "dates" && (
-        <label className="flex flex-col gap-1.5">
-          <span className={labelClass}>Label</span>
-          <input
-            className={field}
-            value={label}
-            onChange={(e) => {
-              setLabel(e.target.value);
-              setLabelTouched(true);
-            }}
-            placeholder="e.g. Friday night dinner"
-          />
-        </label>
-      )}
+      <label className="flex flex-col gap-1.5">
+        <span className={labelClass}>Label</span>
+        <input
+          className={field}
+          value={label}
+          onChange={(e) => {
+            setLabel(e.target.value);
+            setLabelTouched(true);
+          }}
+          placeholder={type === "dates" ? "e.g. Rome leg" : "e.g. Friday night dinner"}
+        />
+      </label>
 
       <ElementMetadataFields type={type} value={metadata} onChange={setMetadata} />
 
       {isOrganizer ? (
         <div className="flex flex-col gap-2">
           <span className={labelClass}>Who's this for</span>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap justify-center gap-1.5">
             {(["everyone", "custom"] as const).map((m) => (
               <button
                 key={m}
@@ -196,8 +194,8 @@ export function AddElementForm({
       )}
 
       <div className="flex flex-col gap-2">
-        <span className={labelClass}>State</span>
-        <div className="flex gap-1.5">
+        <span className={`${labelClass} text-center`}>State</span>
+        <div className="flex flex-wrap justify-center gap-1.5">
           <button
             type="button"
             onClick={() => setState("open")}
@@ -224,7 +222,7 @@ export function AddElementForm({
       {state === "locked" ? (
         <div className="rounded-lg border border-brand-line p-3">
           <span className={`${labelClass} mb-2 block`}>Value</span>
-          <ElementValueFields type={type} value={lockedValue} onChange={setLockedValue} />
+          <ElementValueFields type={type} value={lockedValue} onChange={setLockedValue} requireDates={false} />
         </div>
       ) : (
         <div className="flex gap-3">

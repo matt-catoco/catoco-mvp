@@ -63,10 +63,17 @@ export function ElementValueFields({
   type,
   value,
   onChange,
+  requireDates = true,
 }: {
   type: ElementType;
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
+  // Travel's date(s) and Accommodations' check-in/out are required when
+  // actually proposing/searching a candidate (submit-option-form.tsx,
+  // vendor-search-modal.tsx) — that's where a real date belongs. The
+  // organizer locking a value straight from Add Element is a lighter,
+  // faster path that doesn't need that same rigor; false there.
+  requireDates?: boolean;
 }) {
   const set = (key: string, v: unknown) => onChange({ ...value, [key]: v });
   const str = (key: string) => String(value[key] ?? "");
@@ -150,11 +157,11 @@ export function ElementValueFields({
               <div className="flex gap-2">
                 <label className="flex flex-1 flex-col gap-1">
                   <span className={label}>
-                    Travel date <span className="text-red-500">*</span>
+                    Travel date {requireDates && <span className="text-red-500">*</span>}
                   </span>
                   <input
                     type="date"
-                    required
+                    required={requireDates}
                     className={field}
                     value={str("depart_date")}
                     onChange={(e) => set("depart_date", e.target.value)}
@@ -163,11 +170,11 @@ export function ElementValueFields({
                 {value.round_trip !== false && (
                   <label className="flex flex-1 flex-col gap-1">
                     <span className={label}>
-                      Return date <span className="text-red-500">*</span>
+                      Return date {requireDates && <span className="text-red-500">*</span>}
                     </span>
                     <input
                       type="date"
-                      required
+                      required={requireDates}
                       className={field}
                       min={str("depart_date") || undefined}
                       value={str("return_date")}
@@ -250,12 +257,12 @@ export function ElementValueFields({
 
           <div className="rounded-lg border border-brand-line p-2">
             <span className={`${label} mb-1 block`}>
-              Dates <span className="text-red-500">*</span>
+              Dates {requireDates && <span className="text-red-500">*</span>}
             </span>
             <DatesFields
               value={(value.dates as Record<string, unknown>) ?? {}}
               onChange={(next) => set("dates", next)}
-              required
+              required={requireDates}
               allowNights={false}
             />
           </div>

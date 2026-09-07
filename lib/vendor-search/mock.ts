@@ -91,7 +91,11 @@ function mockAccommodations(params: VendorSearchParams): VendorSearchResult[] {
   const names: Record<string, string[]> = {
     hotel: ["Grand Plaza Hotel", "Harborview Hotel", "The Continental"],
     vacation_rental: ["Sunny Loft near Center", "Cozy 2BR with View", "Modern Studio Downtown"],
+    resort: ["Azure Bay Resort", "The Palms Resort & Spa"],
+    bnb: ["Maple Street B&B", "The Garden House B&B"],
     hostel: ["Traveler's Hostel", "Backpacker's Nest"],
+    guesthouse: ["Riverside Guesthouse", "Old Town Guesthouse"],
+    camping_glamping: ["Pinewood Glamping Domes", "Lakeside Campsite"],
   };
   const options = names[params.searchSubtype] ?? names.hotel;
   return options.map((name, i) => ({

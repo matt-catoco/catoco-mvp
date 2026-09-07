@@ -104,7 +104,7 @@ export function EditElementForm({
       {state === "locked" ? (
         <div>
           <span className={`${labelClass} mb-1 block`}>Value</span>
-          <ElementValueFields type={type} value={lockedValue} onChange={setLockedValue} />
+          <ElementValueFields type={type} value={lockedValue} onChange={setLockedValue} requireDates={false} />
         </div>
       ) : (
         <div className="flex gap-3">

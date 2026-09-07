@@ -399,12 +399,24 @@ export const EXPERIENCE_SUBTYPE_LABELS: Record<ExperienceSubtype, string> = {
 // one (flight/rental_car/train/bus have a search scene; ferry/other don't).
 export const TRAVEL_SEARCH_MODES: TravelMode[] = ["flight", "rental_car", "train", "bus"];
 
-export const ACCOMMODATION_SEARCH_SUBTYPES = ["hotel", "vacation_rental", "hostel"] as const;
+export const ACCOMMODATION_SEARCH_SUBTYPES = [
+  "hotel",
+  "vacation_rental",
+  "resort",
+  "bnb",
+  "hostel",
+  "guesthouse",
+  "camping_glamping",
+] as const;
 export type AccommodationSearchSubtype = (typeof ACCOMMODATION_SEARCH_SUBTYPES)[number];
 export const ACCOMMODATION_SEARCH_SUBTYPE_LABELS: Record<AccommodationSearchSubtype, string> = {
   hotel: "Hotel",
   vacation_rental: "Vacation Rental",
+  resort: "Resort",
+  bnb: "B&B",
   hostel: "Hostel",
+  guesthouse: "Guesthouse",
+  camping_glamping: "Camping/Glamping",
 };
 export const ACCOMMODATION_SEARCH_SUBTYPE_TO_DETAILED: Record<
   AccommodationSearchSubtype,
@@ -412,7 +424,11 @@ export const ACCOMMODATION_SEARCH_SUBTYPE_TO_DETAILED: Record<
 > = {
   hotel: "hotel",
   vacation_rental: "home_apartment",
+  resort: "resort",
+  bnb: "bnb",
   hostel: "hostel",
+  guesthouse: "guesthouse",
+  camping_glamping: "glamping",
 };
 
 export const EXPERIENCE_SEARCH_SUBTYPES = ["tours", "activities", "shows_events"] as const;
@@ -703,8 +719,13 @@ function bookingLinkError(value: Record<string, unknown>): string | null {
 export function validateOptionValue(
   type: ElementType,
   value: Record<string, unknown> | null | undefined,
+  // Travel's date(s) and Accommodations' check-in/out are required when
+  // actually proposing/searching a candidate — not when the organizer is
+  // locking a value straight from Add Element, a lighter/faster path.
+  opts?: { requireDates?: boolean },
 ): string | null {
   if (!value || typeof value !== "object") return "Missing value";
+  const requireDates = opts?.requireDates ?? true;
 
   const str = (k: string) => String(value[k] ?? "").trim();
   const num = (k: string) => Number(value[k]);
@@ -728,7 +749,7 @@ export function validateOptionValue(
     case "travel": {
       if (!(TRAVEL_MODES as readonly string[]).includes(str("mode"))) return "Pick a travel mode";
       if (str("mode") === "other" && !str("note")) return "Describe the travel mode";
-      if (str("mode") !== "other") {
+      if (requireDates && str("mode") !== "other") {
         if (!str("depart_date")) return "Pick a travel date";
         if (Boolean(value.round_trip) && !str("return_date")) return "Pick a return date";
       }
@@ -738,9 +759,11 @@ export function validateOptionValue(
       if (!str("name")) return "Enter a name";
       if (!(ACCOMMODATION_SUBTYPES as readonly string[]).includes(str("subtype")))
         return "Pick a property type";
-      const dates = (value.dates ?? {}) as Record<string, unknown>;
-      if (!String(dates.start_date ?? "").trim()) return "Pick a check-in date";
-      if (!String(dates.end_date ?? "").trim()) return "Pick a check-out date";
+      if (requireDates) {
+        const dates = (value.dates ?? {}) as Record<string, unknown>;
+        if (!String(dates.start_date ?? "").trim()) return "Pick a check-in date";
+        if (!String(dates.end_date ?? "").trim()) return "Pick a check-out date";
+      }
       return bookingLinkError(value) ?? priceError(value, { optional: str("subtype") === "other" });
     }
     case "experience": {

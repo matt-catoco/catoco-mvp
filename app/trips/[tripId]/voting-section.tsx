@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { OptionSummary } from "@/components/option-summary";
 import { summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
@@ -43,6 +44,7 @@ export function VotingSection({
    * ranking" half of that gate. */
   readOnly?: boolean;
 }) {
+  const router = useRouter();
   const [ranking, setRanking] = useState<string[]>(myRanking);
   const [dirty, setDirty] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -110,8 +112,17 @@ export function VotingSection({
     setError(null);
     startTransition(async () => {
       const res = await castVotes(elementId, ranking);
-      if (res.error) setError(res.error);
-      else setDirty(false);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      setDirty(false);
+      // castVotes revalidates the path server-side, but this component's own
+      // props (options[].score, myRanking) are whatever was passed at the
+      // last render — without a refresh, the "#N overall" score badges keep
+      // showing the pre-vote standing until something else happens to
+      // reload the page, which reads as "my vote didn't count."
+      router.refresh();
     });
   }
 
