@@ -43,14 +43,12 @@ export function OptionSummary({
     </a>
   );
 
-  // §10: Destination/Experience/Dining tiles are meant to auto-photo from
-  // Unsplash — not wired yet (no API key exists), so there's nothing to show
-  // a "no image" box for on Destination specifically (it has no booking_link
-  // to scrape an Open Graph thumbnail from the way the price-bearing types
-  // do). When Unsplash ships, this is the branch to extend: give Destination
-  // a resolved photo the same way thumbnail/title come from link-preview.ts
-  // for the others today.
-  if (!PRICE_BEARING_TYPES.includes(type) || (!title && !thumbnail)) {
+  // §10: Destination auto-photos from Unsplash (lib/unsplash.ts, applied at
+  // submission time in actions.ts' applyLinkPreview) since it has no
+  // booking_link to scrape an Open Graph thumbnail from the way the
+  // price-bearing types do — explicitly allowed into the rich-card branch
+  // below even though it isn't itself price-bearing.
+  if ((!PRICE_BEARING_TYPES.includes(type) && type !== "destination") || (!title && !thumbnail)) {
     return (
       <span className="block">
         {fallback}

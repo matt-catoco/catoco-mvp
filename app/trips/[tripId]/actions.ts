@@ -10,6 +10,7 @@ import {
   type ElementType,
 } from "@/lib/trip-elements";
 import { fetchLinkPreview } from "@/lib/link-preview";
+import { fetchUnsplashPhoto } from "@/lib/unsplash";
 import { sendCoreLoopEmail } from "@/lib/notifications";
 
 const MICRO_TYPES_WITH_LINK: ElementType[] = [
@@ -33,6 +34,22 @@ async function applyLinkPreview(
   if (MICRO_TYPES_WITH_LINK.includes(type) && typeof value.booking_link === "string") {
     const preview = await fetchLinkPreview(value.booking_link);
     Object.assign(value, preview);
+  }
+  // §10 auto-photo: Destination has no booking_link to scrape an OG image
+  // from at all, so Unsplash is its only photo source. Experience/Dining
+  // fall back to Unsplash only when the OG scrape above didn't turn up an
+  // image — a real listing's own photo still wins when there is one.
+  if (type === "destination" && typeof value.name === "string" && !value.thumbnail_url) {
+    const photo = await fetchUnsplashPhoto(value.name);
+    if (photo) value.thumbnail_url = photo;
+  } else if ((type === "experience" || type === "dining") && !value.thumbnail_url) {
+    const query = [value.name, value.location_name]
+      .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+      .join(" ");
+    if (query) {
+      const photo = await fetchUnsplashPhoto(query);
+      if (photo) value.thumbnail_url = photo;
+    }
   }
   return value;
 }
