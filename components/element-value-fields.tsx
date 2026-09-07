@@ -147,6 +147,35 @@ export function ElementValueFields({
                   { value: "one_way", label: "One-way" },
                 ]}
               />
+              <div className="flex gap-2">
+                <label className="flex flex-1 flex-col gap-1">
+                  <span className={label}>
+                    Travel date <span className="text-red-500">*</span>
+                  </span>
+                  <input
+                    type="date"
+                    required
+                    className={field}
+                    value={str("depart_date")}
+                    onChange={(e) => set("depart_date", e.target.value)}
+                  />
+                </label>
+                {value.round_trip !== false && (
+                  <label className="flex flex-1 flex-col gap-1">
+                    <span className={label}>
+                      Return date <span className="text-red-500">*</span>
+                    </span>
+                    <input
+                      type="date"
+                      required
+                      className={field}
+                      min={str("depart_date") || undefined}
+                      value={str("return_date")}
+                      onChange={(e) => set("return_date", e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
               <input
                 className={field}
                 placeholder="Note (optional)"
@@ -220,11 +249,14 @@ export function ElementValueFields({
           )}
 
           <div className="rounded-lg border border-brand-line p-2">
-            <span className={`${label} mb-1 block`}>Dates (optional)</span>
+            <span className={`${label} mb-1 block`}>
+              Dates <span className="text-red-500">*</span>
+            </span>
             <DatesFields
               value={(value.dates as Record<string, unknown>) ?? {}}
               onChange={(next) => set("dates", next)}
-              required={false}
+              required
+              allowNights={false}
             />
           </div>
 
@@ -474,10 +506,17 @@ function DatesFields({
   value,
   onChange,
   required = true,
+  allowNights = true,
 }: {
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
   required?: boolean;
+  // Accommodations' check-in/check-out are always real calendar dates — you
+  // can't book a hotel for "7 nights, date TBD" the way a trip-level Dates
+  // element can stay open before it locks. false hides the Nights mode
+  // entirely and forces Exact dates, rather than letting a check-in/out
+  // pair be submitted with no actual dates in it.
+  allowNights?: boolean;
 }) {
   const str = (k: string) => String(value[k] ?? "");
   // UI-only: which entry mode is active. Seeded from whatever's already in
@@ -486,7 +525,7 @@ function DatesFields({
   // Nights means "we know the length, not yet when" (no start date at all,
   // suggesting one would be misleading); Exact dates means real anchored
   // dates.
-  const [mode, setMode] = useState<"exact" | "nights">(str("nights") ? "nights" : "exact");
+  const [mode, setMode] = useState<"exact" | "nights">(allowNights && str("nights") ? "nights" : "exact");
 
   // Bug fix: switching modes used to wipe whatever was typed in the other
   // mode by clearing it straight out of the submitted value. Each mode's
@@ -520,16 +559,18 @@ function DatesFields({
 
   return (
     <div className="flex flex-col gap-3">
-      <ModeToggle
-        value={mode}
-        onChange={switchMode}
-        options={[
-          { value: "exact", label: "Exact dates" },
-          { value: "nights", label: "Nights" },
-        ]}
-      />
+      {allowNights && (
+        <ModeToggle
+          value={mode}
+          onChange={switchMode}
+          options={[
+            { value: "exact", label: "Exact dates" },
+            { value: "nights", label: "Nights" },
+          ]}
+        />
+      )}
 
-      {mode === "exact" ? (
+      {mode === "exact" || !allowNights ? (
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1">
             <span className={label}>

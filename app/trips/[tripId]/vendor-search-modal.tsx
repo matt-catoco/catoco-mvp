@@ -187,9 +187,11 @@ export function VendorSearchModal({
   );
   const [vehicleType, setVehicleType] = useState("Economy");
   const [transmission, setTransmission] = useState<"automatic" | "manual">("automatic");
+  const [roundTrip, setRoundTrip] = useState(true);
 
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "done">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [response, setResponse] = useState<VendorSearchResponse | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -201,7 +203,7 @@ export function VendorSearchModal({
       location: location || undefined,
       destination: destination || undefined,
       startDate: startDate || undefined,
-      endDate: endDate || undefined,
+      endDate: subtype === "flight" && !roundTrip ? undefined : endDate || undefined,
       time: time || undefined,
       partySize: elementType === "dining" ? partySize : undefined,
       travelers: elementType === "travel" && subtype === "flight" ? travelers : elementType === "accommodation" ? travelers : undefined,
@@ -210,7 +212,33 @@ export function VendorSearchModal({
     };
   }
 
+  // The Search button isn't inside a <form>, so native `required` attrs
+  // don't block anything on their own -- this is the actual gate.
+  function validateSearch(): string | null {
+    if (elementType === "travel") {
+      if (subtype === "rental_car") {
+        if (!location.trim()) return "Enter a pickup location";
+        if (!startDate) return "Pick a pickup date";
+        if (!endDate) return "Pick a drop-off date";
+      } else {
+        if (!startDate) return "Pick a travel date";
+        if (subtype === "flight" && roundTrip && !endDate) return "Pick a return date";
+      }
+    }
+    if (elementType === "accommodation") {
+      if (!startDate) return "Pick a check-in date";
+      if (!endDate) return "Pick a check-out date";
+    }
+    return null;
+  }
+
   async function search() {
+    const err = validateSearch();
+    if (err) {
+      setFieldError(err);
+      return;
+    }
+    setFieldError(null);
     setStatus("loading");
     setErrorMessage(null);
     try {
@@ -274,12 +302,16 @@ export function VendorSearchModal({
             <input className={field} placeholder="Pickup location" value={location} onChange={(e) => setLocation(e.target.value)} />
             <div className="flex gap-3">
               <label className="flex flex-1 flex-col gap-1">
-                <span className={labelClass}>Pickup</span>
-                <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <span className={labelClass}>
+                  Pickup <span className="text-red-500">*</span>
+                </span>
+                <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </label>
               <label className="flex flex-1 flex-col gap-1">
-                <span className={labelClass}>Drop-off</span>
-                <input type="date" className={field} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <span className={labelClass}>
+                  Drop-off <span className="text-red-500">*</span>
+                </span>
+                <input type="date" required className={field} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </label>
             </div>
             <div className="flex gap-3">
@@ -300,15 +332,34 @@ export function VendorSearchModal({
             <input className={field} placeholder="From" value={location} onChange={(e) => setLocation(e.target.value)} />
             <input className={field} placeholder="To" value={destination} onChange={(e) => setDestination(e.target.value)} />
           </div>
+          {subtype === "flight" && (
+            <PillRow
+              value={roundTrip ? "round_trip" : "one_way"}
+              options={["round_trip", "one_way"] as const}
+              labels={{ round_trip: "Round trip", one_way: "One-way" }}
+              onChange={(v) => setRoundTrip(v === "round_trip")}
+            />
+          )}
           <div className="flex gap-3">
             <label className="flex flex-1 flex-col gap-1">
-              <span className={labelClass}>Depart</span>
-              <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <span className={labelClass}>
+                {subtype === "flight" ? "Depart" : "Travel date"} <span className="text-red-500">*</span>
+              </span>
+              <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
-            {subtype === "flight" && (
+            {subtype === "flight" && roundTrip && (
               <label className="flex flex-1 flex-col gap-1">
-                <span className={labelClass}>Return (optional)</span>
-                <input type="date" className={field} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <span className={labelClass}>
+                  Return <span className="text-red-500">*</span>
+                </span>
+                <input
+                  type="date"
+                  required
+                  className={field}
+                  min={startDate || undefined}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </label>
             )}
           </div>
@@ -322,12 +373,23 @@ export function VendorSearchModal({
           <input className={field} placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
           <div className="flex gap-3">
             <label className="flex flex-1 flex-col gap-1">
-              <span className={labelClass}>Check-in</span>
-              <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <span className={labelClass}>
+                Check-in <span className="text-red-500">*</span>
+              </span>
+              <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
             <label className="flex flex-1 flex-col gap-1">
-              <span className={labelClass}>Check-out</span>
-              <input type="date" className={field} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <span className={labelClass}>
+                Check-out <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="date"
+                required
+                className={field}
+                min={startDate || undefined}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </label>
           </div>
           <TravelersField value={travelers} onChange={setTravelers} />
@@ -410,6 +472,8 @@ export function VendorSearchModal({
           >
             {status === "loading" ? "Searching…" : "Search"}
           </button>
+
+          {fieldError && <p className="text-xs text-red-500">{fieldError}</p>}
 
           {status === "error" && (
             <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-500">

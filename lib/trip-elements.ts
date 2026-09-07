@@ -728,12 +728,19 @@ export function validateOptionValue(
     case "travel": {
       if (!(TRAVEL_MODES as readonly string[]).includes(str("mode"))) return "Pick a travel mode";
       if (str("mode") === "other" && !str("note")) return "Describe the travel mode";
+      if (str("mode") !== "other") {
+        if (!str("depart_date")) return "Pick a travel date";
+        if (Boolean(value.round_trip) && !str("return_date")) return "Pick a return date";
+      }
       return bookingLinkError(value) ?? priceError(value, { optional: str("mode") === "other" });
     }
     case "accommodation": {
       if (!str("name")) return "Enter a name";
       if (!(ACCOMMODATION_SUBTYPES as readonly string[]).includes(str("subtype")))
         return "Pick a property type";
+      const dates = (value.dates ?? {}) as Record<string, unknown>;
+      if (!String(dates.start_date ?? "").trim()) return "Pick a check-in date";
+      if (!String(dates.end_date ?? "").trim()) return "Pick a check-out date";
       return bookingLinkError(value) ?? priceError(value, { optional: str("subtype") === "other" });
     }
     case "experience": {
@@ -803,6 +810,18 @@ export function normalizeOptionValue(
         if (str("start_location")) out.start_location = str("start_location");
         if (str("destination_location")) out.destination_location = str("destination_location");
         out.round_trip = Boolean(value.round_trip);
+        if (str("depart_date")) out.depart_date = str("depart_date");
+        if (str("return_date")) out.return_date = str("return_date");
+        if (value.travelers && typeof value.travelers === "object") {
+          out.travelers = value.travelers as TravelersBreakdown;
+        }
+      }
+      if (str("mode") === "rental_car") {
+        if (str("pickup_location")) out.pickup_location = str("pickup_location");
+        if (str("pickup_datetime")) out.pickup_datetime = str("pickup_datetime");
+        if (str("dropoff_datetime")) out.dropoff_datetime = str("dropoff_datetime");
+        if (str("vehicle_type")) out.vehicle_type = str("vehicle_type");
+        if (str("transmission")) out.transmission = str("transmission") as "automatic" | "manual" | "";
       }
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("price")) {
@@ -827,6 +846,9 @@ export function normalizeOptionValue(
       const rawDates = (value.dates ?? {}) as Record<string, unknown>;
       if (String(rawDates.start_date ?? "").trim() || String(rawDates.nights ?? "").trim()) {
         out.dates = normalizeOptionValue("dates", rawDates) as DatesValue;
+      }
+      if (value.travelers && typeof value.travelers === "object") {
+        out.travelers = value.travelers as TravelersBreakdown;
       }
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("price")) {
