@@ -49,11 +49,17 @@ export function AddElementModal({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
+          {/* mx-auto + a fixed top/bottom margin instead of flex items-center:
+              centering a taller-than-viewport child with flex+overflow-y-auto
+              clips the top of the content off-screen, unreachable by
+              scrolling, in a way that reads as fields silently missing
+              rather than a layout bug — this form's pill rows made it
+              tall enough to actually hit that. */}
           <div
-            className="w-full max-w-xl rounded-2xl border border-brand-line bg-background p-6 shadow-lg"
+            className="mx-auto my-8 w-full max-w-xl rounded-2xl border border-brand-line bg-background p-6 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-center justify-between">

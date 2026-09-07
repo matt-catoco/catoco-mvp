@@ -374,9 +374,11 @@ export function VendorSearchModal({
   })();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      {/* mx-auto + fixed margin, not flex items-center — see add-element-modal.tsx's
+          comment for why that combination clips overflowing content off-screen. */}
       <div
-        className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-brand-line bg-background p-6 shadow-lg"
+        className="mx-auto my-8 flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-brand-line bg-background p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">
