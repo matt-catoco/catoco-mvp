@@ -15,6 +15,7 @@ import {
   EXPERIENCE_SUBTYPE_LABELS,
   CUISINE_GROUPS,
   PRICING_TIERS,
+  formatDate,
   type ElementType,
   type TravelMode,
   type AccommodationSubtype,
@@ -509,6 +510,110 @@ function AccommodationField({
   );
 }
 
+const DOW_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+/**
+ * A real click-to-select calendar range picker — matches the design-chat
+ * mockup's Dates scene (a month grid with the selected range highlighted
+ * directly, teal for the two endpoints, teal-wash for the days between),
+ * not the native <input type="date"> pair this used to be. First click
+ * starts a fresh range (clears any existing end); second click sets the
+ * end, swapping automatically if it lands before the start.
+ */
+function DateRangeCalendar({
+  startDate,
+  endDate,
+  onSelect,
+}: {
+  startDate: string;
+  endDate: string;
+  onSelect: (start: string, end: string) => void;
+}) {
+  const [viewMonth, setViewMonth] = useState(() => {
+    const base = startDate ? new Date(`${startDate}T00:00:00`) : new Date();
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthLabel = viewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  function toISO(day: number): string {
+    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  function handleDayClick(day: number) {
+    const iso = toISO(day);
+    if (!startDate || endDate) {
+      onSelect(iso, "");
+    } else if (iso < startDate) {
+      onSelect(iso, startDate);
+    } else {
+      onSelect(startDate, iso);
+    }
+  }
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: firstDow }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-brand-line p-3">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setViewMonth(new Date(year, month - 1, 1))}
+          aria-label="Previous month"
+          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
+        >
+          ‹
+        </button>
+        <span className="text-sm font-semibold">{monthLabel}</span>
+        <button
+          type="button"
+          onClick={() => setViewMonth(new Date(year, month + 1, 1))}
+          aria-label="Next month"
+          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
+        >
+          ›
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {DOW_LABELS.map((d) => (
+          <div key={d} className="text-center text-[11px] font-semibold text-brand-muted">
+            {d}
+          </div>
+        ))}
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`empty-${i}`} />;
+          const iso = toISO(day);
+          const isEndpoint = iso === startDate || iso === endDate;
+          const inRange = Boolean(startDate && endDate && iso > startDate && iso < endDate);
+          return (
+            <button
+              key={iso}
+              type="button"
+              onClick={() => handleDayClick(day)}
+              className={`aspect-square rounded-lg text-xs font-medium transition-colors ${
+                isEndpoint
+                  ? "bg-brand-teal-deep text-white"
+                  : inRange
+                    ? "bg-brand-teal-wash text-brand-teal-deep"
+                    : "text-foreground hover:bg-brand-teal-wash"
+              }`}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DatesFields({
   value,
   onChange,
@@ -578,38 +683,24 @@ function DatesFields({
       )}
 
       {mode === "exact" || !allowNights ? (
-        <div className="flex gap-3">
-          <label className="flex flex-1 flex-col gap-1">
-            <span className={label}>
-              Start date {required && <span className="text-red-500">*</span>}
-            </span>
-            <input
-              type="date"
-              required={required}
-              className={field}
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                emit({ mode, startDate: e.target.value, endDate, nights, flexDays });
-              }}
-            />
-          </label>
-          <label className="flex flex-1 flex-col gap-1">
-            <span className={label}>
-              End date {required && <span className="text-red-500">*</span>}
-            </span>
-            <input
-              type="date"
-              required={required}
-              className={field}
-              value={endDate}
-              min={startDate || undefined}
-              onChange={(e) => {
-                setEndDate(e.target.value);
-                emit({ mode, startDate, endDate: e.target.value, nights, flexDays });
-              }}
-            />
-          </label>
+        <div className="flex flex-col gap-1.5">
+          <span className={label}>
+            Dates {required && <span className="text-red-500">*</span>}
+          </span>
+          <p className="text-xs text-brand-muted">
+            {startDate ? formatDate(startDate) : "Pick a start date"}
+            {" → "}
+            {endDate ? formatDate(endDate) : startDate ? "Pick an end date" : "?"}
+          </p>
+          <DateRangeCalendar
+            startDate={startDate}
+            endDate={endDate}
+            onSelect={(nextStart, nextEnd) => {
+              setStartDate(nextStart);
+              setEndDate(nextEnd);
+              emit({ mode, startDate: nextStart, endDate: nextEnd, nights, flexDays });
+            }}
+          />
         </div>
       ) : (
         <>
