@@ -50,28 +50,33 @@ export async function getTripContext(
     .returns<LockedElementRow[]>();
 
   const optionIds = (elements ?? []).map((e) => e.locked_option_id).filter((id): id is string => id != null);
-  if (optionIds.length === 0) return ctx;
+  // §7 regression: this used to `return ctx` here when there was no
+  // explicit locked Destination/Dates element at all -- which is exactly
+  // the case the fallback below exists to handle (a hotel-only-split trip
+  // never has one). No early return anymore; the fallback block simply
+  // has nothing to override when this section did find something.
+  if (optionIds.length > 0) {
+    const { data: options } = await supabase
+      .from("element_options")
+      .select("id, value")
+      .in("id", optionIds)
+      .returns<OptionValueRow[]>();
+    const valueById = new Map((options ?? []).map((o) => [o.id, o.value]));
 
-  const { data: options } = await supabase
-    .from("element_options")
-    .select("id, value")
-    .in("id", optionIds)
-    .returns<OptionValueRow[]>();
-  const valueById = new Map((options ?? []).map((o) => [o.id, o.value]));
-
-  for (const row of elements ?? []) {
-    const value = row.locked_option_id ? valueById.get(row.locked_option_id) : null;
-    if (!value) continue;
-    if (row.type === "destination") {
-      const v = value as DestinationValue;
-      // name only, deliberately — see TripContext's own comment on why
-      // lat/lng/place_id (a stored Mapbox Temporary-mode result) never
-      // gets read back out and reused here.
-      if (v.name) ctx.destination = { name: v.name };
-    } else if (row.type === "dates") {
-      const v = value as DatesValue;
-      if (v.start_date || v.nights) {
-        ctx.dates = { start_date: v.start_date, end_date: v.end_date, nights: v.nights };
+    for (const row of elements ?? []) {
+      const value = row.locked_option_id ? valueById.get(row.locked_option_id) : null;
+      if (!value) continue;
+      if (row.type === "destination") {
+        const v = value as DestinationValue;
+        // name only, deliberately — see TripContext's own comment on why
+        // lat/lng/place_id (a stored Mapbox Temporary-mode result) never
+        // gets read back out and reused here.
+        if (v.name) ctx.destination = { name: v.name };
+      } else if (row.type === "dates") {
+        const v = value as DatesValue;
+        if (v.start_date || v.nights) {
+          ctx.dates = { start_date: v.start_date, end_date: v.end_date, nights: v.nights };
+        }
       }
     }
   }
