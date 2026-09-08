@@ -256,10 +256,11 @@ export function ElementValueFields({
             </div>
           )}
 
+          {/* No outer "Dates" label here — DatesFields' own exact-mode
+              branch renders its own "Dates" label + required asterisk now
+              (added with the calendar picker), so a wrapper label here
+              duplicated it, stacked directly on top of itself. */}
           <div className="rounded-lg border border-brand-line p-2">
-            <span className={`${label} mb-1 block`}>
-              Dates {requireDates && <span className="text-red-500">*</span>}
-            </span>
             <DatesFields
               value={(value.dates as Record<string, unknown>) ?? {}}
               onChange={(next) => set("dates", next)}
