@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { isAllowedEmail } from "@/lib/allowlist";
+import { toUserFacingError } from "@/lib/action-errors";
 
 export type RequestMagicLinkResult = { error?: string };
 
@@ -38,6 +39,6 @@ export async function requestMagicLink(
     },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
   return {};
 }

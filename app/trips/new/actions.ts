@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { toUserFacingError } from "@/lib/action-errors";
 
 export type CreateTripResult = { error: string };
 
@@ -32,7 +33,7 @@ export async function createTrip(
     .select("id")
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   redirect(`/trips/${data.id}`);
 }

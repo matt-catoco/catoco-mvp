@@ -12,6 +12,7 @@ import {
 import { fetchLinkPreview } from "@/lib/link-preview";
 import { fetchUnsplashPhoto } from "@/lib/unsplash";
 import { sendCoreLoopEmail } from "@/lib/notifications";
+import { toUserFacingError } from "@/lib/action-errors";
 
 const MICRO_TYPES_WITH_LINK: ElementType[] = [
   "travel",
@@ -117,7 +118,7 @@ export async function createElement(input: {
     p_options: options,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${input.tripId}`);
   return { elementId: data as string };
@@ -166,7 +167,7 @@ export async function updateElement(input: {
     p_locked_value: lockedValue,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${input.tripId}`);
   revalidatePath(`/trips/${input.tripId}/elements/${input.elementId}`);
@@ -188,7 +189,7 @@ export async function deleteElement(
 ): Promise<DeleteElementResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_element", { p_element_id: elementId });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   return {};
@@ -208,7 +209,7 @@ export async function setParticipantRole(
     p_user_id: userId,
     p_role: role,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
   revalidatePath(`/trips/${tripId}/participants`);
   return {};
 }
@@ -227,7 +228,7 @@ export async function setParticipantCapacity(
     p_min: min,
     p_max: max,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
   revalidatePath(`/trips/${tripId}/participants`);
   return {};
 }
@@ -279,7 +280,7 @@ export async function submitOption(
     pricing_basis: pricingBasis,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   // §2: a Nights-mode Dates option auto-creates a second Dates element
   // (exact-dates mode) for the group to pin down real calendar dates, once
@@ -356,7 +357,7 @@ export async function updateOption(
     p_unit_price: unitPrice,
     p_pricing_basis: pricingBasis,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
@@ -381,7 +382,7 @@ export async function lockElement(
     p_element_id: elementId,
     p_option_id: optionId,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
@@ -412,7 +413,7 @@ export async function castVotes(
     p_element_id: elementId,
     p_option_ids: optionIds,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   const { data: element } = await supabase
     .from("trip_elements")
@@ -447,7 +448,7 @@ export async function addFundingContribution(
     p_funding_request_id: fundingRequestId,
     p_amount: amount,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
@@ -473,7 +474,7 @@ export async function setFundingDeadline(
     p_funding_request_id: fundingRequestId,
     p_deadline: deadline,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
@@ -500,7 +501,7 @@ export async function reassignPurchaser(
     p_funding_request_id: fundingRequestId,
     p_purchaser_id: purchaserId,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
@@ -528,7 +529,7 @@ export async function resolveFundingOutcome(
     p_funding_request_id: fundingRequestId,
     p_still_viable: stillViable,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   // Trigger #2 (funding ready to purchase): re-select rather than trusting
   // stillViable alone — resolve_funding_outcome() also independently checks
@@ -600,7 +601,7 @@ export async function reportElementBooked(
     p_outcome: outcome,
     p_actual_amount_paid: actualAmountPaid ?? null,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
@@ -623,7 +624,7 @@ export async function bundleFundingRequests(
   const { data, error } = await supabase.rpc("bundle_funding_requests", {
     p_element_ids: elementIds,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
   return { fundingRequestId: data as string };
