@@ -58,7 +58,10 @@ export async function getTripContext(
     if (!value) continue;
     if (row.type === "destination") {
       const v = value as DestinationValue;
-      if (v.name) ctx.destination = { name: v.name, lat: v.lat, lng: v.lng, place_id: v.place_id };
+      // name only, deliberately — see TripContext's own comment on why
+      // lat/lng/place_id (a stored Mapbox Temporary-mode result) never
+      // gets read back out and reused here.
+      if (v.name) ctx.destination = { name: v.name };
     } else if (row.type === "dates") {
       const v = value as DatesValue;
       if (v.start_date || v.nights) {

@@ -563,7 +563,14 @@ export type OptionValue = DatesValue | DestinationValue | TravelValue | PlaceVal
 // which does the actual DB read) are context every other element's forms
 // can be pre-filled from instead of asking the same thing per element.
 export type TripContext = {
-  destination?: { name: string; lat?: number; lng?: number; place_id?: string };
+  // name only — no lat/lng/place_id. Those came from a Mapbox Geocoding
+  // call made in Temporary mode (no `permanent=true`, and no plan to add
+  // one), which prohibits storing a result and reusing it beyond the
+  // original request. Reading a locked Destination's coordinates back out
+  // on a later page load, or copying them into a new Experience/Dining
+  // draft, is exactly that. The name string isn't a geocode result, so
+  // reusing it as plain pre-filled text stays fine.
+  destination?: { name: string };
   dates?: { start_date?: string; end_date?: string; nights?: number };
   // Vendor search: a starting traveler count so it doesn't need re-entering
   // per search — derived from the trip's participant count (see
@@ -588,9 +595,6 @@ export function applyTripContext(
   if (ctx.destination) {
     if ((type === "experience" || type === "dining") && !String(out.location_name ?? "").trim()) {
       out.location_name = ctx.destination.name;
-      if (ctx.destination.lat !== undefined) out.location_lat = ctx.destination.lat;
-      if (ctx.destination.lng !== undefined) out.location_lng = ctx.destination.lng;
-      if (ctx.destination.place_id) out.location_place_id = ctx.destination.place_id;
     }
     if (type === "travel" && !String(out.destination_location ?? "").trim()) {
       out.destination_location = ctx.destination.name;
