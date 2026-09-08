@@ -1011,8 +1011,17 @@ export function summarizeOptionValue(
 function priceLabel(value: Record<string, unknown>): string {
   const str = (k: string) => String(value[k] ?? "").trim();
   const basis = str("pricing_basis");
+  // Rental cars share the per_night pricing_basis (same duration-based
+  // arithmetic as an accommodation stay) but aren't rented "per night" —
+  // label them "/day" without introducing a separate pricing_basis value.
   const suffix =
-    basis === "per_night" ? "/night" : basis === "per_person" ? "/person" : "";
+    basis === "per_night"
+      ? str("mode") === "rental_car"
+        ? "/day"
+        : "/night"
+      : basis === "per_person"
+        ? "/person"
+        : "";
   const price = Number(str("price"));
   const formatted = Number.isFinite(price)
     ? formatCurrency(price, str("currency") || "USD")
