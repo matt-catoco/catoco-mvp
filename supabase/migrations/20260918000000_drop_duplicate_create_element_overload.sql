@@ -1,0 +1,22 @@
+-- ============================================================================
+-- Fix: Add Element broken by a duplicate create_element() overload.
+--
+-- 20260917000000_dates_derived_element.sql added a new 10-arg overload of
+-- create_element() (trailing p_derived_from_element_id uuid default null)
+-- instead of replacing the existing 9-arg one -- CREATE OR REPLACE only
+-- replaces a function with an identical argument list; a different arg
+-- count creates a second, separate function. With both live, every call
+-- site that passes exactly 9 named params (the entire app -- add-element-
+-- form.tsx, actions.ts, etc.) became ambiguous to PostgREST ("Could not
+-- choose the best candidate function"), breaking Add Element outright.
+-- Confirmed live-broken on both staging and production before this fix;
+-- applied directly to both via the Supabase migration tool, this file
+-- brings the repo's migration history in sync with what's already live.
+--
+-- Fix: drop the stale 9-arg overload. The 10-arg one is a strict superset
+-- (same body plus derived_from_element_id support) with a default for the
+-- new trailing param, so every existing 9-argument call site keeps working
+-- unchanged -- no app code needs to change.
+-- ============================================================================
+
+drop function public.create_element(uuid, text, text, jsonb, uuid[], text, timestamp with time zone, timestamp with time zone, jsonb);
