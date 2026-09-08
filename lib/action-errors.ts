@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 // Structural rather than PostgrestError specifically — this also covers
 // AuthError (sign-in), which has the same message/code shape but isn't a
 // PostgrestError.
@@ -15,16 +17,20 @@ type DbError = { message: string; code?: string | null };
 // the case this guards against.
 const APPLICATION_RAISED_CODE = "P0001";
 
-const FALLBACK_MESSAGE = "Something went wrong on our end. Please try again in a moment.";
-
 /**
  * Turns a Supabase/Postgres error into text safe to hand back to whoever's
  * using the app. Deliberate `raise exception` messages pass through as-is;
  * everything else — real DB/infrastructure failures — is logged server-side
- * and replaced with a generic message instead of leaking raw error internals.
+ * (with a short reference code) and replaced with a generic message plus
+ * that same code, instead of leaking raw error internals. Hiding the real
+ * message shouldn't also mean losing the ability to track it down — the
+ * ref is how "something went wrong" turns back into a specific log line
+ * (`get_runtime_logs` / `get_runtime_errors`, search for the ref) once
+ * someone reports it.
  */
 export function toUserFacingError(error: DbError): string {
   if (error.code === APPLICATION_RAISED_CODE) return error.message;
-  console.error("[db error]", error);
-  return FALLBACK_MESSAGE;
+  const ref = randomUUID().slice(0, 8);
+  console.error(`[db error] ref=${ref}`, error);
+  return `Something went wrong on our end. Please try again — if it keeps happening, mention reference ${ref}.`;
 }
