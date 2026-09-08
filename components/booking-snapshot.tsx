@@ -3,14 +3,35 @@ import {
   formatDate,
   TRAVEL_MODE_LABELS,
   ACCOMMODATION_SUBTYPE_LABELS,
+  ACCOMMODATION_FIELD_LABELS,
   EXPERIENCE_SUBTYPE_LABELS,
   type ElementType,
   type TravelMode,
   type AccommodationSubtype,
+  type AccommodationFieldKey,
   type ExperienceSubtype,
 } from "@/lib/trip-elements";
 
 export type SnapshotParticipant = { userId: string; displayName: string };
+
+/**
+ * Drives the two contexts this same snapshot appears in (the funding-flow
+ * audit's own distinction): while collecting contributions, everyone cares
+ * about their own per-person share, not the trip-wide total, and doesn't
+ * need a full roster — a count is enough. Once it's actually being booked,
+ * the organizer needs the real total (or what was actually paid) and the
+ * real names, since they're the one reconciling who owes what / confirming
+ * with the group. No `pricing` prop at all (payment_type=none elements —
+ * Dates/Destination, or an unpriced locked option) falls back to booking-
+ * style rendering (total/names) since there's no per-person math to show.
+ */
+export type SnapshotPricing = {
+  mode: "funding" | "booking";
+  totalRequired?: number;
+  perPersonShare?: number;
+  actualPaid?: number;
+  currency: string;
+};
 
 function subtypeLabel(type: ElementType, value: Record<string, unknown>): string | null {
   if (type === "travel") {
@@ -28,22 +49,38 @@ function subtypeLabel(type: ElementType, value: Record<string, unknown>): string
   return null;
 }
 
-/**
- * The full picture of what's actually locked in and about to be booked —
- * not the tile-sized summary (OptionSummary) built for a voting grid where
- * space is tight. This is specifically for the funding/booking flow:
- * whoever's about to purchase (or anyone checking what's locked in)
- * shouldn't have to hunt across the page for the booking link, dates,
- * location, or who this element is actually scoped to.
- */
+/** Subtype-specific structured fields — room type, vehicle type, breakfast
+ * included, etc. — the level of detail below the headline Type/Subtype. */
+function subDetails(type: ElementType, value: Record<string, unknown>): { label: string; value: string }[] {
+  const out: { label: string; value: string }[] = [];
+  if (type === "accommodation") {
+    const fields = (value.accommodation_fields ?? {}) as Partial<Record<AccommodationFieldKey, string>>;
+    for (const [key, val] of Object.entries(fields)) {
+      if (!val) continue;
+      out.push({ label: ACCOMMODATION_FIELD_LABELS[key as AccommodationFieldKey] ?? key, value: val });
+    }
+  }
+  if (type === "travel" && value.mode === "rental_car") {
+    if (typeof value.vehicle_type === "string" && value.vehicle_type) {
+      out.push({ label: "Vehicle type", value: value.vehicle_type });
+    }
+    if (typeof value.transmission === "string" && value.transmission) {
+      out.push({ label: "Transmission", value: value.transmission === "automatic" ? "Automatic" : "Manual" });
+    }
+  }
+  return out;
+}
+
 export function BookingSnapshot({
   type,
   value,
   participants,
+  pricing,
 }: {
   type: ElementType;
   value: Record<string, unknown>;
   participants: SnapshotParticipant[];
+  pricing?: SnapshotPricing;
 }) {
   const str = (k: string) => {
     const v = value[k];
@@ -56,20 +93,25 @@ export function BookingSnapshot({
   const dates = value.dates as { start_date?: string; end_date?: string } | undefined;
   const departDate = str("depart_date");
   const returnDate = str("return_date");
+  const diningTime = str("dining_time");
   const locationName = str("location_name") || str("start_location");
   const destinationLocation = str("destination_location");
+  const pickupLocation = str("pickup_location");
   const price = value.price;
-  const currency = str("currency") || "USD";
+  const currency = str("currency") || pricing?.currency || "USD";
   const priceTier = str("price_tier");
   const cuisine = str("cuisine");
   const guests = value.guests;
   const typeLabel = subtypeLabel(type, value);
+  const details = subDetails(type, value);
 
   const dateRange = dates?.start_date
     ? `${formatDate(dates.start_date)}${dates.end_date ? ` → ${formatDate(dates.end_date)}` : ""}`
     : departDate
       ? `${formatDate(departDate)}${returnDate ? ` → ${formatDate(returnDate)}` : ""}`
       : null;
+
+  const isFunding = pricing?.mode === "funding";
 
   return (
     <div className="overflow-hidden rounded-xl border border-brand-line">
@@ -94,19 +136,31 @@ export function BookingSnapshot({
               <dd className="font-medium">{typeLabel}</dd>
             </div>
           )}
+          {details.map((d) => (
+            <div key={d.label}>
+              <dt className="text-brand-muted">{d.label}</dt>
+              <dd className="font-medium">{d.value}</dd>
+            </div>
+          ))}
           {dateRange && (
             <div>
               <dt className="text-brand-muted">Dates</dt>
               <dd className="font-medium">{dateRange}</dd>
             </div>
           )}
-          {(locationName || destinationLocation) && (
+          {diningTime && (
+            <div>
+              <dt className="text-brand-muted">Time</dt>
+              <dd className="font-medium">{diningTime}</dd>
+            </div>
+          )}
+          {(locationName || destinationLocation || pickupLocation) && (
             <div>
               <dt className="text-brand-muted">{type === "travel" ? "Route" : "Location"}</dt>
               <dd className="font-medium">
                 {type === "travel" && locationName && destinationLocation
                   ? `${locationName} → ${destinationLocation}`
-                  : locationName || destinationLocation}
+                  : locationName || destinationLocation || pickupLocation}
               </dd>
             </div>
           )}
@@ -122,7 +176,24 @@ export function BookingSnapshot({
               <dd className="font-medium">{guests}</dd>
             </div>
           )}
-          {price !== undefined && price !== null && String(price).trim() !== "" ? (
+
+          {/* Price: funding context shows the per-person share (what the
+              viewer actually owes); booking context shows the real total,
+              or what was actually paid once booked. Falls back to the raw
+              listed price/tier when there's no funding_request at all. */}
+          {isFunding && pricing?.perPersonShare !== undefined ? (
+            <div>
+              <dt className="text-brand-muted">Your share</dt>
+              <dd className="font-medium">{formatCurrency(pricing.perPersonShare, currency)}/person</dd>
+            </div>
+          ) : pricing && !isFunding ? (
+            <div>
+              <dt className="text-brand-muted">{pricing.actualPaid !== undefined ? "Actual paid" : "Total"}</dt>
+              <dd className="font-medium">
+                {formatCurrency(pricing.actualPaid ?? pricing.totalRequired ?? 0, currency)}
+              </dd>
+            </div>
+          ) : price !== undefined && price !== null && String(price).trim() !== "" ? (
             <div>
               <dt className="text-brand-muted">Price</dt>
               <dd className="font-medium">{formatCurrency(Number(price), currency)}</dd>
@@ -150,9 +221,15 @@ export function BookingSnapshot({
           <p className="text-[11px] font-medium uppercase tracking-wide text-brand-muted">
             Who this is for {participants.length > 0 && `(${participants.length})`}
           </p>
-          <p className="mt-1 text-xs">
-            {participants.length > 0 ? participants.map((p) => p.displayName).join(", ") : "Everyone on the trip"}
-          </p>
+          {isFunding ? (
+            <p className="mt-1 text-xs">
+              {participants.length > 0 ? `Split ${participants.length} ways` : "Everyone on the trip"}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs">
+              {participants.length > 0 ? participants.map((p) => p.displayName).join(", ") : "Everyone on the trip"}
+            </p>
+          )}
         </div>
       </div>
     </div>

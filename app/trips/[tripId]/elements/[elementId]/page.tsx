@@ -228,6 +228,24 @@ export default async function ElementDetailPage({
       bookedAt: element.booked_at,
     });
 
+    const snapshotCurrency =
+      (option?.value as Record<string, unknown> | undefined)?.currency as string | undefined;
+    // Funding-flow audit: while collecting, everyone cares about their own
+    // per-person share, not the trip total; once it's ready to purchase or
+    // booked, the organizer needs the real total (or what was actually
+    // paid) and the real names. No funding_request at all (payment_type=
+    // none, or an unpriced locked option) skips per-person math entirely.
+    const snapshotPricing = funding
+      ? {
+          mode: (funding.status === "collecting" ? "funding" : "booking") as "funding" | "booking",
+          totalRequired: funding.requiredAmount,
+          perPersonShare:
+            scopedParticipantCount > 0 ? funding.requiredAmount / scopedParticipantCount : undefined,
+          actualPaid: funding.actualAmountPaid ?? undefined,
+          currency: snapshotCurrency ?? "USD",
+        }
+      : undefined;
+
     body = (
       <div className="w-full max-w-xl rounded-xl border border-brand-line p-4 text-left">
         <div className="flex items-center justify-between gap-2">
@@ -239,7 +257,12 @@ export default async function ElementDetailPage({
         <MetadataLine type={element.type} metadata={element.metadata} />
         <div className="mt-2">
           {option ? (
-            <BookingSnapshot type={element.type} value={option.value} participants={scopedParticipants} />
+            <BookingSnapshot
+              type={element.type}
+              value={option.value}
+              participants={scopedParticipants}
+              pricing={snapshotPricing}
+            />
           ) : (
             "?"
           )}
