@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   ELEMENT_SYMBOLS,
   describeElementStatus,
+  formatDate,
   type ElementType,
   type FundingStatus,
 } from "@/lib/trip-elements";
@@ -126,7 +127,11 @@ export default async function TripLandingPage({
         .returns<ElementRow[]>(),
       supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
       supabase.rpc("is_trip_organizer", { p_trip_id: tripId }),
-      getTripContext(supabase, tripId),
+      // §7: Trip Home's header shows a destination/dates line even when
+      // nothing was ever locked as an explicit Destination/Dates element —
+      // falls back to a locked Accommodations option's own location/dates
+      // (a hotel-only-split trip). See getTripContext's own comment.
+      getTripContext(supabase, tripId, { fallbackToLockedAccommodation: true }),
     ]);
   const addElementRoster = ((rosterData ?? []) as RosterRow[]).map((r) => ({
     userId: r.user_id,
@@ -207,12 +212,26 @@ export default async function TripLandingPage({
     };
   });
 
+  // §7: destination/dates line — whatever's actually locked (explicit
+  // element, or the Accommodations fallback), never a fabricated range.
+  const datesLabel = tripContext.dates?.start_date
+    ? `${formatDate(tripContext.dates.start_date)}${
+        tripContext.dates.end_date ? ` – ${formatDate(tripContext.dates.end_date)}` : ""
+      }`
+    : tripContext.dates?.nights
+      ? `${tripContext.dates.nights} nights`
+      : null;
+  const tripSubheader = [tripContext.destination?.name, datesLabel].filter(Boolean).join(" · ");
+
   return (
     <div className="flex flex-1 flex-col items-center gap-8 px-6 py-16">
       <div className="flex w-full max-w-2xl flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
           {trip.name}
         </h1>
+        {tripSubheader && (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">{tripSubheader}</p>
+        )}
         <div className="flex gap-4 text-xs font-medium">
           <AddElementModal
             tripId={tripId}

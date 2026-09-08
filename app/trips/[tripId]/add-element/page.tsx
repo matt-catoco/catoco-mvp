@@ -58,6 +58,7 @@ export default async function AddElementPage({
           isOrganizer={Boolean(canManage)}
           roster={roster}
           tripContext={tripContext}
+          allowBundling={false}
         />
       </div>
     </div>

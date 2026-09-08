@@ -17,6 +17,11 @@ const field = `h-9 ${fieldClass}`;
 export type FundingRequestInfo = {
   id: string;
   requiredAmount: number;
+  // §5: the caller's fixed share — computed once at funding_request
+  // creation (required_amount / the bundle's full opted-in participant
+  // union), never redistributed. Every contribution is locked to exactly
+  // this, bundled or not.
+  individualAmount: number;
   collected: number;
   status: "collecting" | "ready_to_purchase" | "booked";
   deadline: string | null;
@@ -26,6 +31,17 @@ export type FundingRequestInfo = {
 };
 
 export type FundingRosterEntry = { userId: string; displayName: string };
+
+/** §6: one row of the combined bundle view — every OTHER element sharing
+ * this funding_request besides the one this card is rendered on. */
+export type BundleMemberInfo = {
+  elementId: string;
+  label: string;
+  type: string;
+  title: string;
+  price: number | null;
+  currency?: string;
+};
 
 /**
  * The funding lifecycle for one locked element (flow #4) — required vs
@@ -44,7 +60,7 @@ export function FundingCard({
   funding,
   roster,
   currency = "USD",
-  scopedParticipantCount,
+  members = [],
 }: {
   tripId: string;
   elementId: string;
@@ -53,10 +69,11 @@ export function FundingCard({
   funding: FundingRequestInfo;
   roster: FundingRosterEntry[];
   currency?: string;
-  /** element_participants count (opted_in) for this element — §14's "your
-   * fair share" minimum is required_amount / this. Falls back to no
-   * enforced minimum (any amount > 0) if not provided or zero. */
-  scopedParticipantCount?: number;
+  /** §6: the OTHER elements sharing this funding_request, when it's a real
+   * bundle (empty for the common single-element case) — rendered as one
+   * combined list above the funding status instead of separate per-element
+   * prompts. */
+  members?: BundleMemberInfo[];
 }) {
   const router = useRouter();
   // Functional purchaser access stays a separate, user-ID-based check —
@@ -70,9 +87,16 @@ export function FundingCard({
   const [reassignPending, startReassign] = useTransition();
   const [reassignError, setReassignError] = useState<string | null>(null);
 
-  const [contribution, setContribution] = useState("");
   const [contribError, setContribError] = useState<string | null>(null);
   const [contribPending, startContrib] = useTransition();
+  // Whether the caller has already recorded their contribution — a second
+  // Commit click would just hit add_funding_contribution's "already
+  // contributed" rejection, so this disables the button instead of letting
+  // that round-trip happen. Best-effort from the roster-side data this
+  // component already has (no full contributor list is passed down); a
+  // stale "not yet contributed" briefly after a real double-submit is
+  // caught server-side regardless.
+  const [justContributed, setJustContributed] = useState(false);
 
   const [deadline, setDeadline] = useState(funding.deadline?.slice(0, 10) ?? "");
   // funding is a fresh prop after every router.refresh() (e.g. post-resolve,
@@ -99,13 +123,33 @@ export function FundingCard({
   const pct = funding.requiredAmount > 0
     ? Math.min(100, Math.round((funding.collected / funding.requiredAmount) * 100))
     : 0;
-  const fairShare =
-    scopedParticipantCount && scopedParticipantCount > 0
-      ? funding.requiredAmount / scopedParticipantCount
-      : 0;
 
   return (
     <div className="mt-3 flex flex-col gap-3">
+      {/* §6: one combined list of every element this funding_request
+          covers, when it's a real bundle — name, category, and price per
+          member, above the shared funding status/action below (which
+          already operates on funding.id regardless of member count). */}
+      {members.length > 0 && (
+        <div className="rounded-lg border border-brand-line p-3">
+          <span className="text-xs font-medium text-black dark:text-zinc-50">
+            This bundle ({members.length + 1} elements)
+          </span>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {members.map((m) => (
+              <li key={m.elementId} className="flex items-center justify-between text-xs">
+                <span>
+                  <span className="text-brand-muted">{m.type}</span> — {m.title}
+                </span>
+                {m.price !== null && (
+                  <span className="font-medium">{formatCurrency(m.price, m.currency ?? currency)}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Funding status — passive: progress, amounts, purchaser info. §14
           splits this from the active "Fund it" box below, which used to be
           one blended card. */}
@@ -163,52 +207,47 @@ export function FundingCard({
 
       {funding.status === "collecting" && (
         <>
-          {/* Fund it — active: the actual contribution action. */}
+          {/* Fund it — active: the actual contribution action. §5: not
+              really a "contribution" someone chooses an amount for — it's
+              their fixed owed share of the total, so this displays
+              individualAmount rather than accepting freeform input; the
+              server rejects anything else regardless. */}
           <div className="rounded-lg border border-brand-line p-3">
             <span className="text-xs font-medium text-black dark:text-zinc-50">Fund it</span>
-            <div className="mt-2 flex items-end gap-2">
-              <label className="flex flex-col gap-1">
-                <span className={labelClass}>
-                  Contribute{fairShare > 0 ? ` — minimum ${formatCurrency(fairShare, currency)} (your share)` : ""}
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  step="any"
-                  className={`${field} w-28`}
-                  value={contribution}
-                  onChange={(e) => setContribution(e.target.value)}
-                />
-              </label>
+            <div className="mt-2 flex items-center gap-3">
+              <div>
+                <span className={labelClass}>Your share</span>
+                <p className="text-sm font-medium text-black dark:text-zinc-50">
+                  {formatCurrency(funding.individualAmount, currency)}
+                </p>
+              </div>
               <button
                 type="button"
-                disabled={contribPending}
+                disabled={contribPending || justContributed}
                 onClick={() => {
                   setContribError(null);
-                  const amount = Number(contribution);
-                  if (!Number.isFinite(amount) || amount <= 0) {
-                    setContribError("Enter an amount above 0");
-                    return;
-                  }
-                  if (fairShare > 0 && amount < fairShare) {
-                    setContribError(
-                      `Minimum contribution is ${formatCurrency(fairShare, currency)} (your fair share)`,
-                    );
-                    return;
-                  }
                   startContrib(async () => {
-                    const res = await addFundingContribution(tripId, elementId, funding.id, amount);
+                    const res = await addFundingContribution(
+                      tripId,
+                      elementId,
+                      funding.id,
+                      funding.individualAmount,
+                    );
                     if (res.error) {
-                      setContribError(res.error);
+                      if (res.error.toLowerCase().includes("already contributed")) {
+                        setJustContributed(true);
+                      } else {
+                        setContribError(res.error);
+                      }
                       return;
                     }
-                    setContribution("");
+                    setJustContributed(true);
                     router.refresh();
                   });
                 }}
                 className={`h-9 px-3 text-xs ${btnPrimary}`}
               >
-                {contribPending ? "Committing…" : "Commit"}
+                {contribPending ? "Committing…" : justContributed ? "Committed" : "Commit"}
               </button>
             </div>
             {contribError && <p className="mt-1 text-xs text-red-500">{contribError}</p>}

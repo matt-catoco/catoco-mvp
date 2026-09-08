@@ -21,6 +21,12 @@ type OptionValueRow = { id: string; value: Record<string, unknown> };
 export async function getTripContext(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tripId: string,
+  // §7: Trip Home's header wants a destination/dates line even for a trip
+  // that never got an explicit Destination/Dates element locked (e.g. a
+  // hotel-only-split trip) -- everywhere else this context feeds (cross-
+  // element pre-fill) keeps the original explicit-elements-only behavior,
+  // so this only turns on for that one caller.
+  opts?: { fallbackToLockedAccommodation?: boolean },
 ): Promise<TripContext> {
   const ctx: TripContext = {};
 
@@ -69,5 +75,49 @@ export async function getTripContext(
       }
     }
   }
+
+  // §7: no explicit Destination/Dates element locked yet -- fall back to a
+  // locked Accommodations option's own location_name/dates sub-field
+  // (starting with Accommodations only, matching the given example; not
+  // Travel/Experience/Dining, extend later if it turns out to matter).
+  // Whichever locked Accommodations element comes first wins for whichever
+  // field is still missing -- no reconciling across multiple candidates if
+  // more than one exists, per the "don't fabricate a trip-wide range"
+  // instruction this fallback was built against.
+  if (opts?.fallbackToLockedAccommodation && (!ctx.destination || !ctx.dates)) {
+    const { data: accomRows } = await supabase
+      .from("trip_elements")
+      .select("locked_option_id")
+      .eq("trip_id", tripId)
+      .eq("state", "locked")
+      .eq("type", "accommodation")
+      .not("locked_option_id", "is", null)
+      .order("created_at", { ascending: true })
+      .returns<{ locked_option_id: string }[]>();
+
+    const accomOptionIds = (accomRows ?? []).map((r) => r.locked_option_id);
+    if (accomOptionIds.length > 0) {
+      const { data: accomOptions } = await supabase
+        .from("element_options")
+        .select("id, value")
+        .in("id", accomOptionIds)
+        .returns<OptionValueRow[]>();
+
+      for (const opt of accomOptions ?? []) {
+        const v = opt.value as Record<string, unknown>;
+        if (!ctx.destination && typeof v.location_name === "string" && v.location_name.trim()) {
+          ctx.destination = { name: v.location_name };
+        }
+        if (!ctx.dates && v.dates && typeof v.dates === "object") {
+          const d = v.dates as DatesValue;
+          if (d.start_date || d.nights) {
+            ctx.dates = { start_date: d.start_date, end_date: d.end_date, nights: d.nights };
+          }
+        }
+        if (ctx.destination && ctx.dates) break;
+      }
+    }
+  }
+
   return ctx;
 }

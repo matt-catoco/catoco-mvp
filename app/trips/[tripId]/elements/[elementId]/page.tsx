@@ -16,7 +16,7 @@ import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
 import { EditElementForm } from "../../edit-element-form";
-import { FundingCard, type FundingRequestInfo } from "../../funding-card";
+import { FundingCard, type FundingRequestInfo, type BundleMemberInfo } from "../../funding-card";
 import { BookingConfirmation } from "../../booking-confirmation";
 import { getTripContext } from "../../trip-context";
 
@@ -39,6 +39,7 @@ type ElementRow = {
 type FundingRow = {
   id: string;
   required_amount: number;
+  individual_amount: number | null;
   status: "collecting" | "ready_to_purchase" | "booked";
   funding_deadline: string | null;
   purchaser_id: string | null;
@@ -158,7 +159,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, status, funding_deadline, purchaser_id, actual_amount_paid, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -195,7 +196,7 @@ export default async function ElementDetailPage({
 
     let funding: FundingRequestInfo | null = null;
     let fundingRoster: RosterRow[] = [];
-    const scopedParticipantCount = scopedParticipants.length;
+    let bundleMembers: BundleMemberInfo[] = [];
     if (fundingRow) {
       const { data: collected } = await supabase.rpc("get_funding_collected", {
         p_funding_request_id: fundingRow.id,
@@ -205,6 +206,7 @@ export default async function ElementDetailPage({
       funding = {
         id: fundingRow.id,
         requiredAmount: fundingRow.required_amount,
+        individualAmount: fundingRow.individual_amount ?? fundingRow.required_amount,
         collected: (collected as number) ?? 0,
         status: fundingRow.status,
         deadline: fundingRow.funding_deadline,
@@ -215,6 +217,46 @@ export default async function ElementDetailPage({
             : purchaser?.display_name?.trim() || (purchaser?.is_organizer ? "Organizer" : "Member"),
         actualAmountPaid: fundingRow.actual_amount_paid,
       };
+
+      // §6 bundling UI: one combined screen listing every member of this
+      // funding_request, not separate per-element funding prompts. A
+      // fetch of the OTHER members only fires when this funding_request
+      // actually covers more than one element (a real bundle) — the common
+      // single-element case skips it entirely.
+      const { data: memberLinks } = await supabase
+        .from("funding_request_elements")
+        .select("element_id")
+        .eq("funding_request_id", fundingRow.id);
+      const otherIds = (memberLinks ?? []).map((m) => m.element_id).filter((id) => id !== element.id);
+      if (otherIds.length > 0) {
+        const { data: otherElements } = await supabase
+          .from("trip_elements")
+          .select("id, type, label, locked_option_id")
+          .in("id", otherIds)
+          .returns<{ id: string; type: ElementType; label: string; locked_option_id: string | null }[]>();
+        const otherOptionIds = (otherElements ?? [])
+          .map((e) => e.locked_option_id)
+          .filter((id): id is string => id != null);
+        const { data: otherOptions } = otherOptionIds.length
+          ? await supabase
+              .from("element_options")
+              .select("id, value")
+              .in("id", otherOptionIds)
+              .returns<{ id: string; value: Record<string, unknown> }[]>()
+          : { data: [] as { id: string; value: Record<string, unknown> }[] };
+        const otherValueById = new Map((otherOptions ?? []).map((o) => [o.id, o.value]));
+        bundleMembers = (otherElements ?? []).map((e) => {
+          const v = e.locked_option_id ? otherValueById.get(e.locked_option_id) : undefined;
+          return {
+            elementId: e.id,
+            label: e.label,
+            type: e.type,
+            title: (v?.name as string) || (v?.title as string) || e.label,
+            price: typeof v?.price === "number" ? (v.price as number) : null,
+            currency: (v?.currency as string) || undefined,
+          };
+        });
+      }
     }
 
     const status = describeElementStatus({
@@ -239,8 +281,11 @@ export default async function ElementDetailPage({
       ? {
           mode: (funding.status === "collecting" ? "funding" : "booking") as "funding" | "booking",
           totalRequired: funding.requiredAmount,
-          perPersonShare:
-            scopedParticipantCount > 0 ? funding.requiredAmount / scopedParticipantCount : undefined,
+          // §5: the real fixed share, computed once server-side over the
+          // bundle's full participant union — not derived here from just
+          // this element's own scopedParticipantCount, which used to be
+          // wrong for a bundled element with a narrower individual scope.
+          perPersonShare: funding.individualAmount,
           actualPaid: funding.actualAmountPaid ?? undefined,
           currency: snapshotCurrency ?? "USD",
         }
@@ -298,7 +343,7 @@ export default async function ElementDetailPage({
               currency={
                 (option?.value as Record<string, unknown> | undefined)?.currency as string | undefined
               }
-              scopedParticipantCount={scopedParticipantCount}
+              members={bundleMembers}
             />
           ) : (
             canEdit && <BookingConfirmation tripId={tripId} elementId={element.id} />

@@ -65,6 +65,7 @@ export function ElementValueFields({
   value,
   onChange,
   requireDates = true,
+  lockedPricing = false,
 }: {
   type: ElementType;
   value: Record<string, unknown>;
@@ -75,6 +76,13 @@ export function ElementValueFields({
   // organizer locking a value straight from Add Element is a lighter,
   // faster path that doesn't need that same rigor; false there.
   requireDates?: boolean;
+  // Funding bundling (§2 of the chain-at-creation prompt): currency and
+  // pricing_basis are inherited, read-only on every chained element after
+  // the first — the whole bundle's fixed-split assumption depends on one
+  // shared payer group and one fixed amount each, which breaks if pricing
+  // basis could quietly diverge per member. Only disables those two
+  // PriceField selects; the price amount itself stays per-element/editable.
+  lockedPricing?: boolean;
 }) {
   const set = (key: string, v: unknown) => onChange({ ...value, [key]: v });
   const str = (key: string) => String(value[key] ?? "");
@@ -206,6 +214,7 @@ export function ElementValueFields({
             currency={str("currency")}
             pricingBasis={str("pricing_basis")}
             optional={isOther}
+            locked={lockedPricing}
             onChangePrice={(v) => set("price", v)}
             onChangeCurrency={(v) => set("currency", v)}
             onChangePricingBasis={(v) => set("pricing_basis", v)}
@@ -282,6 +291,7 @@ export function ElementValueFields({
             currency={str("currency")}
             pricingBasis={str("pricing_basis")}
             optional={subtype === "other"}
+            locked={lockedPricing}
             onChangePrice={(v) => set("price", v)}
             onChangeCurrency={(v) => set("currency", v)}
             onChangePricingBasis={(v) => set("pricing_basis", v)}
@@ -348,6 +358,7 @@ export function ElementValueFields({
             price={str("price")}
             currency={str("currency")}
             pricingBasis={str("pricing_basis")}
+            locked={lockedPricing}
             onChangePrice={(v) => set("price", v)}
             onChangeCurrency={(v) => set("currency", v)}
             onChangePricingBasis={(v) => set("pricing_basis", v)}
@@ -754,6 +765,7 @@ function PriceField({
   currency,
   pricingBasis,
   optional = false,
+  locked = false,
   onChangePrice,
   onChangeCurrency,
   onChangePricingBasis,
@@ -762,6 +774,10 @@ function PriceField({
   currency: string;
   pricingBasis: string;
   optional?: boolean;
+  // Currency and pricing basis are inherited/read-only for a chained bundle
+  // element (see ElementValueFields' lockedPricing) — the price amount
+  // itself stays editable regardless.
+  locked?: boolean;
   onChangePrice: (v: string) => void;
   onChangeCurrency: (v: string) => void;
   onChangePricingBasis: (v: string) => void;
@@ -790,8 +806,9 @@ function PriceField({
           />
         </label>
         <select
-          className={`${field} w-24`}
+          className={`${field} w-24 disabled:cursor-not-allowed disabled:opacity-60`}
           value={currency || "USD"}
+          disabled={locked}
           onChange={(e) => onChangeCurrency(e.target.value)}
         >
           {CURRENCIES.map((c) => (
@@ -801,12 +818,16 @@ function PriceField({
           ))}
         </select>
       </div>
+      {locked && (
+        <p className="text-xs text-brand-muted">Currency and pricing basis are shared across the bundle.</p>
+      )}
       {price.trim() && (
         <label className="flex flex-col gap-1">
           <span className={label}>Price is per</span>
           <select
-            className={`${field} w-44`}
+            className={`${field} w-44 disabled:cursor-not-allowed disabled:opacity-60`}
             value={pricingBasis}
+            disabled={locked}
             onChange={(e) => onChangePricingBasis(e.target.value)}
           >
             {PRICING_BASES.map((b) => (

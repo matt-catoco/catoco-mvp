@@ -87,6 +87,15 @@ export async function createElement(input: {
   optionsDeadline?: string | null;
   votingDeadline?: string | null;
   lockedValue?: Record<string, unknown>;
+  // Funding bundling (chain-at-creation): bundleGroupId joins an existing
+  // bundle (the anchor element's id); startBundle tags THIS element as a
+  // new bundle's anchor (mutually exclusive with bundleGroupId); bundleContinues
+  // says more elements are still coming in the same chaining session, so
+  // create_element() must not check the bundle's funding readiness yet even
+  // if this element locks immediately — see that RPC's own comment for why.
+  bundleGroupId?: string | null;
+  startBundle?: boolean;
+  bundleContinues?: boolean;
 }): Promise<CreateElementResult> {
   const supabase = await createClient();
   const {
@@ -116,6 +125,9 @@ export async function createElement(input: {
     p_options_deadline: input.optionsDeadline || null,
     p_voting_deadline: input.votingDeadline || null,
     p_options: options,
+    p_bundle_group_id: input.bundleGroupId || null,
+    p_start_bundle: input.startBundle ?? false,
+    p_bundle_continues: input.bundleContinues ?? false,
   });
 
   if (error) return { error: toUserFacingError(error) };
