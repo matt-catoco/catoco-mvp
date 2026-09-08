@@ -10,7 +10,7 @@ import {
   formatDate,
   type ElementType,
 } from "@/lib/trip-elements";
-import { OptionSummary } from "@/components/option-summary";
+import { BookingSnapshot } from "@/components/booking-snapshot";
 import { StatusBadge } from "@/components/status-badge";
 import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
@@ -167,21 +167,39 @@ export default async function ElementDetailPage({
       .maybeSingle()
       .returns<FundingRow>();
 
+    // Element-scoped participants (who this is actually for) — fetched
+    // regardless of whether a funding_request exists yet, since "who's this
+    // for" is part of the full snapshot (BookingSnapshot below), not just a
+    // funding-flow detail. Real identities, not just a count, so the
+    // snapshot can list names.
+    const [{ data: scopedParticipantRows }, { data: rosterData }] = await Promise.all([
+      supabase
+        .from("element_participants")
+        .select("participant_id")
+        .eq("element_id", element.id)
+        .eq("opted_in", true),
+      supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
+    ]);
+    const roster = (rosterData ?? []) as RosterRow[];
+    const rosterById = new Map(roster.map((r) => [r.user_id, r]));
+    const scopedParticipants = (scopedParticipantRows ?? []).map((row) => {
+      const r = rosterById.get(row.participant_id);
+      return {
+        userId: row.participant_id,
+        displayName:
+          row.participant_id === user.id
+            ? "You"
+            : r?.display_name?.trim() || (r?.is_organizer ? "Organizer" : "Member"),
+      };
+    });
+
     let funding: FundingRequestInfo | null = null;
     let fundingRoster: RosterRow[] = [];
-    let scopedParticipantCount = 0;
+    const scopedParticipantCount = scopedParticipants.length;
     if (fundingRow) {
-      const { count } = await supabase
-        .from("element_participants")
-        .select("participant_id", { count: "exact", head: true })
-        .eq("element_id", element.id)
-        .eq("opted_in", true);
-      scopedParticipantCount = count ?? 0;
-      const [{ data: collected }, { data: rosterData }] = await Promise.all([
-        supabase.rpc("get_funding_collected", { p_funding_request_id: fundingRow.id }),
-        supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
-      ]);
-      const roster = (rosterData ?? []) as RosterRow[];
+      const { data: collected } = await supabase.rpc("get_funding_collected", {
+        p_funding_request_id: fundingRow.id,
+      });
       fundingRoster = roster;
       const purchaser = roster.find((r) => r.user_id === fundingRow.purchaser_id);
       funding = {
@@ -219,8 +237,12 @@ export default async function ElementDetailPage({
           <StatusBadge state={status.funded ? "funded" : "locked"} label={status.statusLabel} />
         </div>
         <MetadataLine type={element.type} metadata={element.metadata} />
-        <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-          {option ? <OptionSummary type={element.type} value={option.value} /> : "?"}
+        <div className="mt-2">
+          {option ? (
+            <BookingSnapshot type={element.type} value={option.value} participants={scopedParticipants} />
+          ) : (
+            "?"
+          )}
         </div>
         {canEdit && !element.booked_at && (
           <div className="mt-3">
