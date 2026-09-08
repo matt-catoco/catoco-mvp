@@ -749,7 +749,16 @@ export function validateOptionValue(
     case "travel": {
       if (!(TRAVEL_MODES as readonly string[]).includes(str("mode"))) return "Pick a travel mode";
       if (str("mode") === "other" && !str("note")) return "Describe the travel mode";
-      if (requireDates && str("mode") !== "other") {
+      if (requireDates && str("mode") === "rental_car") {
+        // Rental Car's search modal collects pickup_datetime/dropoff_datetime
+        // (its own field names, distinct from every other mode's depart_date/
+        // return_date); the manual form doesn't have separate pickup/dropoff
+        // fields and still writes depart_date/return_date for every mode
+        // including this one. Accept whichever pair is actually present
+        // rather than picking one and breaking the other entry path.
+        if (!str("pickup_datetime") && !str("depart_date")) return "Pick a pickup date";
+        if (!str("dropoff_datetime") && !str("return_date")) return "Pick a drop-off date";
+      } else if (requireDates && str("mode") !== "other") {
         if (!str("depart_date")) return "Pick a travel date";
         if (Boolean(value.round_trip) && !str("return_date")) return "Pick a return date";
       }
