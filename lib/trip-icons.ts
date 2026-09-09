@@ -40,7 +40,6 @@ export const ACCEPTED_ICON_TYPES = [
   "image/svg+xml",
 ];
 
-// utm_source recommended per the "Add an image" prompt's §4 — matches the
-// app name registered with Unsplash where possible; confirm against the
-// actual registration rather than trusting this default blindly.
-export const UNSPLASH_UTM_SOURCE = "catoco";
+// utm_source per the "Add an image" prompt's §4 — matches the app's
+// registered Unsplash username.
+export const UNSPLASH_UTM_SOURCE = "hello_catoco";
