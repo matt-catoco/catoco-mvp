@@ -13,6 +13,7 @@ import { fetchLinkPreview } from "@/lib/link-preview";
 import { fetchUnsplashPhoto } from "@/lib/unsplash";
 import { sendCoreLoopEmail } from "@/lib/notifications";
 import { toUserFacingError } from "@/lib/action-errors";
+import type { IconAttribution } from "@/lib/trip-icons";
 
 const MICRO_TYPES_WITH_LINK: ElementType[] = [
   "travel",
@@ -631,7 +632,12 @@ export type UpdateTripResult = { error?: string };
  */
 export async function updateTrip(
   tripId: string,
-  input: { name?: string; icon?: string | null; setIcon?: boolean },
+  input: {
+    name?: string;
+    icon?: string | null;
+    iconAttribution?: IconAttribution | null;
+    setIcon?: boolean;
+  },
 ): Promise<UpdateTripResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_trip", {
@@ -639,6 +645,7 @@ export async function updateTrip(
     p_name: input.name?.trim() || null,
     p_icon: input.setIcon ? input.icon ?? null : null,
     p_set_icon: input.setIcon ?? false,
+    p_icon_attribution: input.setIcon ? input.iconAttribution ?? null : null,
   });
   if (error) return { error: toUserFacingError(error) };
 

@@ -4,17 +4,18 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { IconPicker } from "../new/icon-picker";
-import { ICON_BUCKET } from "@/lib/trip-icons";
+import { ICON_BUCKET, type IconAttribution } from "@/lib/trip-icons";
 import { updateTrip, deleteTrip } from "./actions";
 import { btnPrimary, fieldClass, labelClass } from "@/lib/ui";
 
 const field = `h-10 ${fieldClass}`;
 
-/** A real uploaded image (never starts with the retired `preset:` prefix,
- * and isn't null) — the only kind of icon value that actually has a
- * storage object worth cleaning up. */
+/** A real uploaded image with an actual storage object worth cleaning up —
+ * not the retired `preset:` prefix, not null, and not a full URL (an
+ * Unsplash-sourced icon, hotlinked directly, never lived in the bucket at
+ * all — nothing to remove there). */
 function isUploadedIcon(icon: string | null): icon is string {
-  return Boolean(icon) && !icon!.startsWith("preset:");
+  return Boolean(icon) && !icon!.startsWith("preset:") && !icon!.startsWith("http");
 }
 
 /**
@@ -33,17 +34,20 @@ export function TripSettingsForm({
   isOrganizer,
   initialName,
   initialIcon,
+  initialIconAttribution,
 }: {
   tripId: string;
   currentUserId: string;
   isOrganizer: boolean;
   initialName: string;
   initialIcon: string | null;
+  initialIconAttribution: IconAttribution | null;
 }) {
   const router = useRouter();
 
   const [name, setName] = useState(initialName);
   const [icon, setIcon] = useState<string | null>(initialIcon);
+  const [iconAttribution, setIconAttribution] = useState<IconAttribution | null>(initialIconAttribution);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [savePending, startSave] = useTransition();
@@ -79,6 +83,7 @@ export function TripSettingsForm({
       const res = await updateTrip(tripId, {
         name: nameChanged ? trimmed : undefined,
         icon: iconChanged ? icon : undefined,
+        iconAttribution: iconChanged ? iconAttribution : undefined,
         setIcon: iconChanged,
       });
       if (res.error) {
@@ -114,7 +119,15 @@ export function TripSettingsForm({
 
         <div className="flex flex-col gap-1.5">
           <span className={labelClass}>Icon</span>
-          <IconPicker value={icon} onChange={setIcon} userId={currentUserId} />
+          <IconPicker
+            value={icon}
+            attribution={iconAttribution}
+            userId={currentUserId}
+            onChange={(next, nextAttribution) => {
+              setIcon(next);
+              setIconAttribution(nextAttribution);
+            }}
+          />
         </div>
 
         <div className="flex items-center gap-3">

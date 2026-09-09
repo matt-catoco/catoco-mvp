@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { toUserFacingError } from "@/lib/action-errors";
+import type { IconAttribution } from "@/lib/trip-icons";
 
 export type CreateTripResult = { error: string };
 
@@ -17,6 +18,7 @@ export type CreateTripResult = { error: string };
 export async function createTrip(
   name: string,
   icon: string | null,
+  iconAttribution: IconAttribution | null = null,
 ): Promise<CreateTripResult> {
   const supabase = await createClient();
   const {
@@ -29,7 +31,7 @@ export async function createTrip(
 
   const { data, error } = await supabase
     .from("trips")
-    .insert({ name: trimmed, icon, organizer_id: user.id })
+    .insert({ name: trimmed, icon, icon_attribution: iconAttribution, organizer_id: user.id })
     .select("id")
     .single();
 

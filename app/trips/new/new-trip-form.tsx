@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { IconPicker } from "./icon-picker";
 import { createTrip } from "./actions";
+import type { IconAttribution } from "@/lib/trip-icons";
 
 /**
  * Trip creation, reduced to just a name (+ optional icon) — the multi-step
@@ -13,6 +14,7 @@ import { createTrip } from "./actions";
 export function NewTripForm({ userId }: { userId: string }) {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string | null>(null);
+  const [iconAttribution, setIconAttribution] = useState<IconAttribution | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -22,7 +24,7 @@ export function NewTripForm({ userId }: { userId: string }) {
     if (!nameOk) return;
     setError(null);
     startTransition(async () => {
-      const res = await createTrip(name, icon);
+      const res = await createTrip(name, icon, iconAttribution);
       if (res?.error) setError(res.error);
     });
   }
@@ -54,7 +56,15 @@ export function NewTripForm({ userId }: { userId: string }) {
         <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
           Icon
         </span>
-        <IconPicker value={icon} userId={userId} onChange={setIcon} />
+        <IconPicker
+          value={icon}
+          attribution={iconAttribution}
+          userId={userId}
+          onChange={(next, nextAttribution) => {
+            setIcon(next);
+            setIconAttribution(nextAttribution);
+          }}
+        />
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}

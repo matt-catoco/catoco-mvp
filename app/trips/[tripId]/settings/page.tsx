@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TripSettingsForm } from "../trip-settings-form";
+import type { IconAttribution } from "@/lib/trip-icons";
 
 /**
  * Trip Settings — rename, icon change (organizer/co-organizer, via
@@ -30,7 +31,7 @@ export default async function TripSettingsPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, icon, organizer_id")
+    .select("id, name, icon, icon_attribution, organizer_id")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -59,6 +60,7 @@ export default async function TripSettingsPage({
           isOrganizer={trip.organizer_id === user.id}
           initialName={trip.name}
           initialIcon={trip.icon}
+          initialIconAttribution={trip.icon_attribution as IconAttribution | null}
         />
       </div>
     </div>
