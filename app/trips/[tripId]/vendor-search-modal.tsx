@@ -391,10 +391,16 @@ export function VendorSearchPanel({
       return (
         <>
           <input className={field} placeholder="Destination" value={location} onChange={(e) => setLocation(e.target.value)} />
-          <label className="flex flex-col gap-1">
-            <span className={labelClass}>Date</span>
-            <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </label>
+          <div className="flex gap-3">
+            <label className="flex flex-1 flex-col gap-1">
+              <span className={labelClass}>Date</span>
+              <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </label>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className={labelClass}>Time</span>
+              <input type="time" className={field} value={time} onChange={(e) => setTime(e.target.value)} />
+            </label>
+          </div>
           {/* Party size wasn't collected here at all before — a real gap for
               a type where price/availability genuinely depends on group
               size. Collected and carried onto the locked option's value

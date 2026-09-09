@@ -108,7 +108,11 @@ export function BookingSnapshot({
   const dates = value.dates as { start_date?: string; end_date?: string } | undefined;
   const departDate = str("depart_date");
   const returnDate = str("return_date");
-  const diningTime = str("dining_time");
+  // Experience's own `date`/`time` (see normalizeOptionValue's experience
+  // case) — a single point, not a range, so it only ever feeds the Dates
+  // row's fallback, never dateRange's end side.
+  const experienceDate = str("date");
+  const timeOfDay = str("dining_time") || str("time");
   const locationName = str("location_name") || str("start_location");
   const destinationLocation = str("destination_location");
   const pickupLocation = str("pickup_location");
@@ -124,7 +128,9 @@ export function BookingSnapshot({
     ? `${formatDate(dates.start_date)}${dates.end_date ? ` → ${formatDate(dates.end_date)}` : ""}`
     : departDate
       ? `${formatDate(departDate)}${returnDate ? ` → ${formatDate(returnDate)}` : ""}`
-      : null;
+      : experienceDate
+        ? formatDate(experienceDate)
+        : null;
 
   const isFunding = pricing?.mode === "funding";
 
@@ -163,10 +169,10 @@ export function BookingSnapshot({
               <dd className="font-medium">{dateRange}</dd>
             </div>
           )}
-          {diningTime && (
+          {timeOfDay && (
             <div>
               <dt className="text-brand-muted">Time</dt>
-              <dd className="font-medium">{diningTime}</dd>
+              <dd className="font-medium">{timeOfDay}</dd>
             </div>
           )}
           {(locationName || destinationLocation || pickupLocation) && (

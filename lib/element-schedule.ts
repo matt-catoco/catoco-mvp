@@ -22,16 +22,17 @@
 //     a vendor search. The day it happens on is the element-level
 //     `metadata.date` field (see ELEMENT_METADATA_FIELDS in
 //     lib/trip-elements.ts) — optional, set once at creation.
-//   - Experience: no date field on the option at all, ever (a real gap —
-//     the search modal collects a Date, but it's dropped before storage;
-//     see vendor-search-modal.tsx's own note). `metadata.date` is the only
-//     signal that exists for this type today.
+//   - Experience: `date`/`time` (both optional — a candidate can be
+//     genuinely undated), from either the search modal or manual entry.
+//     Falls back to the element-level `metadata.date` when unset, same as
+//     Dining.
 // Before an element locks, its own candidate options could each carry a
-// different date (Travel/Accommodation) or none at all (Experience/
-// Dining) — rather than guess at a "leading" candidate, every type falls
-// back to the same one thing pre-lock: the element-level `metadata.date`,
-// which exists on every scheduled type for exactly this purpose. That's
-// also the ONLY signal Experience/Dining have pre-lock, so this keeps one
+// different date (Travel/Accommodation/Experience) or none at all (Dining)
+// — rather than guess at a "leading" candidate, every type falls back to
+// the same one thing pre-lock: the element-level `metadata.date`, which
+// exists on every scheduled type for exactly this purpose. That's also the
+// ONLY signal Dining has pre-lock (Experience's own date/time only exists
+// once it locks, same as everything else here), so this keeps one
 // consistent rule instead of a type-specific pre-lock story too.
 
 import type { ElementState, ElementType } from "./trip-elements";
@@ -113,9 +114,17 @@ export function getElementSchedule(
       };
     }
     case "experience": {
-      return metaDate
-        ? { occurrences: [{ date: metaDate, time: null, label: "" }], span: null, isProposed: false }
-        : null;
+      // The locked candidate's own date/time (a real tour/show start time,
+      // when one was set) wins over the element-level metadata.date guess —
+      // same "own field first, metadata fallback" rule as Travel/
+      // Accommodation above.
+      const start = trimmed(lockedValue.date) ?? metaDate;
+      if (!start) return null;
+      return {
+        occurrences: [{ date: start, time: trimmed(lockedValue.time), label: "" }],
+        span: null,
+        isProposed: false,
+      };
     }
     default: // dates, destination
       return null;

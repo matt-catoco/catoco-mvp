@@ -83,7 +83,12 @@ export async function viatorSearch(params: VendorSearchParams): Promise<VendorSe
       // deeper integration (checking each candidate's real availability
       // for the actual group) is future scope, not something this search
       // step can honestly claim to reflect today.
-      extra: { travelers: params.travelers },
+      //
+      // date/time: same story as travelers — the Date/Time someone actually
+      // searched with, carried onto the selected option so it survives past
+      // this search (Viator's free-text search has no date/time filter
+      // either, so this doesn't affect which results come back).
+      extra: { travelers: params.travelers, date: params.startDate, time: params.time },
     };
   });
 

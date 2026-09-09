@@ -346,6 +346,26 @@ export function ElementValueFields({
               })
             }
           />
+          <div className="flex gap-2">
+            <label className="flex flex-1 flex-col gap-1">
+              <span className={label}>Date (optional)</span>
+              <input
+                type="date"
+                className={field}
+                value={str("date")}
+                onChange={(e) => set("date", e.target.value)}
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className={label}>Time (optional)</span>
+              <input
+                type="time"
+                className={field}
+                value={str("time")}
+                onChange={(e) => set("time", e.target.value)}
+              />
+            </label>
+          </div>
           <input
             type="url"
             className={field}

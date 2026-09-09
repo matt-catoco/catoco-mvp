@@ -506,8 +506,15 @@ export type PlaceValue = LinkPreview & {
   accommodation_fields?: Partial<Record<AccommodationFieldKey, string>>;
   dates?: DatesValue;
   travelers?: TravelersBreakdown;
-  // §7 Experiences
+  // §7 Experiences. A specific candidate's own date/time — e.g. a tour or
+  // show's actual start time — distinct from the trip-wide `metadata.date`
+  // fallback (element-level, set once at creation, before any candidate
+  // exists) that Itinerary/Calendar fall back to when this is unset. Both
+  // optional: unlike Travel/Accommodation's dates, an Experience candidate
+  // can be genuinely undated (e.g. "some free afternoon in the city").
   experience_subtype?: ExperienceSubtype | "";
+  date?: string;
+  time?: string;
   // §7/§8 location (Mapbox-backed, same shape as Destination)
   location_name?: string;
   location_lat?: number;
@@ -666,6 +673,8 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
       return {
         name: "",
         experience_subtype: "",
+        date: "",
+        time: "",
         location_name: "",
         location_lat: "",
         location_lng: "",
@@ -913,6 +922,13 @@ export function normalizeOptionValue(
         name: str("name"),
         experience_subtype: str("experience_subtype") as ExperienceSubtype | "",
       };
+      // The same class of bug as travelers below: the search modal's Date
+      // field (and now Time) fed straight into this without ever landing on
+      // the stored option, so an Experience's real scheduled time was
+      // dropped before it reached the DB — Itinerary/Calendar had nothing
+      // but the element-level metadata.date guess to fall back on.
+      if (str("date")) out.date = str("date");
+      if (str("time")) out.time = str("time");
       if (str("location_name")) {
         out.location_name = str("location_name");
         if (str("location_lat")) out.location_lat = Number(value.location_lat);
