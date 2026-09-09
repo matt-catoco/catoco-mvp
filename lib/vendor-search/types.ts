@@ -14,7 +14,7 @@ export type VendorSearchParams = {
   endDate?: string;
   time?: string; // Dining
   partySize?: number; // Dining
-  travelers?: TravelersBreakdown; // Flight, Accommodations
+  travelers?: TravelersBreakdown; // Flight, Accommodations, Experiences
   vehicleType?: string; // Rental Car
   transmission?: "automatic" | "manual" | "";
 };

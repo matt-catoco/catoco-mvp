@@ -16,6 +16,7 @@ import {
 } from "@/lib/trip-elements";
 import { createElement } from "./actions";
 import { btnPrimary, fieldClass, labelClass, pillActiveTeal, pillInactive } from "@/lib/ui";
+import { VendorSearchPanel, VENDOR_SEARCHABLE_TYPES } from "./vendor-search-modal";
 
 const field = `h-10 ${fieldClass}`;
 
@@ -111,6 +112,11 @@ export function AddElementForm({
   const [votingDeadline, setVotingDeadline] = useState(bundleContext?.votingDeadline ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Locking a searchable type in now defaults to picking a real vendor
+  // result instead of typing values in by hand — manual entry is a
+  // fallback for whatever a search can't cover, one click away.
+  const [manualEntry, setManualEntry] = useState(false);
+  const isSearchable = VENDOR_SEARCHABLE_TYPES.includes(type);
 
   // Self-locking a solo-scoped element used to be reachable here too (scope
   // of exactly {you}), but a regular participant can no longer choose any
@@ -129,6 +135,7 @@ export function AddElementForm({
         ? { ...base, currency: bundleContext.currency, pricing_basis: bundleContext.pricingBasis }
         : base,
     );
+    setManualEntry(false);
   }
 
   function toggleScopeMember(userId: string) {
@@ -180,6 +187,10 @@ export function AddElementForm({
     const err = validate();
     if (err) return setError(err);
     setError(null);
+    finalize(lockedValue);
+  }
+
+  function finalize(value: Record<string, unknown>) {
     startTransition(async () => {
       const res = await createElement({
         tripId,
@@ -190,7 +201,7 @@ export function AddElementForm({
         state,
         optionsDeadline: optionsDeadline || null,
         votingDeadline: votingDeadline || null,
-        lockedValue: state === "locked" ? lockedValue : undefined,
+        lockedValue: state === "locked" ? value : undefined,
         bundleGroupId: bundleContext?.anchorId ?? null,
         startBundle: false,
         bundleContinues: false,
@@ -202,6 +213,21 @@ export function AddElementForm({
       onFinalSubmit(res.elementId!);
       router.push(`/trips/${tripId}/elements/${res.elementId}`);
     });
+  }
+
+  // A picked vendor result finalizes immediately — no separate "now click
+  // Add element" step, matching Search options' existing post-creation
+  // behavior. Currency/pricing basis still get forced to the bundle's
+  // inherited values when chained, same rule as the manual Value form's
+  // lockedPricing — a vendor's own price stays whatever it searched, but
+  // those two fields can't quietly diverge from the rest of the bundle.
+  function handleSearchSelect(value: Record<string, unknown>) {
+    const finalValue = isChained
+      ? { ...value, currency: bundleContext!.currency, pricing_basis: bundleContext!.pricingBasis }
+      : value;
+    setError(null);
+    setLockedValue(finalValue);
+    finalize(finalValue);
   }
 
   function submitAndBundleAnother() {
@@ -356,14 +382,34 @@ export function AddElementForm({
 
       {state === "locked" ? (
         <div className="rounded-lg border border-brand-line p-3">
-          <span className={`${labelClass} mb-2 block`}>Value</span>
-          <ElementValueFields
-            type={type}
-            value={lockedValue}
-            onChange={setLockedValue}
-            requireDates={false}
-            lockedPricing={isChained}
-          />
+          <div className="mb-2 flex items-center justify-between">
+            <span className={labelClass}>{isSearchable && !manualEntry ? "Search & select" : "Value"}</span>
+            {isSearchable && (
+              <button
+                type="button"
+                onClick={() => setManualEntry((v) => !v)}
+                className="text-xs text-brand-teal-deep underline decoration-dotted underline-offset-4"
+              >
+                {manualEntry ? "Search instead" : "Enter it myself"}
+              </button>
+            )}
+          </div>
+          {isSearchable && !manualEntry ? (
+            <VendorSearchPanel
+              elementType={type}
+              tripContext={tripContext}
+              onSelect={handleSearchSelect}
+              selecting={pending}
+            />
+          ) : (
+            <ElementValueFields
+              type={type}
+              value={lockedValue}
+              onChange={setLockedValue}
+              requireDates={false}
+              lockedPricing={isChained}
+            />
+          )}
         </div>
       ) : isChained ? (
         <div className="flex flex-col gap-1">
@@ -403,26 +449,35 @@ export function AddElementForm({
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      <div className="flex flex-wrap items-center gap-4">
-        <button
-          type="button"
-          onClick={submitFinal}
-          disabled={pending || !label.trim() || (state === "open" && !isChained && (!optionsDeadline || !votingDeadline))}
-          className={`px-4 py-2 text-sm ${btnPrimary}`}
-        >
-          {pending ? "Adding…" : "Add element"}
-        </button>
-        {canBundle && (
+      {/* Search mode's own "Select" button on each result is the submit
+          action there — picking a result finalizes immediately (see
+          handleSearchSelect), so these buttons would just validate against
+          whatever's left in lockedValue from before a search even ran.
+          Chaining a search-sourced element also isn't wired up yet (every
+          "Select" ends the chain, matching Search options' existing
+          post-creation behavior) — a fast-follow, not this pass. */}
+      {!(state === "locked" && isSearchable && !manualEntry) && (
+        <div className="flex flex-wrap items-center gap-4">
           <button
             type="button"
-            onClick={submitAndBundleAnother}
+            onClick={submitFinal}
             disabled={pending || !label.trim() || (state === "open" && !isChained && (!optionsDeadline || !votingDeadline))}
-            className="text-sm font-medium text-brand-teal-deep underline decoration-dotted underline-offset-4 hover:text-brand-teal-deep/80 disabled:cursor-not-allowed disabled:opacity-40"
+            className={`px-4 py-2 text-sm ${btnPrimary}`}
           >
-            Add element & bundle another
+            {pending ? "Adding…" : "Add element"}
           </button>
-        )}
-      </div>
+          {canBundle && (
+            <button
+              type="button"
+              onClick={submitAndBundleAnother}
+              disabled={pending || !label.trim() || (state === "open" && !isChained && (!optionsDeadline || !votingDeadline))}
+              className="text-sm font-medium text-brand-teal-deep underline decoration-dotted underline-offset-4 hover:text-brand-teal-deep/80 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Add element & bundle another
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

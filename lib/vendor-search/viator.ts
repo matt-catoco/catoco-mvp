@@ -72,7 +72,18 @@ export async function viatorSearch(params: VendorSearchParams): Promise<VendorSe
       price: p.pricing?.summary?.fromPrice,
       currency: p.pricing?.currency ?? "USD",
       pricing_basis: "per_person",
-      extra: {},
+      // Carried onto the locked option's value for display/context (the
+      // group size someone actually searched with) — NOT sent to Viator as
+      // a search filter. /search/freetext's ProductFiltering has no
+      // traveler-count parameter; real pax-aware pricing/availability on
+      // Viator's API lives behind their per-product Availability Check,
+      // called with a specific product code + travelers breakdown, not a
+      // search-time filter. `fromPrice` here is always Viator's own
+      // "starting from" indicative price regardless of party size — a
+      // deeper integration (checking each candidate's real availability
+      // for the actual group) is future scope, not something this search
+      // step can honestly claim to reflect today.
+      extra: { travelers: params.travelers },
     };
   });
 

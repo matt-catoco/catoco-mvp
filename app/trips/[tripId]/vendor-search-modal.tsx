@@ -26,6 +26,11 @@ const field = `h-10 ${fieldClass}`;
 
 type SearchSubtype = TravelMode | AccommodationSearchSubtype | ExperienceSearchSubtype | "";
 
+// Every element type this panel actually knows how to search — Destination
+// already has its own live Mapbox autocomplete (PlacePicker) and Dates
+// isn't price-bearing, so neither goes through vendor search at all.
+export const VENDOR_SEARCHABLE_TYPES: ElementType[] = ["travel", "accommodation", "experience", "dining"];
+
 function TravelersField({
   value,
   onChange,
@@ -150,26 +155,25 @@ function PillRow<T extends string>({
 }
 
 /**
- * Search-on-submit (not live-as-you-type — these are real, likely
- * rate-limited/cost-per-call vendor APIs) overlay for Travel/Accommodations/
- * Experiences/Dining's "propose an option" step. Selecting a result submits
- * it directly (no review/pre-fill step — founder's call) via the same
- * submitOption() the manual form uses, so it lands identically either way.
- * Destination isn't here — it already has its own Mapbox-backed inline
- * autocomplete (PlacePicker), this modal doesn't duplicate that.
+ * The actual search UI — fields, Search button, results list — with no
+ * modal chrome of its own and no opinion on what happens when a result is
+ * picked. Shared by two callers with different "what happens on select"
+ * needs: VendorSearchModal (below) submits directly to an already-created
+ * open element and closes; AddElementForm renders this in place of the
+ * manual Value form when locking a searchable type in at creation, and
+ * treats a pick as the locked value for that create_element() call.
  */
-export function VendorSearchModal({
-  elementId,
+export function VendorSearchPanel({
   elementType,
   tripContext,
-  onClose,
+  onSelect,
+  selecting = false,
 }: {
-  elementId: string;
   elementType: ElementType;
   tripContext?: TripContext;
-  onClose: () => void;
+  onSelect: (value: Record<string, unknown>) => void;
+  selecting?: boolean;
 }) {
-  const router = useRouter();
   const [subtype, setSubtype] = useState<SearchSubtype>(() => {
     if (elementType === "travel") return "flight";
     if (elementType === "accommodation") return "hotel";
@@ -193,8 +197,6 @@ export function VendorSearchModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [response, setResponse] = useState<VendorSearchResponse | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
 
   function buildParams(): VendorSearchParams {
     return {
@@ -206,7 +208,12 @@ export function VendorSearchModal({
       endDate: subtype !== "rental_car" && !roundTrip ? undefined : endDate || undefined,
       time: time || undefined,
       partySize: elementType === "dining" ? partySize : undefined,
-      travelers: elementType === "travel" && subtype === "flight" ? travelers : elementType === "accommodation" ? travelers : undefined,
+      travelers:
+        (elementType === "travel" && subtype === "flight") ||
+        elementType === "accommodation" ||
+        elementType === "experience"
+          ? travelers
+          : undefined,
       vehicleType: subtype === "rental_car" ? vehicleType : undefined,
       transmission: subtype === "rental_car" ? transmission : undefined,
     };
@@ -259,20 +266,6 @@ export function VendorSearchModal({
       setErrorMessage(err instanceof Error ? err.message : "Search failed");
       setStatus("error");
     }
-  }
-
-  function selectResult(result: VendorSearchResult) {
-    setSubmitError(null);
-    startTransition(async () => {
-      const value = vendorResultToOptionValue(elementType, buildParams(), result);
-      const res = await submitOption(elementId, value);
-      if (res.error) {
-        setSubmitError(res.error);
-        return;
-      }
-      router.refresh();
-      onClose();
-    });
   }
 
   const subtypePills =
@@ -402,6 +395,13 @@ export function VendorSearchModal({
             <span className={labelClass}>Date</span>
             <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </label>
+          {/* Party size wasn't collected here at all before — a real gap for
+              a type where price/availability genuinely depends on group
+              size. Collected and carried onto the locked option's value
+              (vendorResultToOptionValue's `...extra` spread) either way;
+              see viator.ts's own note on why it can't affect Viator's
+              free-text search results themselves yet. */}
+          <TravelersField value={travelers} onChange={setTravelers} />
         </>
       );
     }
@@ -434,6 +434,104 @@ export function VendorSearchModal({
   })();
 
   return (
+    <div className="flex flex-col gap-3">
+      {response && (
+        <span className="inline-block w-fit rounded-full bg-brand-teal-wash px-2.5 py-0.5 text-[11px] font-medium text-brand-teal-deep">
+          {response.status === "live" ? `Live via ${response.vendorLabel}` : response.vendorLabel}
+        </span>
+      )}
+
+      {subtypePills}
+      {searchFields}
+
+      <button
+        type="button"
+        onClick={search}
+        disabled={status === "loading"}
+        className={`self-start px-4 py-2 text-sm ${btnPrimary}`}
+      >
+        {status === "loading" ? "Searching…" : "Search"}
+      </button>
+
+      {fieldError && <p className="text-xs text-red-500">{fieldError}</p>}
+
+      {status === "error" && (
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-500">
+          {errorMessage ?? "Something went wrong reaching this vendor. Try again in a moment."}
+        </p>
+      )}
+
+      {status === "done" && response && (
+        <div className="flex flex-col gap-2 border-t border-brand-line pt-3">
+          {response.results.length === 0 ? (
+            <p className="rounded-lg bg-black/[.03] px-3 py-2 text-xs text-zinc-500 dark:bg-white/[.05]">
+              No results for this search — try different dates, a different location, or broaden the search.
+            </p>
+          ) : (
+            response.results.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-brand-line p-2.5 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{r.title}</p>
+                  {r.description && <p className="truncate text-xs text-brand-muted">{r.description}</p>}
+                  {r.price !== undefined && (
+                    <p className="text-xs text-brand-muted">{formatCurrency(r.price, r.currency ?? "USD")}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={selecting}
+                  onClick={() => onSelect(vendorResultToOptionValue(elementType, buildParams(), r))}
+                  className={`shrink-0 px-3 py-1.5 text-xs ${btnSecondary}`}
+                >
+                  {selecting ? "Adding…" : "Select"}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Modal chrome around VendorSearchPanel for the post-creation "Search
+ * options" flow — submits the picked result straight to the already-open
+ * element via submitOption() and closes. See VendorSearchPanel for the
+ * shared search UI itself.
+ */
+export function VendorSearchModal({
+  elementId,
+  elementType,
+  tripContext,
+  onClose,
+}: {
+  elementId: string;
+  elementType: ElementType;
+  tripContext?: TripContext;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSelect(value: Record<string, unknown>) {
+    setSubmitError(null);
+    startTransition(async () => {
+      const res = await submitOption(elementId, value);
+      if (res.error) {
+        setSubmitError(res.error);
+        return;
+      }
+      router.refresh();
+      onClose();
+    });
+  }
+
+  return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
       {/* mx-auto + fixed margin, not flex items-center — see add-element-modal.tsx's
           comment for why that combination clips overflowing content off-screen. */}
@@ -452,66 +550,9 @@ export function VendorSearchModal({
             ✕
           </button>
         </div>
-        {response && (
-          <span className="mb-3 inline-block w-fit rounded-full bg-brand-teal-wash px-2.5 py-0.5 text-[11px] font-medium text-brand-teal-deep">
-            {response.status === "live" ? `Live via ${response.vendorLabel}` : response.vendorLabel}
-          </span>
-        )}
-
-        <div className="flex flex-col gap-3 overflow-y-auto pr-1">
-          {subtypePills}
-          {searchFields}
-
-          <button
-            type="button"
-            onClick={search}
-            disabled={status === "loading"}
-            className={`self-start px-4 py-2 text-sm ${btnPrimary}`}
-          >
-            {status === "loading" ? "Searching…" : "Search"}
-          </button>
-
-          {fieldError && <p className="text-xs text-red-500">{fieldError}</p>}
-
-          {status === "error" && (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-500">
-              {errorMessage ?? "Something went wrong reaching this vendor. Try again in a moment."}
-            </p>
-          )}
-
-          {status === "done" && response && (
-            <div className="flex flex-col gap-2 border-t border-brand-line pt-3">
-              {response.results.length === 0 ? (
-                <p className="rounded-lg bg-black/[.03] px-3 py-2 text-xs text-zinc-500 dark:bg-white/[.05]">
-                  No results for this search — try different dates, a different location, or broaden the search.
-                </p>
-              ) : (
-                response.results.map((r) => (
-                  <div
-                    key={r.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-brand-line p-2.5 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{r.title}</p>
-                      {r.description && <p className="truncate text-xs text-brand-muted">{r.description}</p>}
-                      {r.price !== undefined && (
-                        <p className="text-xs text-brand-muted">{formatCurrency(r.price, r.currency ?? "USD")}</p>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => selectResult(r)}
-                      className={`shrink-0 px-3 py-1.5 text-xs ${btnSecondary}`}
-                    >
-                      {pending ? "Adding…" : "Select"}
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-          {submitError && <p className="text-xs text-red-500">{submitError}</p>}
+        <div className="overflow-y-auto pr-1">
+          <VendorSearchPanel elementType={elementType} tripContext={tripContext} onSelect={handleSelect} selecting={pending} />
+          {submitError && <p className="mt-2 text-xs text-red-500">{submitError}</p>}
         </div>
       </div>
     </div>
