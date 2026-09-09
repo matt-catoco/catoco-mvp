@@ -620,24 +620,75 @@ export async function reportElementBooked(
   return {};
 }
 
-export type BundleFundingRequestsResult = { error?: string; fundingRequestId?: string };
+export type UpdateTripResult = { error?: string };
 
 /**
- * Organizer/co-organizer merges several single-element, still-collecting
- * funding_requests into one — a separate manual action, never automatic.
- * No dedicated picker UI yet (flagged as thin in the plan); this wraps the
- * RPC for whenever that lands.
+ * Rename and/or icon change — organizer or co-organizer (update_trip()'s
+ * own authority check), matching the existing edit/delete-element
+ * precedent. setIcon distinguishes "leave the icon alone" (icon omitted)
+ * from "clear it" (icon explicitly null, IconPicker's Remove) — both would
+ * otherwise arrive at the RPC as the same SQL NULL.
  */
-export async function bundleFundingRequests(
+export async function updateTrip(
   tripId: string,
-  elementIds: string[],
-): Promise<BundleFundingRequestsResult> {
+  input: { name?: string; icon?: string | null; setIcon?: boolean },
+): Promise<UpdateTripResult> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("bundle_funding_requests", {
-    p_element_ids: elementIds,
+  const { error } = await supabase.rpc("update_trip", {
+    p_trip_id: tripId,
+    p_name: input.name?.trim() || null,
+    p_icon: input.setIcon ? input.icon ?? null : null,
+    p_set_icon: input.setIcon ?? false,
   });
   if (error) return { error: toUserFacingError(error) };
 
   revalidatePath(`/trips/${tripId}`);
-  return { fundingRequestId: data as string };
+  revalidatePath(`/trips/${tripId}/settings`);
+  revalidatePath("/trips");
+  return {};
 }
+
+export type DeleteTripResult = { error?: string };
+
+/**
+ * Organizer-only (delete_trip()'s own strict auth.uid() = organizer_id
+ * check, not the broader organizer/co-organizer parity everything else on
+ * this page uses) — deletion is uniquely irreversible and wipes every
+ * participant's contribution history, not just the organizer's own data.
+ * Blocked server-side while any unrefunded, contributed-to (or ready/
+ * booked) funding_request exists; the caller (the settings page) surfaces
+ * that exception message plainly rather than retrying or reinterpreting it.
+ */
+export async function deleteTrip(tripId: string): Promise<DeleteTripResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_trip", { p_trip_id: tripId });
+  if (error) return { error: toUserFacingError(error) };
+  return {};
+}
+
+export type MarkFundingRequestRefundedResult = { error?: string };
+
+/**
+ * The manual overlay flag standing in for real refund processing (§3 of
+ * the trip-settings prompt) — organizer/co-organizer, matching every other
+ * funding RPC's authority level (resolve_funding_outcome,
+ * report_element_booked, ...). Clears delete_trip()'s block for whichever
+ * funding_request this was called on.
+ */
+export async function markFundingRequestRefunded(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+): Promise<MarkFundingRequestRefundedResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_funding_request_refunded", {
+    p_funding_request_id: fundingRequestId,
+  });
+  if (error) return { error: toUserFacingError(error) };
+
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  revalidatePath(`/trips/${tripId}/settings`);
+  return {};
+}
+

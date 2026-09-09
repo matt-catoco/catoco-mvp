@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addFundingContribution,
+  markFundingRequestRefunded,
   reassignPurchaser,
   reportElementBooked,
   resolveFundingOutcome,
@@ -28,6 +29,11 @@ export type FundingRequestInfo = {
   purchaserId: string | null;
   purchaserName: string;
   actualAmountPaid: number | null;
+  // §3 of the trip-settings prompt: a manual overlay flag standing in for
+  // real refund processing until payment integration exists. Also what
+  // delete_trip() reads server-side to decide whether this funding_request
+  // is still blocking the trip from being deleted.
+  refundedAt: string | null;
 };
 
 export type FundingRosterEntry = { userId: string; displayName: string };
@@ -114,6 +120,9 @@ export function FundingCard({
   const [resolvePending, startResolve] = useTransition();
   const [resolveError, setResolveError] = useState<string | null>(null);
 
+  const [refundPending, startRefund] = useTransition();
+  const [refundError, setRefundError] = useState<string | null>(null);
+
   const [actualPaid, setActualPaid] = useState("");
   const [reportPending, startReport] = useTransition();
   const [reportError, setReportError] = useState<string | null>(null);
@@ -123,6 +132,11 @@ export function FundingCard({
   const pct = funding.requiredAmount > 0
     ? Math.min(100, Math.round((funding.collected / funding.requiredAmount) * 100))
     : 0;
+  // Mirrors delete_trip()'s own block condition exactly (status ready_to_
+  // purchase/booked, or any real money already collected) — shown whenever
+  // this funding_request is actually what's standing between the trip and
+  // being deletable, not on every funding_request unconditionally.
+  const isBlocking = !funding.refundedAt && (funding.status !== "collecting" || funding.collected > 0);
 
   return (
     <div className="mt-3 flex flex-col gap-3">
@@ -202,6 +216,45 @@ export function FundingCard({
             </label>
             {reassignError && <p className="text-xs text-red-500">{reassignError}</p>}
           </div>
+        )}
+
+        {/* §3 of the trip-settings prompt: the only way to clear
+            delete_trip()'s block from the UI — a manual "we settled up
+            outside the app" acknowledgment, standing in for real refund
+            processing until payment integration exists. */}
+        {funding.refundedAt ? (
+          <p className="mt-3 border-t border-brand-line pt-3 text-xs text-brand-muted">
+            Refunded {new Date(funding.refundedAt).toLocaleDateString()}
+          </p>
+        ) : (
+          canManage &&
+          isBlocking && (
+            <div className="mt-3 border-t border-brand-line pt-3">
+              <p className="text-xs text-brand-muted">
+                Money is on the line here — this blocks the trip from being deleted until it's
+                settled up and marked refunded.
+              </p>
+              <button
+                type="button"
+                disabled={refundPending}
+                onClick={() => {
+                  setRefundError(null);
+                  startRefund(async () => {
+                    const res = await markFundingRequestRefunded(tripId, elementId, funding.id);
+                    if (res.error) {
+                      setRefundError(res.error);
+                      return;
+                    }
+                    router.refresh();
+                  });
+                }}
+                className={`mt-1.5 h-8 px-3 text-xs ${btnSecondary}`}
+              >
+                {refundPending ? "Marking…" : "Mark as refunded"}
+              </button>
+              {refundError && <p className="mt-1 text-xs text-red-500">{refundError}</p>}
+            </div>
+          )
         )}
       </div>
 

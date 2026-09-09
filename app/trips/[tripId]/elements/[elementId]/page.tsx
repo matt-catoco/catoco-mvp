@@ -44,6 +44,7 @@ type FundingRow = {
   funding_deadline: string | null;
   purchaser_id: string | null;
   actual_amount_paid: number | null;
+  refunded_at: string | null;
 };
 
 type RosterRow = { user_id: string; display_name: string | null; is_organizer: boolean };
@@ -159,7 +160,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -216,6 +217,7 @@ export default async function ElementDetailPage({
             ? "You"
             : purchaser?.display_name?.trim() || (purchaser?.is_organizer ? "Organizer" : "Member"),
         actualAmountPaid: fundingRow.actual_amount_paid,
+        refundedAt: fundingRow.refunded_at,
       };
 
       // §6 bundling UI: one combined screen listing every member of this

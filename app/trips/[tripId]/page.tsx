@@ -246,6 +246,14 @@ export default async function TripLandingPage({
           >
             Participants
           </Link>
+          {canManage && (
+            <Link
+              href={`/trips/${tripId}/settings`}
+              className="text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+            >
+              Settings
+            </Link>
+          )}
         </div>
       </div>
 
