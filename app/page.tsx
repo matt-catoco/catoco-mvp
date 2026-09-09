@@ -111,8 +111,7 @@ const DEMO_TILES = DEMO_ELEMENT_SPECS.map((spec) => {
   return {
     key: spec.key,
     num: spec.num,
-    state: info.state,
-    funded: info.funded,
+    tier: info.tier,
     statusLabel: info.statusLabel,
     detail: info.detail,
     symbol: ELEMENT_SYMBOLS[spec.key],

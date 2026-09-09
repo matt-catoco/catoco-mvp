@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -9,7 +8,9 @@ import {
   type ElementType,
   type FundingStatus,
 } from "@/lib/trip-elements";
-import { ElementGrid } from "@/components/trip-home/element-grid";
+import { getElementSchedule } from "@/lib/element-schedule";
+import { TripOverview } from "@/components/trip-home/trip-overview";
+import type { OverviewElement } from "@/components/trip-home/types";
 import { resolveAndNotify } from "./resolve-elements";
 import { notifyInvited } from "@/lib/notifications";
 import { AddElementModal } from "./add-element-modal";
@@ -27,6 +28,7 @@ type ElementRow = {
   options_deadline: string | null;
   booked_at: string | null;
   created_at: string;
+  metadata: Record<string, string> | null;
 };
 
 type FundingRow = {
@@ -120,7 +122,7 @@ export default async function TripLandingPage({
       supabase
         .from("trip_elements")
         .select(
-          "id, type, label, state, locked_option_id, locked_via, options_deadline, booked_at, created_at",
+          "id, type, label, state, locked_option_id, locked_via, options_deadline, booked_at, created_at, metadata",
         )
         .eq("trip_id", tripId)
         .order("created_at", { ascending: true })
@@ -185,7 +187,7 @@ export default async function TripLandingPage({
     if (fr.status === "booked") totalActual += fr.actual_amount_paid ?? fr.required_amount;
   }
 
-  const tiles = rows.map((row, idx) => {
+  const overviewElements: OverviewElement[] = rows.map((row, idx) => {
     const lockedValue = row.locked_option_id
       ? lockedValueById.get(row.locked_option_id) ?? null
       : null;
@@ -200,15 +202,16 @@ export default async function TripLandingPage({
       bookedAt: row.booked_at,
     });
     return {
-      key: row.id,
+      id: row.id,
+      type: row.type,
       symbol: ELEMENT_SYMBOLS[row.type],
       label: row.label,
       num: String(idx + 1).padStart(2, "0"),
-      state: info.state,
-      funded: info.funded,
+      tier: info.tier,
       statusLabel: info.statusLabel,
       detail: info.detail,
       href: `/trips/${tripId}/elements/${row.id}`,
+      schedule: getElementSchedule(row.type, row.state, row.metadata, lockedValue),
     };
   });
 
@@ -221,42 +224,18 @@ export default async function TripLandingPage({
     : tripContext.dates?.nights
       ? `${tripContext.dates.nights} nights`
       : null;
-  const tripSubheader = [tripContext.destination?.name, datesLabel].filter(Boolean).join(" · ");
+  const tripSubheader = [tripContext.destination?.name, datesLabel].filter(Boolean).join(" · ") || null;
+
+  // Itinerary/Calendar need a real anchored range — the "N nights, no start
+  // date picked yet" mode (see DatesValue's own doc comment) has nothing to
+  // build a day grid from.
+  const tripDates =
+    tripContext.dates?.start_date && tripContext.dates?.end_date
+      ? { start: tripContext.dates.start_date, end: tripContext.dates.end_date }
+      : null;
 
   return (
     <div className="flex flex-1 flex-col items-center gap-8 px-6 py-16">
-      <div className="flex w-full max-w-2xl flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          {trip.name}
-        </h1>
-        {tripSubheader && (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{tripSubheader}</p>
-        )}
-        <div className="flex gap-4 text-xs font-medium">
-          <AddElementModal
-            tripId={tripId}
-            currentUserId={user.id}
-            isOrganizer={Boolean(canManage)}
-            roster={addElementRoster}
-            tripContext={tripContext}
-          />
-          <Link
-            href={`/trips/${tripId}/participants`}
-            className="text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
-          >
-            Participants
-          </Link>
-          {canManage && (
-            <Link
-              href={`/trips/${tripId}/settings`}
-              className="text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Settings
-            </Link>
-          )}
-        </div>
-      </div>
-
       {totalRequired > 0 && (
         <div className="flex w-full max-w-2xl items-center justify-between rounded-lg border border-black/[.1] px-4 py-3 text-sm dark:border-white/[.14]">
           <span className="text-zinc-500">Budgeted vs. actual</span>
@@ -267,15 +246,24 @@ export default async function TripLandingPage({
         </div>
       )}
 
-      <div className="w-full max-w-2xl">
-        {tiles.length === 0 ? (
-          <p className="rounded-lg border border-black/[.1] p-6 text-center text-sm text-zinc-500 dark:border-white/[.14]">
-            Nothing here yet — add the first element.
-          </p>
-        ) : (
-          <ElementGrid tiles={tiles} />
-        )}
-      </div>
+      <TripOverview
+        tripId={tripId}
+        tripName={trip.name}
+        subheader={tripSubheader}
+        canManage={Boolean(canManage)}
+        addElementModal={
+          <AddElementModal
+            tripId={tripId}
+            currentUserId={user.id}
+            isOrganizer={Boolean(canManage)}
+            roster={addElementRoster}
+            tripContext={tripContext}
+          />
+        }
+        elements={overviewElements}
+        tripDates={tripDates}
+        destinationName={tripContext.destination?.name ?? null}
+      />
     </div>
   );
 }

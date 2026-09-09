@@ -117,9 +117,21 @@ export function emptyMetadataFor(type: ElementType): Record<string, string> {
 // funding_request at all (Dates/Destination, or an unpriced locked value).
 export type FundingStatus = "collecting" | "ready_to_purchase" | "booked" | null;
 
+// The four-bucket status vocabulary the "Trip overview — view options"
+// design groups every element into, regardless of type — shared by Table's
+// reordering, Kanban's columns, and Itinerary/Calendar's tile coloring, so
+// there's exactly one place deciding which bucket an element is in.
+// Collapses statusLabel's finer-grained text (e.g. "Locked by Group" vs
+// "Confirmed") down to one of: still open/voting; locked in but not yet
+// funded (Dates/Destination sit here too, from lock until booked — they
+// never get a funding_request at all); actively funded; or booked, the
+// final state for every type.
+export type ElementTier = "open" | "locked" | "funded" | "ready";
+
 export type ElementTileInfo = {
   state: ElementState;
   funded: boolean;
+  tier: ElementTier;
   statusLabel: string;
   detail: string;
 };
@@ -153,6 +165,7 @@ export function describeElementStatus(row: {
     return {
       state: "locked",
       funded: funded || booked,
+      tier: booked ? "ready" : funded ? "funded" : "locked",
       statusLabel,
       detail: row.lockedValue ? summarizeOptionValue(row.type, row.lockedValue) : "?",
     };
@@ -161,6 +174,7 @@ export function describeElementStatus(row: {
   return {
     state: "open",
     funded: false,
+    tier: "open",
     statusLabel: stillSubmitting ? "Open — Submitting" : "Open — Voting",
     detail:
       row.optionCount > 0
