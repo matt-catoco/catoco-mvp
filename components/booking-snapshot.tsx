@@ -49,6 +49,15 @@ function subtypeLabel(type: ElementType, value: Record<string, unknown>): string
   return null;
 }
 
+function formatTravelers(t: { adults: number; children_ages?: number[]; infants_ages?: number[] }): string {
+  const parts = [`${t.adults} adult${t.adults === 1 ? "" : "s"}`];
+  const children = t.children_ages?.length ?? 0;
+  if (children) parts.push(`${children} child${children === 1 ? "" : "ren"}`);
+  const infants = t.infants_ages?.length ?? 0;
+  if (infants) parts.push(`${infants} infant${infants === 1 ? "" : "s"}`);
+  return parts.join(", ");
+}
+
 /** Subtype-specific structured fields — room type, vehicle type, breakfast
  * included, etc. — the level of detail below the headline Type/Subtype. */
 function subDetails(type: ElementType, value: Record<string, unknown>): { label: string; value: string }[] {
@@ -67,6 +76,12 @@ function subDetails(type: ElementType, value: Record<string, unknown>): { label:
     if (typeof value.transmission === "string" && value.transmission) {
       out.push({ label: "Transmission", value: value.transmission === "automatic" ? "Automatic" : "Manual" });
     }
+  }
+  // Flight/Accommodation/Experience all carry a searched travelers
+  // breakdown (see normalizeOptionValue) — surfaced here so collecting it
+  // during search actually shows up somewhere, not just stored unseen.
+  if (value.travelers && typeof value.travelers === "object") {
+    out.push({ label: "Travelers", value: formatTravelers(value.travelers as { adults: number; children_ages?: number[]; infants_ages?: number[] }) });
   }
   return out;
 }

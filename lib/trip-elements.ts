@@ -905,6 +905,12 @@ export function normalizeOptionValue(
         if (str("location_lng")) out.location_lng = Number(value.location_lng);
         if (str("location_place_id")) out.location_place_id = str("location_place_id");
       }
+      // Same as travel/accommodation just above — missing here was a real
+      // bug: party size collected in the search UI was silently dropped at
+      // this normalization step, before it ever reached the DB.
+      if (value.travelers && typeof value.travelers === "object") {
+        out.travelers = value.travelers as TravelersBreakdown;
+      }
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("price")) {
         out.price = Number(value.price);
