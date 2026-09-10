@@ -12,7 +12,10 @@ const MAX_CALENDAR_DAYS = 31;
 const TILE_CLASSES: Record<ElementTier, string> = {
   open: "border-dashed border-brand-line text-brand-muted",
   locked: "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep",
-  funded: "border-brand-teal-deep bg-background text-brand-teal-deep",
+  // Fixed paper, not `bg-background` — see element-tile.tsx's note: that
+  // token flips to ink in dark mode and collides with `ready`'s own fixed
+  // ink fill just below.
+  funded: "border-brand-teal-deep bg-[#FAFAF7] text-brand-teal-deep",
   ready: "border-brand-teal bg-[#0D2020] text-[#FAFAF7]",
 };
 

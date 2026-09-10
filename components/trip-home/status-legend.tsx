@@ -9,7 +9,9 @@ const LEGEND_ITEMS: { tier: ElementTier; label: string }[] = [
 
 const DOT_CLASSES: Record<ElementTier, string> = {
   ready: "border-brand-teal bg-[#0D2020]",
-  funded: "border-brand-teal-deep bg-background",
+  // Matches the actual tile fill (element-tile.tsx) — fixed paper, not the
+  // flipping `bg-background` token.
+  funded: "border-brand-teal-deep bg-[#FAFAF7]",
   locked: "border-brand-teal-deep bg-brand-teal-wash",
   open: "border-brand-line bg-background",
 };

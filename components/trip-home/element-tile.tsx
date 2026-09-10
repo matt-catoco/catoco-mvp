@@ -42,9 +42,11 @@ function tileClasses(tier: ElementTier, onDark: boolean): string {
     case "locked":
       return "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep";
     case "funded":
-      return onDark
-        ? "border-brand-teal-deep bg-white text-brand-teal-deep"
-        : "border-brand-teal-deep bg-background text-brand-teal-deep";
+      // A fixed paper surface, not `bg-background` — that token flips to
+      // ink in dark mode, which collides with "ready"'s deliberately fixed
+      // ink fill (both tiers would render as an identical dark box, losing
+      // the tier distinction dark mode is supposed to preserve).
+      return "border-brand-teal-deep bg-[#FAFAF7] text-brand-teal-deep";
     case "ready":
       return onDark
         ? "border-brand-teal bg-brand-teal text-[#0D2020]"

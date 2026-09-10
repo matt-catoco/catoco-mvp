@@ -6,7 +6,11 @@ import type { OverviewElement } from "./types";
 const CARD_CLASSES: Record<ElementTier, string> = {
   open: "border-dashed border-brand-line",
   locked: "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep",
-  funded: "border-brand-teal-deep bg-background text-brand-teal-deep",
+  // Fixed paper, not `bg-background` — see element-tile.tsx's note: that
+  // token flips to ink in dark mode, which would read the same as an
+  // untinted "open" card (no explicit background at all) instead of a
+  // distinct, filled surface.
+  funded: "border-brand-teal-deep bg-[#FAFAF7] text-brand-teal-deep",
   ready: "border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep",
 };
 
