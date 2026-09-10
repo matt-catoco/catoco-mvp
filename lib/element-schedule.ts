@@ -17,23 +17,20 @@
 //     point-in-time legs, never a time of day.
 //   - Accommodation: `dates.start_date`/`dates.end_date` — a real span
 //     (check-in through check-out), never a time of day.
-//   - Dining: no date field of its own on the option at all — only
-//     `dining_time` (an actual HH:MM), and only when the option came from
-//     a vendor search. The day it happens on is the element-level
-//     `metadata.date` field (see ELEMENT_METADATA_FIELDS in
-//     lib/trip-elements.ts) — optional, set once at creation.
+//   - Dining: `date` + `dining_time` (an actual HH:MM), both optional, from
+//     either the search modal or manual entry. Falls back to the
+//     element-level `metadata.date` when `date` is unset.
 //   - Experience: `date`/`time` (both optional — a candidate can be
 //     genuinely undated), from either the search modal or manual entry.
 //     Falls back to the element-level `metadata.date` when unset, same as
 //     Dining.
 // Before an element locks, its own candidate options could each carry a
-// different date (Travel/Accommodation/Experience) or none at all (Dining)
-// — rather than guess at a "leading" candidate, every type falls back to
-// the same one thing pre-lock: the element-level `metadata.date`, which
-// exists on every scheduled type for exactly this purpose. That's also the
-// ONLY signal Dining has pre-lock (Experience's own date/time only exists
-// once it locks, same as everything else here), so this keeps one
-// consistent rule instead of a type-specific pre-lock story too.
+// different date (every priced type now) — rather than guess at a
+// "leading" candidate, every type falls back to the same one thing
+// pre-lock: the element-level `metadata.date`, which exists on every
+// scheduled type for exactly this purpose. A locked option's own date/time
+// only ever applies once it's actually locked, so this keeps one
+// consistent pre-lock rule instead of a type-specific story per type.
 
 import type { ElementState, ElementType } from "./trip-elements";
 
@@ -106,9 +103,13 @@ export function getElementSchedule(
       return { occurrences, span: null, isProposed: false };
     }
     case "dining": {
-      if (!metaDate) return null;
+      // Own field first, metadata fallback — same rule as every other type
+      // here now that the option itself can actually carry a date (see
+      // normalizeOptionValue's dining case).
+      const start = trimmed(lockedValue.date) ?? metaDate;
+      if (!start) return null;
       return {
-        occurrences: [{ date: metaDate, time: trimmed(lockedValue.dining_time), label: "" }],
+        occurrences: [{ date: start, time: trimmed(lockedValue.dining_time), label: "" }],
         span: null,
         isProposed: false,
       };

@@ -511,7 +511,11 @@ export type PlaceValue = LinkPreview & {
   // fallback (element-level, set once at creation, before any candidate
   // exists) that Itinerary/Calendar fall back to when this is unset. Both
   // optional: unlike Travel/Accommodation's dates, an Experience candidate
-  // can be genuinely undated (e.g. "some free afternoon in the city").
+  // can be genuinely undated (e.g. "some free afternoon in the city"). `date`
+  // is shared with §8 Dining below (same field, same fallback rule); Dining
+  // keeps its own `dining_time` rather than reusing `time` here, since that
+  // name already exists in a few places (vendor search's mock generator,
+  // BookingSnapshot) and isn't worth renaming just for symmetry.
   experience_subtype?: ExperienceSubtype | "";
   date?: string;
   time?: string;
@@ -687,6 +691,8 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
     case "dining":
       return {
         name: "",
+        date: "",
+        dining_time: "",
         location_name: "",
         location_lat: "",
         location_lng: "",
@@ -951,6 +957,12 @@ export function normalizeOptionValue(
     }
     case "dining": {
       const out: PlaceValue = { name: str("name") };
+      // Same bug as Experience's date/time (see that case above) — the
+      // search modal's Date/Time fields (dining_time) fed straight into
+      // this without ever landing on the stored option, so BookingSnapshot's
+      // "Time" row has been reading an empty field this whole time.
+      if (str("date")) out.date = str("date");
+      if (str("dining_time")) out.dining_time = str("dining_time");
       if (str("location_name")) {
         out.location_name = str("location_name");
         if (str("location_lat")) out.location_lat = Number(value.location_lat);
