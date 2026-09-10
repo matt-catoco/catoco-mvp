@@ -1,11 +1,16 @@
 "use server";
 
-import { searchUnsplashPhotos, trackUnsplashDownload, type UnsplashSearchResult } from "@/lib/unsplash";
+import {
+  searchUnsplashPhotos,
+  trackUnsplashDownload,
+  type UnsplashSearchOutcome,
+  type UnsplashSearchResult,
+} from "@/lib/unsplash";
 
-export type { UnsplashSearchResult };
+export type { UnsplashSearchResult, UnsplashSearchOutcome };
 
 /** Search-on-submit only — see lib/unsplash.ts's own note on why. */
-export async function searchUnsplash(query: string): Promise<UnsplashSearchResult[]> {
+export async function searchUnsplash(query: string): Promise<UnsplashSearchOutcome> {
   return searchUnsplashPhotos(query);
 }
 

@@ -62,12 +62,27 @@ type UnsplashApiPhoto = {
   links?: { download_location?: string };
 };
 
+// Deliberately staying on Unsplash's free "Demo" tier (50 requests/hour,
+// app-wide) rather than applying for Production approval — the founder's
+// call, 2026-09-xx: keep this at zero cost for as long as possible, which
+// means the app has to actually behave well when that cap gets hit, not
+// just work in the happy path. `rate_limited` is Unsplash's real, expected
+// failure mode here (they return 403 with an explicit rate-limit error once
+// the hour's 50 requests are spent) — worth telling the user apart from
+// "your search term matched nothing," which reads as a dead end (retrying
+// just burns another request) rather than "try again in a few minutes, or
+// upload instead."
+export type UnsplashSearchOutcome = {
+  results: UnsplashSearchResult[];
+  status: "ok" | "rate_limited" | "error";
+};
+
 export async function searchUnsplashPhotos(
   query: string,
   page = 1,
-): Promise<UnsplashSearchResult[]> {
+): Promise<UnsplashSearchOutcome> {
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;
-  if (!accessKey || !query.trim()) return [];
+  if (!accessKey || !query.trim()) return { results: [], status: "ok" };
 
   try {
     const url = new URL(`${UNSPLASH_BASE}/search/photos`);
@@ -79,22 +94,30 @@ export async function searchUnsplashPhotos(
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Client-ID ${accessKey}` },
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      // Unsplash's rate-limit response is a 403 — distinct from a 401 (bad
+      // key) or a 5xx (their own outage), both of which are real errors
+      // rather than "come back later."
+      return { results: [], status: res.status === 403 ? "rate_limited" : "error" };
+    }
 
     const data = await res.json();
     const results: UnsplashApiPhoto[] = data?.results ?? [];
-    return results
-      .map((p) => ({
-        id: p.id ?? "",
-        urlSmall: p.urls?.small ?? "",
-        urlRegular: p.urls?.regular ?? "",
-        photographerName: p.user?.name ?? "Unknown photographer",
-        photographerProfileUrl: p.user?.links?.html ?? "",
-        downloadLocation: p.links?.download_location ?? "",
-      }))
-      .filter((r) => r.id && r.urlSmall && r.urlRegular);
+    return {
+      results: results
+        .map((p) => ({
+          id: p.id ?? "",
+          urlSmall: p.urls?.small ?? "",
+          urlRegular: p.urls?.regular ?? "",
+          photographerName: p.user?.name ?? "Unknown photographer",
+          photographerProfileUrl: p.user?.links?.html ?? "",
+          downloadLocation: p.links?.download_location ?? "",
+        }))
+        .filter((r) => r.id && r.urlSmall && r.urlRegular),
+      status: "ok",
+    };
   } catch {
-    return [];
+    return { results: [], status: "error" };
   }
 }
 

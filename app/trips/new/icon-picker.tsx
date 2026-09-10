@@ -85,9 +85,20 @@ export function IconPicker({
     setSearchError(null);
     setSearching(true);
     try {
-      const res = await searchUnsplash(query);
+      const { results: res, status } = await searchUnsplash(query);
       setResults(res);
-      if (res.length === 0) setSearchError("No results — try a different search.");
+      if (status === "rate_limited") {
+        // Free-tier reality, not a bug — Unsplash's Demo tier caps at 50
+        // searches/hour app-wide, shared across every trip/user. Distinct
+        // from "no results" on purpose: that reads as "try a different
+        // search," which just burns another request against the same
+        // exhausted cap.
+        setSearchError("Unsplash search is at its hourly limit — try again in a bit, or upload your own image instead.");
+      } else if (status === "error") {
+        setSearchError("Search failed. Try again in a moment.");
+      } else if (res.length === 0) {
+        setSearchError("No results — try a different search.");
+      }
     } catch {
       setSearchError("Search failed. Try again in a moment.");
     } finally {
