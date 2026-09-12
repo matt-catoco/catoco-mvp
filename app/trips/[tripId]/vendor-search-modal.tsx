@@ -9,7 +9,7 @@ import {
   ACCOMMODATION_SEARCH_SUBTYPE_LABELS,
   EXPERIENCE_SEARCH_SUBTYPES,
   EXPERIENCE_SEARCH_SUBTYPE_LABELS,
-  formatCurrency,
+  priceLabel,
   type ElementType,
   type TravelMode,
   type AccommodationSearchSubtype,
@@ -483,7 +483,13 @@ export function VendorSearchPanel({
                   <p className="truncate font-medium">{r.title}</p>
                   {r.description && <p className="truncate text-xs text-brand-muted">{r.description}</p>}
                   {r.price !== undefined && (
-                    <p className="text-xs text-brand-muted">{formatCurrency(r.price, r.currency ?? "USD")}</p>
+                    // "From" — a search result's price is indicative, not a
+                    // lock: what actually gets submitted (and later funded)
+                    // can differ once someone checks real availability, so
+                    // this shouldn't read as a firm quote.
+                    <p className="text-xs text-brand-muted">
+                      From {priceLabel({ price: r.price, currency: r.currency, pricing_basis: r.pricing_basis, mode: subtype })}
+                    </p>
                   )}
                 </div>
                 <button
@@ -538,11 +544,15 @@ export function VendorSearchModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm sm:p-4" onClick={onClose}>
       {/* mx-auto + fixed margin, not flex items-center — see add-element-modal.tsx's
-          comment for why that combination clips overflowing content off-screen. */}
+          comment for why that combination clips overflowing content off-screen.
+          Full-screen below sm: a real results list plus the traveler-breakdown
+          fields gets cramped fast in a small centered card once both are on
+          screen together — this is the one modal in the app dense enough to
+          need it. */}
       <div
-        className="mx-auto my-8 flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-brand-line bg-background p-6 shadow-lg"
+        className="mx-auto flex h-full w-full max-w-xl flex-col border border-brand-line bg-background p-6 shadow-lg sm:my-8 sm:h-auto sm:max-h-[85vh] sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">

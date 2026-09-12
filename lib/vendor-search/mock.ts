@@ -15,23 +15,51 @@ function id(prefix: string, i: number): string {
   return `mock-${prefix}-${i}`;
 }
 
+/** "06:45" + 375 -> "13:00" — wraps past midnight rather than erroring. */
+function addMinutes(hhmm: string, minutes: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const wrapped = (((h * 60 + m + minutes) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+}
+
+// Real itinerary detail (flight number, depart/arrival time), not just
+// airline + price — a founder review flagged the thinner version of these
+// cards as not enough for someone to actually decide between options. Still
+// entirely mocked (Duffel's the right vendor, blocked on sandbox keys), but
+// the shape is what a real result needs to carry.
 function mockFlights(params: VendorSearchParams): VendorSearchResult[] {
   const from = params.location || "Origin";
   const to = params.destination || "Destination";
-  const carriers = ["Delta", "United", "American", "JetBlue"];
-  return carriers.map((carrier, i) => ({
-    id: id("flight", i),
-    title: `${carrier} — ${from} → ${to}`,
-    description: `${["Nonstop", "1 stop", "1 stop", "Nonstop"][i]} · ${5 + i}h ${15 * i}m`,
-    price: 210 + i * 85,
-    currency: "USD",
-    pricing_basis: "per_person",
-    extra: {
-      depart_date: params.startDate || "",
-      return_date: params.endDate || "",
-      travelers: params.travelers,
-    },
-  }));
+  const carriers = [
+    { name: "Delta", code: "DL" },
+    { name: "United", code: "UA" },
+    { name: "American", code: "AA" },
+    { name: "JetBlue", code: "B6" },
+  ];
+  const stopsLabels = ["Nonstop", "1 stop", "1 stop", "Nonstop"];
+  const departTimes = ["06:45", "09:15", "13:30", "18:00"];
+  return carriers.map((carrier, i) => {
+    const durationMinutes = (5 + i) * 60 + 15 * i;
+    const flightNumber = `${carrier.code} ${100 + i * 237}`;
+    const departTime = departTimes[i];
+    const arrivalTime = addMinutes(departTime, durationMinutes);
+    return {
+      id: id("flight", i),
+      title: `${carrier.name} — ${from} → ${to}`,
+      description: `${flightNumber} · ${departTime} → ${arrivalTime} · ${stopsLabels[i]} · ${5 + i}h ${15 * i}m`,
+      price: 210 + i * 85,
+      currency: "USD",
+      pricing_basis: "per_person",
+      extra: {
+        depart_date: params.startDate || "",
+        return_date: params.endDate || "",
+        flight_number: flightNumber,
+        depart_time: departTime,
+        arrival_time: arrivalTime,
+        travelers: params.travelers,
+      },
+    };
+  });
 }
 
 function mockRentalCars(params: VendorSearchParams): VendorSearchResult[] {

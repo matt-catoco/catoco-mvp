@@ -77,6 +77,15 @@ function subDetails(type: ElementType, value: Record<string, unknown>): { label:
       out.push({ label: "Transmission", value: value.transmission === "automatic" ? "Automatic" : "Manual" });
     }
   }
+  if (type === "travel" && value.mode === "flight") {
+    if (typeof value.flight_number === "string" && value.flight_number) {
+      out.push({ label: "Flight", value: value.flight_number });
+    }
+    if (typeof value.depart_time === "string" && value.depart_time) {
+      const arrival = typeof value.arrival_time === "string" ? value.arrival_time : "";
+      out.push({ label: "Departs / arrives", value: arrival ? `${value.depart_time} → ${arrival}` : value.depart_time });
+    }
+  }
   // Flight/Accommodation/Experience all carry a searched travelers
   // breakdown (see normalizeOptionValue) — surfaced here so collecting it
   // during search actually shows up somewhere, not just stored unseen.

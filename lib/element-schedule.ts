@@ -96,8 +96,10 @@ export function getElementSchedule(
       const depart = trimmed(lockedValue.depart_date) ?? trimmed(lockedValue.pickup_datetime) ?? metaDate;
       const ret = trimmed(lockedValue.return_date) ?? trimmed(lockedValue.dropoff_datetime);
       if (!depart) return null;
+      // depart_time only exists for Flight results (see mock.ts/normalizeOptionValue) —
+      // every other mode stays undated-by-time, same as before.
       const occurrences: ScheduleOccurrence[] = [
-        { date: depart, time: null, label: ret ? "Departure" : "" },
+        { date: depart, time: trimmed(lockedValue.depart_time), label: ret ? "Departure" : "" },
       ];
       if (ret && ret !== depart) occurrences.push({ date: ret, time: null, label: "Return" });
       return { occurrences, span: null, isProposed: false };

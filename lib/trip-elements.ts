@@ -260,6 +260,13 @@ export type TravelValue = LinkPreview & {
   // with how Mode/Subtype/etc. were added earlier.
   depart_date?: string;
   return_date?: string;
+  // Flight-specific itinerary detail (search-derived only, same as the rest
+  // of this block) — the outbound leg's carrier flight number and time of
+  // day. Return-leg times aren't captured separately; the outbound pair is
+  // what actually differentiates candidates when comparing search results.
+  flight_number?: string;
+  depart_time?: string;
+  arrival_time?: string;
   travelers?: TravelersBreakdown;
   pickup_location?: string;
   pickup_datetime?: string;
@@ -881,6 +888,11 @@ export function normalizeOptionValue(
           out.travelers = value.travelers as TravelersBreakdown;
         }
       }
+      if (str("mode") === "flight") {
+        if (str("flight_number")) out.flight_number = str("flight_number");
+        if (str("depart_time")) out.depart_time = str("depart_time");
+        if (str("arrival_time")) out.arrival_time = str("arrival_time");
+      }
       if (str("mode") === "rental_car") {
         if (str("pickup_location")) out.pickup_location = str("pickup_location");
         if (str("pickup_datetime")) out.pickup_datetime = str("pickup_datetime");
@@ -1060,7 +1072,7 @@ export function summarizeOptionValue(
   }
 }
 
-function priceLabel(value: Record<string, unknown>): string {
+export function priceLabel(value: Record<string, unknown>): string {
   const str = (k: string) => String(value[k] ?? "").trim();
   const basis = str("pricing_basis");
   // Rental cars share the per_night pricing_basis (same duration-based
