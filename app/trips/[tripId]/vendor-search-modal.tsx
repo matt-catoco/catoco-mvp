@@ -391,16 +391,17 @@ export function VendorSearchPanel({
       return (
         <>
           <input className={field} placeholder="Destination" value={location} onChange={(e) => setLocation(e.target.value)} />
-          <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1">
-              <span className={labelClass}>Date</span>
-              <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </label>
-            <label className="flex flex-1 flex-col gap-1">
-              <span className={labelClass}>Time</span>
-              <input type="time" className={field} value={time} onChange={(e) => setTime(e.target.value)} />
-            </label>
-          </div>
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>Date</span>
+            <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </label>
+          {/* No Time field here — Viator's free-text search has no time
+              filter (a searched time wouldn't affect results at all), and
+              stamping it onto whichever candidate gets picked would overstate
+              certainty search results shouldn't carry: a specific start time
+              only makes sense once an option is actually voted in, not at
+              search time (see viator.ts's duration-not-a-time note). Date
+              stays — which day is still a meaningful, real filter signal. */}
           {/* Party size wasn't collected here at all before — a real gap for
               a type where price/availability genuinely depends on group
               size. Collected and carried onto the locked option's value
