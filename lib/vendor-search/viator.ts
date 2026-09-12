@@ -10,9 +10,9 @@ import type { VendorSearchParams, VendorSearchResponse, VendorSearchResult } fro
 // Verified against a real sandbox call (searchTerm "Paris") with key #B5B1
 // — response shape matches what's read below (products.results[], each with
 // productCode/title/description/images[].variants[]/pricing.summary.
-// fromPrice/pricing.currency/productUrl). One thing the docs didn't make
-// obvious: the request needs a top-level `currency` field or it 400s with
-// "Missing currency" — included below.
+// fromPrice/pricing.currency/productUrl/duration). One thing the docs
+// didn't make obvious: the request needs a top-level `currency` field or it
+// 400s with "Missing currency" — included below.
 const VIATOR_BASE = "https://api.sandbox.viator.com/partner";
 
 type ViatorProduct = {
@@ -22,7 +22,35 @@ type ViatorProduct = {
   productUrl?: string;
   images?: { variants?: { url?: string; width?: number }[] }[];
   pricing?: { summary?: { fromPrice?: number }; currency?: string };
+  duration?: {
+    fixedDurationInMinutes?: number;
+    variableDurationFromMinutes?: number;
+    variableDurationToMinutes?: number;
+  };
 };
+
+/**
+ * "~3–3.5 hours" / "~2 hours" — approximate is the point here (see the
+ * founder review flagged in catoco-element-search-handoff-notes.md): a
+ * search result is a candidate to compare, not a booked itinerary, so a
+ * duration RANGE reads more honestly than a specific start time would.
+ */
+function formatDuration(d: ViatorProduct["duration"]): string | undefined {
+  if (!d) return undefined;
+  const toHours = (min: number) => {
+    const hours = min / 60;
+    return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+  };
+  if (d.variableDurationFromMinutes && d.variableDurationToMinutes) {
+    return `~${toHours(d.variableDurationFromMinutes)}–${toHours(d.variableDurationToMinutes)} hours`;
+  }
+  if (d.fixedDurationInMinutes) {
+    const hours = toHours(d.fixedDurationInMinutes);
+    return `~${hours} ${hours === "1" ? "hour" : "hours"}`;
+  }
+  if (d.variableDurationFromMinutes) return `~${toHours(d.variableDurationFromMinutes)}+ hours`;
+  return undefined;
+}
 
 export async function viatorSearch(params: VendorSearchParams): Promise<VendorSearchResponse> {
   const apiKey = process.env.VIATOR_API_KEY;
@@ -63,10 +91,15 @@ export async function viatorSearch(params: VendorSearchParams): Promise<VendorSe
 
   const results: VendorSearchResult[] = products.map((p, i) => {
     const thumb = p.images?.[0]?.variants?.find((v) => (v.width ?? 0) >= 400)?.url ?? p.images?.[0]?.variants?.[0]?.url;
+    const duration = formatDuration(p.duration);
     return {
       id: p.productCode ?? `viator-${i}`,
       title: p.title ?? "Untitled experience",
-      description: p.description,
+      // Duration leads — it's what actually differentiates candidates at a
+      // glance, same reasoning as Flight results leading with flight
+      // number/times. The result card truncates to one line, so it has to
+      // be first to survive that.
+      description: duration ? [duration, p.description].filter(Boolean).join(" · ") : p.description,
       thumbnail_url: thumb,
       booking_link: p.productUrl,
       price: p.pricing?.summary?.fromPrice,
