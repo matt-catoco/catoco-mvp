@@ -183,7 +183,7 @@ export function IconPicker({
           onClick={() => setSearchOpen((v) => !v)}
           className="rounded-lg border border-brand-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-foreground"
         >
-          Search Unsplash
+          Search Image
         </button>
       </div>
 
