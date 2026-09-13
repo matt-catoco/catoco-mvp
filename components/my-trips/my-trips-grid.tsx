@@ -22,14 +22,14 @@ export function MyTripsGrid({
 
   return (
     <div className="mt-8 flex flex-col gap-6">
-      <div className="flex w-fit gap-1 rounded-full border border-brand-line bg-black/[.02] p-1 dark:bg-white/[.03]">
+      <div className="flex w-fit gap-1 rounded-full bg-brand-teal-wash p-1">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition-colors ${
-              tab === key ? "bg-foreground text-background" : "text-brand-muted hover:text-foreground"
+            className={`rounded-full px-[18px] py-2 text-[13.5px] font-bold transition-colors ${
+              tab === key ? "bg-foreground text-background" : "text-brand-teal-deep"
             }`}
           >
             {label} ({counts[key]})
@@ -42,7 +42,7 @@ export function MyTripsGrid({
           {tab === "upcoming" ? "No upcoming trips." : "No past trips yet."}
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 min-[760px]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-[22px] min-[760px]:grid-cols-2">
           {trips.map((trip) => (
             <TripCard key={trip.id} trip={trip} />
           ))}
