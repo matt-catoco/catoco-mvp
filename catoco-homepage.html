@@ -149,16 +149,17 @@
     background: var(--teal-deep);
   }
   .hero h1{
-    font-size: 50px;
-    line-height: 1.15;
+    font-size: 64px;
+    line-height: 1.12;
     max-width: 15ch;
   }
   .hero-sub{
-    margin-top: 22px;
-    font-size: 18px;
-    line-height: 1.6;
-    color: var(--muted);
-    max-width: 46ch;
+    margin-top: 20px;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 40ch;
   }
   .hero-actions{
     display: flex;
@@ -187,28 +188,29 @@
     position: relative;
     background: var(--white);
     border: 1.5px solid var(--line);
-    border-radius: 20px;
-    padding: 30px;
-    min-height: 360px;
+    border-radius: 18px;
+    padding: 24px;
+    max-width: 480px;
+    margin-left: auto;
+    min-height: 280px;
   }
   .tile-stage-label{
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--muted);
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
   .tile-grid{
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    gap: 9px;
   }
   .tile{
     aspect-ratio: 1;
-    border-radius: 12px;
-    padding: 10px;
+    border-radius: 10px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     font-family: var(--font-display);
   }
   .tile.open{
@@ -226,20 +228,21 @@
     background: var(--ink);
     color: var(--paper);
   }
-  .tile .sym{ font-size: 20px; font-weight: 700; }
-  .tile .lbl{ font-size: 10px; font-weight: 600; letter-spacing: 0.02em; }
-  .tile .num{ font-size: 10px; opacity: 0.55; }
+  .tile .num{ font-size: 9px; opacity: 0.55; margin-bottom: auto; }
+  .tile .sym{ font-size: 16px; font-weight: 700; margin-top: 4px; }
+  .tile .lbl{ font-size: 9px; font-weight: 600; letter-spacing: 0.01em; margin-top: 4px; line-height: 1.25; }
+  .tile .detail{ font-size: 9px; font-weight: 600; letter-spacing: 0.01em; margin-top: 2px; opacity: 0.85; }
 
   .convergence-note{
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     row-gap: 8px;
-    column-gap: 18px;
+    column-gap: 12px;
     margin-top: 20px;
     padding-top: 18px;
     border-top: 1px solid var(--line);
-    font-size: 13px;
+    font-size: 12px;
     color: var(--muted);
   }
   .key-item{
@@ -485,27 +488,27 @@
   <div class="wrap hero-grid">
     <div>
       <span class="eyebrow"><span class="dot"></span>Beta opening soon</span>
-      <h1>From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;</h1>
-      <p class="hero-sub">Catoco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.</p>
+      <h1>Plan it together. Fund it together. Go.</h1>
+      <p class="hero-sub">From intent to itinerary</p>
       <div class="hero-actions">
         <a href="#signup" class="btn btn-primary">Join the beta</a>
         <a href="#how" class="link-quiet">See how it works</a>
       </div>
     </div>
     <div class="tile-stage">
-      <div class="tile-stage-label">Accommodations — still deciding</div>
+      <div class="tile-stage-label">Chelsea's 40th — trip overview</div>
       <div class="tile-grid">
-        <div class="tile open"><span class="sym">Hs</span><span class="lbl">Hostel</span><span class="num">04</span></div>
-        <div class="tile candidate"><span class="sym">Vl</span><span class="lbl">Villa</span><span class="num">14</span></div>
-        <div class="tile open"><span class="sym">Ap</span><span class="lbl">Apart.</span><span class="num">21</span></div>
-        <div class="tile open"><span class="sym">Cb</span><span class="lbl">Cabin</span><span class="num">08</span></div>
-        <div class="tile locked"><span class="sym">Vl</span><span class="lbl">Villa</span><span class="num">14</span></div>
-        <div class="tile open"><span class="sym">Tn</span><span class="lbl">Tent</span><span class="num">02</span></div>
+        <div class="tile locked"><span class="num">01</span><span class="sym">Dt</span><span class="lbl">Dates</span><span class="detail">Sep 12–19</span></div>
+        <div class="tile candidate"><span class="num">02</span><span class="sym">Ds</span><span class="lbl">Destination</span><span class="detail">Sevilla, ES</span></div>
+        <div class="tile candidate"><span class="num">03</span><span class="sym">Ac</span><span class="lbl">Accommodations</span><span class="detail">Villa</span></div>
+        <div class="tile open"><span class="num">04</span><span class="sym">Dn</span><span class="lbl">Dining</span><span class="detail">Dinner</span></div>
+        <div class="tile open"><span class="num">05</span><span class="sym">Ex</span><span class="lbl">Experiences</span><span class="detail">Flamenco show</span></div>
+        <div class="tile open"><span class="num">06</span><span class="sym">Tr</span><span class="lbl">Travel</span><span class="detail">Flights</span></div>
       </div>
       <div class="convergence-note">
         <span class="key-item"><span class="swatch d"></span>open, still voting</span>
         <span class="key-item"><span class="swatch c"></span>locked in by the group</span>
-        <span class="key-item"><span class="swatch s"></span>funded, ready to go</span>
+        <span class="key-item"><span class="swatch s"></span>ready to go</span>
       </div>
     </div>
   </div>
@@ -514,8 +517,8 @@
 <section class="problem">
   <div class="wrap">
     <div class="section-head">
-      <h2>They die in chats and spreadsheets.</h2>
-      <p>It's not that nobody wants to go. It's that &ldquo;we should do this&rdquo; has nowhere to turn into &ldquo;it's booked.&rdquo;</p>
+      <h2>From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;</h2>
+      <p>Catoco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.</p>
     </div>
     <div class="problem-grid">
       <div class="problem-card">
@@ -540,8 +543,7 @@
 <section id="how">
   <div class="wrap">
     <div class="section-head">
-      <h2>From intent to itinerary</h2>
-      <p class="tagline">No chasing. No heroes. No awkwardness.</p>
+      <h2>No chasing. No heroes. No awkwardness.</h2>
     </div>
     <div class="steps">
       <div class="step"><div class="step-rail"></div><h3>Create</h3><p>Name the trip, rough dates, who's coming.</p></div>
