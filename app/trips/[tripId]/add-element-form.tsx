@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { ElementMetadataFields } from "@/components/element-metadata-fields";
@@ -146,11 +146,6 @@ export function AddElementForm({
       return next;
     });
   }
-
-  const lockDisabledReason = useMemo(() => {
-    if (canLock) return null;
-    return "Only the organizer can lock an element in immediately — everyone else's needs a vote.";
-  }, [canLock]);
 
   function validate(): string | null {
     if (state === "locked") {
@@ -366,18 +361,18 @@ export function AddElementForm({
           >
             Open for voting
           </button>
-          <button
-            type="button"
-            disabled={!canLock}
-            onClick={() => setState("locked")}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              state === "locked" ? pillActiveTeal : pillInactive
-            }`}
-          >
-            Lock it in now
-          </button>
+          {canLock && (
+            <button
+              type="button"
+              onClick={() => setState("locked")}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                state === "locked" ? pillActiveTeal : pillInactive
+              }`}
+            >
+              Lock it in now
+            </button>
+          )}
         </div>
-        {lockDisabledReason && <p className="text-xs text-brand-muted">{lockDisabledReason}</p>}
       </div>
 
       {state === "locked" ? (
