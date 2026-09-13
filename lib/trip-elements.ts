@@ -165,7 +165,14 @@ export function describeElementStatus(row: {
     return {
       state: "locked",
       funded: funded || booked,
-      tier: booked ? "ready" : funded ? "funded" : "locked",
+      // Dates/Destination never produce booked or funded (neither is
+      // price-bearing, so neither ever gets a funding_request or a real
+      // booking step) — "Confirmed" is their one and only locked-state
+      // label, and it means the same thing a booked/funded tile means for
+      // every other type: nothing further to do. Falling through to the
+      // "locked" (still-pending) tier here would show the intermediate
+      // teal-wash visual under a label that says it's actually done.
+      tier: booked ? "ready" : funded ? "funded" : !PRICE_BEARING_TYPES.includes(row.type) ? "ready" : "locked",
       statusLabel,
       detail: row.lockedValue ? summarizeOptionValue(row.type, row.lockedValue) : "?",
     };
@@ -505,6 +512,11 @@ export type PricingTier = (typeof PRICING_TIERS)[number];
 export type PlaceValue = LinkPreview & {
   name: string;
   booking_link?: string;
+  // Free-text reference note, same optional field Travel already has for
+  // manually-entered options — a place to jot down a discount code, a
+  // reservation name, or anything else worth remembering that isn't a
+  // structured field here.
+  note?: string;
   price?: number;
   currency?: string;
   pricing_basis?: string;
@@ -675,6 +687,7 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
         subtype: "",
         accommodation_fields: {},
         dates: { start_date: "", end_date: "", nights: "", flexibility_days: "" },
+        note: "",
         booking_link: "",
         price: "",
         currency: "USD",
@@ -690,6 +703,7 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
         location_lat: "",
         location_lng: "",
         location_place_id: "",
+        note: "",
         booking_link: "",
         price: "",
         currency: "USD",
@@ -704,6 +718,7 @@ export function emptyValueFor(type: ElementType): Record<string, unknown> {
         location_lat: "",
         location_lng: "",
         location_place_id: "",
+        note: "",
         booking_link: "",
         guests: "",
         cuisine: "",
@@ -927,6 +942,7 @@ export function normalizeOptionValue(
       if (value.travelers && typeof value.travelers === "object") {
         out.travelers = value.travelers as TravelersBreakdown;
       }
+      if (str("note")) out.note = str("note");
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("price")) {
         out.price = Number(value.price);
@@ -959,6 +975,7 @@ export function normalizeOptionValue(
       if (value.travelers && typeof value.travelers === "object") {
         out.travelers = value.travelers as TravelersBreakdown;
       }
+      if (str("note")) out.note = str("note");
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("price")) {
         out.price = Number(value.price);
@@ -981,6 +998,7 @@ export function normalizeOptionValue(
         if (str("location_lng")) out.location_lng = Number(value.location_lng);
         if (str("location_place_id")) out.location_place_id = str("location_place_id");
       }
+      if (str("note")) out.note = str("note");
       if (str("booking_link")) out.booking_link = str("booking_link");
       if (str("guests")) out.guests = Number(value.guests);
       if (str("cuisine")) out.cuisine = str("cuisine");

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notifyInvited } from "@/lib/notifications";
 import {
   ELEMENT_METADATA_FIELDS,
+  PRICE_BEARING_TYPES,
   describeElementStatus,
   formatDate,
   type ElementType,
@@ -348,7 +349,14 @@ export default async function ElementDetailPage({
               members={bundleMembers}
             />
           ) : (
-            canEdit && <BookingConfirmation tripId={tripId} elementId={element.id} />
+            // Dates/Destination are never price-bearing, so `funding` is
+            // always null for them too — that's not "locked but missing a
+            // funding request," there's nothing to book at all for these
+            // two types.
+            canEdit &&
+            PRICE_BEARING_TYPES.includes(element.type) && (
+              <BookingConfirmation tripId={tripId} elementId={element.id} />
+            )
           ))}
       </div>
     );

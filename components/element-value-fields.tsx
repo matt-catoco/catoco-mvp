@@ -279,6 +279,12 @@ export function ElementValueFields({
           </div>
 
           <input
+            className={field}
+            placeholder="Note (optional)"
+            value={str("note")}
+            onChange={(e) => set("note", e.target.value)}
+          />
+          <input
             type="url"
             className={field}
             placeholder="Booking link (required) — e.g. an Airbnb or hotel page"
@@ -366,6 +372,12 @@ export function ElementValueFields({
               />
             </label>
           </div>
+          <input
+            className={field}
+            placeholder="Note (optional)"
+            value={str("note")}
+            onChange={(e) => set("note", e.target.value)}
+          />
           <input
             type="url"
             className={field}
@@ -464,7 +476,7 @@ export function ElementValueFields({
           </div>
           <label className="flex flex-col gap-1">
             <span className={label}>
-              Price range <span className="text-red-500">*</span>
+              Price <span className="text-red-500">*</span>
             </span>
             <div className="flex gap-1.5">
               {PRICING_TIERS.map((t) => (
@@ -481,6 +493,12 @@ export function ElementValueFields({
               ))}
             </div>
           </label>
+          <input
+            className={field}
+            placeholder="Note (optional)"
+            value={str("note")}
+            onChange={(e) => set("note", e.target.value)}
+          />
           <input
             type="url"
             className={field}
