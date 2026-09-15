@@ -230,7 +230,7 @@ export default async function Home() {
                 <span className={styles.type}>Destination</span>
                 <span className={styles.value}>Sevilla, ES</span>
               </div>
-              <div className={`${styles.tile} ${styles.candidate}`}>
+              <div className={`${styles.tile} ${styles.funded}`}>
                 <span className={styles.num}>03</span>
                 <span className={styles.sym}>Ac</span>
                 <span className={styles.type}>Accommodations</span>
@@ -258,15 +258,19 @@ export default async function Home() {
             <div className={styles.convergenceNote}>
               <span className={styles.keyItem}>
                 <span className={`${styles.swatch} ${styles.d}`} />
-                open, still voting
+                Open
               </span>
               <span className={styles.keyItem}>
                 <span className={`${styles.swatch} ${styles.c}`} />
-                locked in by the group
+                Confirmed
+              </span>
+              <span className={styles.keyItem}>
+                <span className={`${styles.swatch} ${styles.f}`} />
+                Funded
               </span>
               <span className={styles.keyItem}>
                 <span className={`${styles.swatch} ${styles.s}`} />
-                ready to go
+                Ready to go
               </span>
             </div>
           </div>
@@ -313,8 +317,8 @@ export default async function Home() {
       <section className={styles.section} id="how">
         <div className={styles.wrap}>
           <div className={styles.sectionHead}>
-            <h2>No chasing. No heroes. No awkwardness.</h2>
-            <p className={styles.tagline}>From intent to itinerary</p>
+            <h2>From intent to itinerary</h2>
+            <p className={styles.tagline}>No chasing. No heroes. No awkwardness.</p>
           </div>
           <div className={styles.steps}>
             <div className={styles.step}>

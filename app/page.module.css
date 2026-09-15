@@ -263,6 +263,11 @@
   background: var(--ink);
   color: var(--paper);
 }
+.tile.funded {
+  border: 2px solid var(--teal-deep);
+  background: var(--white);
+  color: var(--teal-deep);
+}
 .tile .sym {
   font-size: 17px;
   font-weight: 700;
@@ -319,6 +324,24 @@
 }
 .swatch.s {
   background: var(--ink);
+}
+.swatch.f {
+  border: 1.5px solid var(--teal-deep);
+  background: var(--white);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tile.candidate {
+    animation: pulse 3s ease-in-out infinite;
+  }
+}
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.88;
+  }
 }
 
 /* ---------- SECTION SCAFFOLDING ---------- */

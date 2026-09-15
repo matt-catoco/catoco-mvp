@@ -223,6 +223,11 @@
     background: var(--teal-wash);
     color: var(--teal-deep);
   }
+  .tile.funded{
+    border: 2px solid var(--teal-deep);
+    background: var(--white);
+    color: var(--teal-deep);
+  }
   .tile.locked{
     border: 2px solid var(--teal);
     background: var(--ink);
@@ -254,14 +259,15 @@
   .swatch{ width: 10px; height: 10px; border-radius: 2px; flex-shrink:0; }
   .swatch.d{ border: 1.5px dashed var(--muted); }
   .swatch.c{ border: 1.5px dashed var(--teal-deep); background: var(--teal-wash); }
+  .swatch.f{ border: 1.5px solid var(--teal-deep); background: var(--white); }
   .swatch.s{ background: var(--ink); }
 
   @media (prefers-reduced-motion: no-preference){
-    .tile.candidate{ animation: pulse 2.4s ease-in-out infinite; }
+    .tile.candidate{ animation: pulse 3s ease-in-out infinite; }
   }
   @keyframes pulse{
     0%,100%{ opacity: 1; }
-    50%{ opacity: 0.55; }
+    50%{ opacity: 0.88; }
   }
 
   /* ---------- SECTION SCAFFOLDING ---------- */
@@ -332,7 +338,7 @@
   .elements .section-head h2{ color: var(--paper); }
   .el-grid{
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 14px;
   }
   .el-tile{
@@ -343,14 +349,25 @@
     flex-direction: column;
     justify-content: space-between;
   }
-  .el-tile.locked{
+  .el-tile.open{
+    border: 2px dashed rgba(250,250,247,0.35);
+    color: rgba(250,250,247,0.85);
+    background: transparent;
+  }
+  .el-tile.confirmed{
+    border: 2px dashed var(--teal);
+    background: rgba(45,212,191,0.12);
+    color: var(--teal);
+  }
+  .el-tile.funded{
     background: var(--paper);
     color: var(--ink);
     border: 2px solid var(--teal);
   }
-  .el-tile.open{
-    border: 2px dashed rgba(250,250,247,0.35);
-    color: rgba(250,250,247,0.85);
+  .el-tile.ready{
+    background: var(--teal);
+    color: var(--ink);
+    border: 2px solid var(--teal);
   }
   .el-tile .num{ font-size: 11px; opacity: 0.55; font-weight: 600; }
   .el-tile .sym{ font-family: var(--font-display); font-size: 26px; font-weight: 700; margin: 6px 0 2px; }
@@ -489,7 +506,7 @@
     <div>
       <span class="eyebrow"><span class="dot"></span>Beta opening soon</span>
       <h1>Plan it together. Fund it together. Go.</h1>
-      <p class="hero-sub">From intent to itinerary</p>
+      <p class="hero-sub">From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;</p>
       <div class="hero-actions">
         <a href="#signup" class="btn btn-primary">Join the beta</a>
         <a href="#how" class="link-quiet">See how it works</a>
@@ -500,15 +517,16 @@
       <div class="tile-grid">
         <div class="tile locked"><span class="num">01</span><span class="sym">Dt</span><span class="lbl">Dates</span><span class="detail">Sep 12–19</span></div>
         <div class="tile candidate"><span class="num">02</span><span class="sym">Ds</span><span class="lbl">Destination</span><span class="detail">Sevilla, ES</span></div>
-        <div class="tile candidate"><span class="num">03</span><span class="sym">Ac</span><span class="lbl">Accommodations</span><span class="detail">Villa</span></div>
+        <div class="tile funded"><span class="num">03</span><span class="sym">Ac</span><span class="lbl">Accommodations</span><span class="detail">Villa</span></div>
         <div class="tile open"><span class="num">04</span><span class="sym">Dn</span><span class="lbl">Dining</span><span class="detail">Dinner</span></div>
         <div class="tile open"><span class="num">05</span><span class="sym">Ex</span><span class="lbl">Experiences</span><span class="detail">Flamenco show</span></div>
         <div class="tile open"><span class="num">06</span><span class="sym">Tr</span><span class="lbl">Travel</span><span class="detail">Flights</span></div>
       </div>
       <div class="convergence-note">
-        <span class="key-item"><span class="swatch d"></span>open, still voting</span>
-        <span class="key-item"><span class="swatch c"></span>locked in by the group</span>
-        <span class="key-item"><span class="swatch s"></span>ready to go</span>
+        <span class="key-item"><span class="swatch d"></span>Open</span>
+        <span class="key-item"><span class="swatch c"></span>Confirmed</span>
+        <span class="key-item"><span class="swatch f"></span>Funded</span>
+        <span class="key-item"><span class="swatch s"></span>Ready to go</span>
       </div>
     </div>
   </div>
@@ -517,8 +535,7 @@
 <section class="problem">
   <div class="wrap">
     <div class="section-head">
-      <h2>From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;</h2>
-      <p>Catoco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.</p>
+      <h2>Everyone says yes. Nobody's card does.</h2>
     </div>
     <div class="problem-grid">
       <div class="problem-card">
@@ -543,7 +560,8 @@
 <section id="how">
   <div class="wrap">
     <div class="section-head">
-      <h2>No chasing. No heroes. No awkwardness.</h2>
+      <h2>From intent to itinerary</h2>
+      <p class="tagline">No chasing. No heroes. No awkwardness.</p>
     </div>
     <div class="steps">
       <div class="step"><div class="step-rail"></div><h3>Create</h3><p>Name the trip, rough dates, who's coming.</p></div>
@@ -563,14 +581,12 @@
       <p>Every trip is built on a foundation of elements &mdash; lock what you already know, leave the rest open for the group to decide.</p>
     </div>
     <div class="el-grid">
-      <div class="el-tile locked"><div class="num">01</div><div class="sym">Dt</div><div class="name">Dates</div><div class="state">Locked by organizer</div></div>
-      <div class="el-tile locked"><div class="num">02</div><div class="sym">Ds</div><div class="name">Destination</div><div class="state">Locked by organizer</div></div>
-      <div class="el-tile open"><div class="num">03</div><div class="sym">Bg</div><div class="name">Budget</div><div class="state">Open — voting</div></div>
-      <div class="el-tile open"><div class="num">04</div><div class="sym">Pt</div><div class="name">Participants</div><div class="state">Open — invites out</div></div>
-      <div class="el-tile open"><div class="num">05</div><div class="sym">Tr</div><div class="name">Travel</div><div class="state">Open — voting</div></div>
-      <div class="el-tile open"><div class="num">06</div><div class="sym">Ac</div><div class="name">Accommodations</div><div class="state">Open — voting</div></div>
-      <div class="el-tile open"><div class="num">07</div><div class="sym">Ex</div><div class="name">Experiences</div><div class="state">Open — voting</div></div>
-      <div class="el-tile open"><div class="num">08</div><div class="sym">Dn</div><div class="name">Dining</div><div class="state">Open — voting</div></div>
+      <div class="el-tile ready"><div class="num">01</div><div class="sym">Dt</div><div class="name">Dates</div><div class="state">Ready to go — Sep 12–19</div></div>
+      <div class="el-tile ready"><div class="num">02</div><div class="sym">Ds</div><div class="name">Destination</div><div class="state">Ready to go — Sevilla, ES</div></div>
+      <div class="el-tile funded"><div class="num">03</div><div class="sym">Ac</div><div class="name">Accommodations</div><div class="state">Funded — Villa</div></div>
+      <div class="el-tile confirmed"><div class="num">04</div><div class="sym">Tr</div><div class="name">Travel</div><div class="state">Confirmed — Flights</div></div>
+      <div class="el-tile open"><div class="num">05</div><div class="sym">Ex</div><div class="name">Experiences</div><div class="state">Open — Flamenco show</div></div>
+      <div class="el-tile open"><div class="num">06</div><div class="sym">Dn</div><div class="name">Dining</div><div class="state">Open — 2 ideas</div></div>
     </div>
   </div>
 </section>
