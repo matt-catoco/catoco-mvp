@@ -428,7 +428,7 @@ export default async function Home() {
                 </button>
               </div>
               <div className={styles.tfNote}>
-                Opens the real Catoco Alpha Signup form.
+                Opens the real Catoco Beta Signup form.
               </div>
             </div>
           </div>
