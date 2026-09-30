@@ -8,6 +8,7 @@ import {
   ELEMENT_METADATA_FIELDS,
   PRICE_BEARING_TYPES,
   describeElementStatus,
+  formatCurrency,
   formatDate,
   type ElementType,
 } from "@/lib/trip-elements";
@@ -17,7 +18,15 @@ import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
 import { EditElementForm } from "../../edit-element-form";
-import { FundingCard, type FundingRequestInfo, type BundleMemberInfo } from "../../funding-card";
+import {
+  FundingCard,
+  type FundingRequestInfo,
+  type BundleMemberInfo,
+  type FundingPayments,
+} from "../../funding-card";
+import type { MyMandateInfo } from "../../mandate-panel";
+import type { PaymentRosterEntry, PaymentState } from "../../payment-status";
+import { stripeConfigured } from "@/lib/stripe/server";
 import { BookingConfirmation } from "../../booking-confirmation";
 import { getTripContext } from "../../trip-context";
 
@@ -46,6 +55,29 @@ type FundingRow = {
   purchaser_id: string | null;
   actual_amount_paid: number | null;
   refunded_at: string | null;
+  currency: string | null;
+  charge_status: "charging" | "charged" | "failed" | null;
+  charge_failure_reason: string | null;
+  refund_all_requested_at: string | null;
+};
+
+type MandateRow = {
+  id: string;
+  participant_id: string;
+  status: MyMandateInfo["status"];
+  payment_method_type: MyMandateInfo["paymentMethodType"];
+  failure_reason: string | null;
+  created_at: string;
+};
+
+type ContributionRow = {
+  contributor_id: string;
+  source: "manual" | "stripe";
+  amount: number;
+  payment_method_type: string | null;
+  refunded_at: string | null;
+  stripe_refund_id: string | null;
+  created_at: string;
 };
 
 type RosterRow = { user_id: string; display_name: string | null; is_organizer: boolean };
@@ -161,7 +193,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -199,6 +231,7 @@ export default async function ElementDetailPage({
     let funding: FundingRequestInfo | null = null;
     let fundingRoster: RosterRow[] = [];
     let bundleMembers: BundleMemberInfo[] = [];
+    let payments: FundingPayments | undefined;
     if (fundingRow) {
       const { data: collected } = await supabase.rpc("get_funding_collected", {
         p_funding_request_id: fundingRow.id,
@@ -219,7 +252,111 @@ export default async function ElementDetailPage({
             : purchaser?.display_name?.trim() || (purchaser?.is_organizer ? "Organizer" : "Member"),
         actualAmountPaid: fundingRow.actual_amount_paid,
         refundedAt: fundingRow.refunded_at,
+        chargeStatus: fundingRow.charge_status,
       };
+
+      // Flow #4: mandate-based payments, only where Stripe (test mode) is
+      // configured — elsewhere the card keeps the manual Commit ledger.
+      if (stripeConfigured()) {
+        // RLS scopes these: the organizer reads every mandate on the
+        // request, a participant only their own. Contributions are visible
+        // to all members (existing policy).
+        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }] = await Promise.all([
+          supabase
+            .from("funding_mandates")
+            .select("id, participant_id, status, payment_method_type, failure_reason, created_at")
+            .eq("funding_request_id", fundingRow.id)
+            .order("created_at", { ascending: false })
+            .returns<MandateRow[]>(),
+          supabase.rpc("get_funding_mandate_summary", { p_funding_request_id: fundingRow.id }),
+          supabase
+            .from("funding_contributions")
+            .select("contributor_id, source, amount, payment_method_type, refunded_at, stripe_refund_id, created_at")
+            .eq("funding_request_id", fundingRow.id)
+            .order("created_at", { ascending: false })
+            .returns<ContributionRow[]>(),
+        ]);
+        const summary = (Array.isArray(summaryRows) ? summaryRows[0] : summaryRows) as
+          | { population: number; covered: number }
+          | undefined;
+        const mandates = mandateRows ?? [];
+        const contributions = contributionRows ?? [];
+        // Rows are newest-first, so the first match per person is their latest.
+        const latestMandate = (uid: string) => mandates.find((m) => m.participant_id === uid);
+        const latestContribution = (uid: string) => contributions.find((c) => c.contributor_id === uid);
+        const mandateRow = latestMandate(user.id);
+        const myContribution = latestContribution(user.id);
+
+        const isOrganizerView = Boolean(canManage);
+        const rosterIds = isOrganizerView
+          ? [
+              ...new Set([
+                ...scopedParticipants.map((p) => p.userId),
+                ...mandates.map((m) => m.participant_id),
+                ...contributions.map((c) => c.contributor_id),
+              ]),
+            ]
+          : [user.id];
+        const paymentRoster: PaymentRosterEntry[] = rosterIds.map((uid) => {
+          const r = rosterById.get(uid);
+          const displayName =
+            uid === user.id ? "You" : r?.display_name?.trim() || (r?.is_organizer ? "Organizer" : "Member");
+          const c = latestContribution(uid);
+          const m = latestMandate(uid);
+          const method = (c?.payment_method_type ?? m?.payment_method_type ?? null) as PaymentRosterEntry["method"];
+          let state: PaymentState = "not_authorized";
+          let detail: string | null = null;
+          if (c) {
+            state = c.refunded_at
+              ? "refunded"
+              : c.stripe_refund_id
+                ? "refund_pending"
+                : fundingRow.status === "booked"
+                  ? "used"
+                  : "paid";
+            detail = formatCurrency(c.amount, fundingRow.currency ?? "USD");
+          } else if (m) {
+            state = (
+              {
+                pending: "started",
+                active: "authorized",
+                charging: "charging",
+                charge_succeeded: "paid",
+                charge_failed: "charge_failed",
+                refunded: "refunded",
+                canceled: "canceled",
+              } as const
+            )[m.status];
+            if (m.status === "charge_failed" || m.status === "canceled") detail = m.failure_reason;
+          }
+          return { userId: uid, displayName, state, method, detail };
+        });
+
+        const held = contributions.filter((c) => c.source === "stripe" && !c.refunded_at);
+        payments = {
+          panel: {
+            chargeFailureReason: fundingRow.charge_failure_reason,
+            myMandate: mandateRow
+              ? {
+                  id: mandateRow.id,
+                  status: mandateRow.status,
+                  paymentMethodType: mandateRow.payment_method_type,
+                  failureReason: mandateRow.failure_reason,
+                }
+              : null,
+            population: summary?.population ?? 0,
+            covered: summary?.covered ?? 0,
+            // A Stripe-sourced row also lands here once charged; the panel's
+            // charge-state branches take precedence over this in that case.
+            alreadyContributed: Boolean(myContribution && !myContribution.refunded_at) && !mandateRow,
+          },
+          roster: paymentRoster,
+          isOrganizerView,
+          heldAmount: held.reduce((sum, c) => sum + Number(c.amount), 0),
+          heldCount: held.length,
+          refundRequestedAt: fundingRow.refund_all_requested_at,
+        };
+      }
 
       // §6 bundling UI: one combined screen listing every member of this
       // funding_request, not separate per-element funding prompts. A
@@ -331,7 +468,11 @@ export default async function ElementDetailPage({
           </div>
         )}
 
-        {!element.booked_at &&
+        {/* Booked elements normally drop the funding card — except when
+            real Stripe payments back it: everyone's "used for booking"
+            status and the Refund everyone path (a cancelled booking) have
+            to stay reachable. */}
+        {(!element.booked_at || (funding && payments)) &&
           (funding ? (
             <FundingCard
               tripId={tripId}
@@ -344,9 +485,11 @@ export default async function ElementDetailPage({
                 displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
               }))}
               currency={
-                (option?.value as Record<string, unknown> | undefined)?.currency as string | undefined
+                fundingRow?.currency ??
+                ((option?.value as Record<string, unknown> | undefined)?.currency as string | undefined)
               }
               members={bundleMembers}
+              payments={payments}
             />
           ) : (
             // Dates/Destination are never price-bearing, so `funding` is

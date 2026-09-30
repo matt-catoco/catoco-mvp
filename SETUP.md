@@ -163,6 +163,53 @@ Dashboard → **Authentication**.
    Settings → Environment Variables. Without it, those two notification
    emails silently no-op (logged as an error, doesn't break the page).
 
+## 6a. Stripe — mandate payments (flow #4, TEST MODE ONLY)
+
+Blocked from live until incorporation is final, a verified live Stripe account
+exists, and the founder gives written go-ahead. The code enforces this:
+`lib/stripe/server.ts` throws on any key that isn't `sk_test_`/`rk_test_`, the
+client refuses a non-`pk_test_` publishable key, and the webhook ignores
+livemode events. Sandbox: **catoco sandbox** (`acct_1UKcfA2OivYhKRxv`).
+
+Env vars (`.env.local` + Vercel **Preview/staging scope only** — not Production):
+
+- `STRIPE_SECRET_KEY` — Dashboard (test mode) → Developers → API keys → secret key. Server-only.
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — same page, publishable key (`pk_test_…`).
+- `STRIPE_WEBHOOK_SECRET` — signing secret of the webhook endpoint (below).
+
+Without both API keys set, the app keeps the old manual "Commit" ledger — that's
+how Production behaves today.
+
+**Webhook endpoint:** `/api/stripe/webhook`, events `setup_intent.succeeded`,
+`setup_intent.setup_failed`, `payment_intent.succeeded`,
+`payment_intent.payment_failed`, `charge.refunded`. Locally, use the Stripe CLI (`winget install Stripe.StripeCli`)
+— no `stripe login` needed if you pass the test key:
+`stripe listen --api-key <sk_test_…> --forward-to localhost:3000/api/stripe/webhook`,
+then put the `whsec_…` it prints into `.env.local`.
+
+**Refunds:** a failed charge batch refunds its succeeded charges automatically.
+To cancel a funded element/trip, the organizer uses **Refund everyone** on the
+element's funding card (also available after "Mark booked", for a cancelled
+booking). It shows Refunded once every `charge.refunded` webhook lands; only
+then can the element/trip be deleted. Delete element, "Report unavailable" and
+the manual "Mark as refunded" all refuse while real Stripe money is held.
+
+**SEPA Direct Debit** must be turned on in the Dashboard (test mode) → Settings →
+Payment methods. Until it is, EUR trips fall back to card-only with a notice.
+
+**Charge job:** `/api/cron/funding-charges` (Vercel Cron, daily 00:15 UTC,
+`CRON_SECRET`-gated). Vercel only runs crons on Production deploys, so on
+staging/local trigger it by hand:
+`curl -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/cron/funding-charges`.
+If the Vercel plan allows it, tighten the schedule to hourly — a daily run can
+fire up to ~24h after a deadline set to a non-midnight time.
+
+**Test data only:** cards `4242 4242 4242 4242` (succeeds), `4000 0000 0000 0341`
+(authorizes fine, then declines at charge time), `4000 0027 6000 3184` (3DS on
+every payment → the off-session charge fails with authentication_required),
+`4000 0025 0000 3155` (3DS at setup only, off-session charge succeeds); IBANs `AT321904300235473204` (succeeds after ~3
+min), `AT861904300235473202` (fails).
+
 ## 7. Vercel
 
 - Import `matt-catoco/catoco-mvp`. Framework auto-detects as Next.js; leave build

@@ -12,6 +12,8 @@ import {
 } from "./actions";
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 import { formatCurrency } from "@/lib/trip-elements";
+import { MandatePanel, type MandatePanelProps } from "./mandate-panel";
+import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
 
 const field = `h-9 ${fieldClass}`;
 
@@ -34,6 +36,24 @@ export type FundingRequestInfo = {
   // delete_trip() reads server-side to decide whether this funding_request
   // is still blocking the trip from being deleted.
   refundedAt: string | null;
+  /** Flow #4 charge-batch state (Stripe mandates). null = not started. */
+  chargeStatus: "charging" | "charged" | "failed" | null;
+};
+
+/** Present only when Stripe is configured in this environment — the
+ * mandate panel then replaces the manual Commit ledger. */
+export type FundingPayments = {
+  panel: Omit<
+    MandatePanelProps,
+    "tripId" | "elementId" | "fundingRequestId" | "currency" | "individualAmount" | "deadline" | "chargeStatus"
+  >;
+  /** Everyone's payment state for the organizer; just the viewer's own row otherwise. */
+  roster: PaymentRosterEntry[];
+  isOrganizerView: boolean;
+  /** Real Stripe money currently held on this request (unrefunded charges). */
+  heldAmount: number;
+  heldCount: number;
+  refundRequestedAt: string | null;
 };
 
 export type FundingRosterEntry = { userId: string; displayName: string };
@@ -67,6 +87,7 @@ export function FundingCard({
   roster,
   currency = "USD",
   members = [],
+  payments,
 }: {
   tripId: string;
   elementId: string;
@@ -80,6 +101,7 @@ export function FundingCard({
    * combined list above the funding status instead of separate per-element
    * prompts. */
   members?: BundleMemberInfo[];
+  payments?: FundingPayments;
 }) {
   const router = useRouter();
   // Functional purchaser access stays a separate, user-ID-based check —
@@ -222,10 +244,30 @@ export function FundingCard({
             delete_trip()'s block from the UI — a manual "we settled up
             outside the app" acknowledgment, standing in for real refund
             processing until payment integration exists. */}
+        {payments && (
+          <PaymentRoster entries={payments.roster} isOrganizerView={payments.isOrganizerView} />
+        )}
+
         {funding.refundedAt ? (
           <p className="mt-3 border-t border-brand-line pt-3 text-xs text-brand-muted">
             Refunded {new Date(funding.refundedAt).toLocaleDateString()}
           </p>
+        ) : payments && (payments.heldCount > 0 || payments.refundRequestedAt) ? (
+          // Real Stripe money on this pool: the only way out is actually
+          // returning it — the manual flag below refuses in this case.
+          canManage &&
+          funding.chargeStatus !== "charging" && (
+            <RefundEveryone
+              tripId={tripId}
+              elementId={elementId}
+              fundingRequestId={funding.id}
+              heldAmount={payments.heldAmount}
+              heldCount={payments.heldCount}
+              currency={currency}
+              refundRequestedAt={payments.refundRequestedAt}
+              booked={funding.status === "booked"}
+            />
+          )
         ) : (
           canManage &&
           isBlocking && (
@@ -260,51 +302,66 @@ export function FundingCard({
 
       {funding.status === "collecting" && (
         <>
-          {/* Fund it — active: the actual contribution action. §5: not
-              really a "contribution" someone chooses an amount for — it's
-              their fixed owed share of the total, so this displays
-              individualAmount rather than accepting freeform input; the
-              server rejects anything else regardless. */}
-          <div className="rounded-lg border border-brand-line p-3">
-            <span className="text-xs font-medium text-black dark:text-zinc-50">Fund it</span>
-            <div className="mt-2 flex items-center gap-3">
-              <div>
-                <span className={labelClass}>Your share</span>
-                <p className="text-sm font-medium text-black dark:text-zinc-50">
-                  {formatCurrency(funding.individualAmount, currency)}
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={contribPending || justContributed}
-                onClick={() => {
-                  setContribError(null);
-                  startContrib(async () => {
-                    const res = await addFundingContribution(
-                      tripId,
-                      elementId,
-                      funding.id,
-                      funding.individualAmount,
-                    );
-                    if (res.error) {
-                      if (res.error.toLowerCase().includes("already contributed")) {
-                        setJustContributed(true);
-                      } else {
-                        setContribError(res.error);
+          {payments ? (
+            <MandatePanel
+              tripId={tripId}
+              elementId={elementId}
+              fundingRequestId={funding.id}
+              currency={currency}
+              individualAmount={funding.individualAmount}
+              deadline={funding.deadline}
+              chargeStatus={funding.chargeStatus}
+              {...payments.panel}
+            />
+          ) : (
+            <>
+            {/* Fund it — active: the actual contribution action. §5: not
+                really a "contribution" someone chooses an amount for — it's
+                their fixed owed share of the total, so this displays
+                individualAmount rather than accepting freeform input; the
+                server rejects anything else regardless. */}
+            <div className="rounded-lg border border-brand-line p-3">
+              <span className="text-xs font-medium text-black dark:text-zinc-50">Fund it</span>
+              <div className="mt-2 flex items-center gap-3">
+                <div>
+                  <span className={labelClass}>Your share</span>
+                  <p className="text-sm font-medium text-black dark:text-zinc-50">
+                    {formatCurrency(funding.individualAmount, currency)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={contribPending || justContributed}
+                  onClick={() => {
+                    setContribError(null);
+                    startContrib(async () => {
+                      const res = await addFundingContribution(
+                        tripId,
+                        elementId,
+                        funding.id,
+                        funding.individualAmount,
+                      );
+                      if (res.error) {
+                        if (res.error.toLowerCase().includes("already contributed")) {
+                          setJustContributed(true);
+                        } else {
+                          setContribError(res.error);
+                        }
+                        return;
                       }
-                      return;
-                    }
-                    setJustContributed(true);
-                    router.refresh();
-                  });
-                }}
-                className={`h-9 px-3 text-xs ${btnPrimary}`}
-              >
-                {contribPending ? "Committing…" : justContributed ? "Committed" : "Commit"}
-              </button>
+                      setJustContributed(true);
+                      router.refresh();
+                    });
+                  }}
+                  className={`h-9 px-3 text-xs ${btnPrimary}`}
+                >
+                  {contribPending ? "Committing…" : justContributed ? "Committed" : "Commit"}
+                </button>
+              </div>
+              {contribError && <p className="mt-1 text-xs text-red-500">{contribError}</p>}
             </div>
-            {contribError && <p className="mt-1 text-xs text-red-500">{contribError}</p>}
-          </div>
+              </>
+          )}
 
           {canManage && (
             <div className="rounded-lg border border-brand-line p-3">
@@ -344,7 +401,14 @@ export function FundingCard({
               </div>
               {deadlineError && <p className="mt-1 text-xs text-red-500">{deadlineError}</p>}
 
-              {funding.deadline && deadlinePassed && (
+              {funding.deadline && deadlinePassed && payments && funding.chargeStatus === null && (
+                <p className="mt-3 text-xs text-brand-muted">
+                  Deadline passed — charges run on the next scheduled pass. If not everyone
+                  authorized in time, you&apos;ll be able to resolve it here after that.
+                </p>
+              )}
+
+              {funding.deadline && deadlinePassed && (!payments || funding.chargeStatus === "failed") && (
                 <div className="mt-3">
                   <p className="text-xs text-brand-muted">
                     {isFullyFunded
@@ -404,7 +468,7 @@ export function FundingCard({
         </>
       )}
 
-      {funding.status === "ready_to_purchase" && canAct && (
+      {funding.status === "ready_to_purchase" && canAct && !funding.refundedAt && !payments?.refundRequestedAt && (
         <div className="rounded-lg border border-brand-line p-3">
           <p className="text-xs text-brand-muted">Funded — go ahead and purchase it.</p>
           <div className="mt-1.5 flex items-end gap-2">
