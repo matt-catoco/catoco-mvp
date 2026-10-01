@@ -27,6 +27,9 @@ import {
 import type { MyMandateInfo } from "../../mandate-panel";
 import type { PaymentRosterEntry, PaymentState } from "../../payment-status";
 import { stripeConfigured } from "@/lib/stripe/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
+import { ConfirmationDetails } from "@/components/confirmation-details";
 import { BookingConfirmation } from "../../booking-confirmation";
 import { getTripContext } from "../../trip-context";
 
@@ -44,6 +47,8 @@ type ElementRow = {
   locked_via: "organizer" | "vote" | null;
   booked_at: string | null;
   created_by: string | null;
+  confirmation_details: string | null;
+  confirmation_attachment_path: string | null;
 };
 
 type FundingRow = {
@@ -165,7 +170,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -410,6 +415,23 @@ export default async function ElementDetailPage({
       bookedAt: element.booked_at,
     });
 
+    // The element row above was read under the viewer's own RLS (trip
+    // members only), so reaching here is the access check; the private
+    // bucket itself has no policies, so the service role mints a short-lived
+    // read URL rather than any stored/permanent link.
+    let confirmationAttachment: { url: string; isPdf: boolean } | null = null;
+    if (element.confirmation_attachment_path) {
+      const { data: signed } = await createServiceClient()
+        .storage.from(CONFIRMATION_BUCKET)
+        .createSignedUrl(element.confirmation_attachment_path, 600);
+      if (signed?.signedUrl) {
+        confirmationAttachment = {
+          url: signed.signedUrl,
+          isPdf: element.confirmation_attachment_path.toLowerCase().endsWith(".pdf"),
+        };
+      }
+    }
+
     const snapshotCurrency =
       (option?.value as Record<string, unknown> | undefined)?.currency as string | undefined;
     // Funding-flow audit: while collecting, everyone cares about their own
@@ -451,6 +473,7 @@ export default async function ElementDetailPage({
           ) : (
             "?"
           )}
+          <ConfirmationDetails details={element.confirmation_details} attachment={confirmationAttachment} />
         </div>
         {canEdit && !element.booked_at && (
           <div className="mt-3">

@@ -93,6 +93,30 @@ function keyFactsLine(type: ElementType, value: Record<string, unknown>): string
 }
 
 /**
+ * Resolved coordinates for an option, if it has any. Verified per type
+ * against the value shapes (lib/trip-elements.ts / element-value-fields):
+ * Destination stores `lat`/`lng` (place-picker); Experience and Dining store
+ * `location_lat`/`location_lng`. Travel and Accommodation carry no pin, and
+ * vendor-search results don't set coordinates — those simply get no map.
+ * Zoom is per type: a destination is a city/region, the others are a venue.
+ */
+function mapPoint(type: ElementType, value: Record<string, unknown>): { lat: number; lng: number; z: number } | null {
+  const pick = (latKey: string, lngKey: string, z: number) => {
+    const lat = Number(value[latKey]);
+    const lng = Number(value[lngKey]);
+    if (value[latKey] === "" || value[lngKey] === "" || value[latKey] == null || value[lngKey] == null) return null;
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng, z } : null;
+  };
+  if (type === "destination") return pick("lat", "lng", 9);
+  if (type === "experience" || type === "dining") return pick("location_lat", "location_lng", 13);
+  return null;
+}
+
+function mapSrc(p: { lat: number; lng: number; z: number }) {
+  return `/api/static-map?lat=${p.lat.toFixed(3)}&lng=${p.lng.toFixed(3)}&z=${p.z}`;
+}
+
+/**
  * Renders a candidate for comparison — a real card (thumbnail on top, title/
  * description/price below) when the booking link's Open Graph tags came
  * back with anything (lib/link-preview.ts, best-effort), falling back to
@@ -115,6 +139,7 @@ export function OptionSummary({
   const price = priceLine(value);
   const fallback = summarizeOptionValue(type, value);
   const facts = PRICE_BEARING_TYPES.includes(type) ? keyFactsLine(type, value) : null;
+  const map = mapPoint(type, value);
 
   const linkLine = bookingLink && (
     <a
@@ -133,7 +158,9 @@ export function OptionSummary({
   // booking_link to scrape an Open Graph thumbnail from the way the
   // price-bearing types do — explicitly allowed into the rich-card branch
   // below even though it isn't itself price-bearing.
-  if ((!PRICE_BEARING_TYPES.includes(type) && type !== "destination") || (!title && !thumbnail)) {
+  // A resolved location alone is enough for the rich card — the map fills
+  // the image slot when there's no photo.
+  if ((!PRICE_BEARING_TYPES.includes(type) && type !== "destination") || (!title && !thumbnail && !map)) {
     return (
       <span className="block">
         {fallback}
@@ -146,10 +173,31 @@ export function OptionSummary({
   return (
     <span className="flex w-full flex-col gap-2">
       {thumbnail ? (
-        // eslint-disable-next-line @next/next/no-img-element -- arbitrary external host, next/image would need every domain allowlisted
+        <span className="relative block">
+          {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary external host, next/image would need every domain allowlisted */}
+          <img
+            src={thumbnail}
+            alt=""
+            className="h-32 w-full rounded-md bg-black/[.06] object-cover dark:bg-white/[.08]"
+          />
+          {/* Map as a second, smaller element — the photo and the pin say
+              different things, so neither replaces the other. */}
+          {map && (
+            // eslint-disable-next-line @next/next/no-img-element -- same-origin auth-gated proxy (/api/static-map)
+            <img
+              src={mapSrc(map)}
+              alt="Map"
+              loading="lazy"
+              className="absolute bottom-1.5 right-1.5 h-14 w-14 rounded-md border-2 border-background object-cover shadow-sm"
+            />
+          )}
+        </span>
+      ) : map ? (
+        // eslint-disable-next-line @next/next/no-img-element -- same-origin auth-gated proxy (/api/static-map)
         <img
-          src={thumbnail}
-          alt=""
+          src={mapSrc(map)}
+          alt="Map"
+          loading="lazy"
           className="h-32 w-full rounded-md bg-black/[.06] object-cover dark:bg-white/[.08]"
         />
       ) : (

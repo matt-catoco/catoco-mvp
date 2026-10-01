@@ -14,6 +14,7 @@ import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 import { formatCurrency } from "@/lib/trip-elements";
 import { MandatePanel, type MandatePanelProps } from "./mandate-panel";
 import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
+import { ConfirmationFields, useConfirmationFields } from "./confirmation-fields";
 
 const field = `h-9 ${fieldClass}`;
 
@@ -146,6 +147,7 @@ export function FundingCard({
   const [refundError, setRefundError] = useState<string | null>(null);
 
   const [actualPaid, setActualPaid] = useState("");
+  const confirmation = useConfirmationFields();
   const [reportPending, startReport] = useTransition();
   const [reportError, setReportError] = useState<string | null>(null);
 
@@ -495,7 +497,18 @@ export function FundingCard({
                   return;
                 }
                 startReport(async () => {
-                  const res = await reportElementBooked(tripId, elementId, "booked", amount);
+                  const collected = await confirmation.collect(tripId, elementId);
+                  if (collected.error) {
+                    setReportError(collected.error);
+                    return;
+                  }
+                  const res = await reportElementBooked(
+                    tripId,
+                    elementId,
+                    "booked",
+                    amount,
+                    collected.confirmation,
+                  );
                   if (res.error) {
                     setReportError(res.error);
                     return;
@@ -507,6 +520,9 @@ export function FundingCard({
             >
               {reportPending ? "Saving…" : "Mark booked"}
             </button>
+          </div>
+          <div className="mt-2">
+            <ConfirmationFields {...confirmation} disabled={reportPending} />
           </div>
           <button
             type="button"

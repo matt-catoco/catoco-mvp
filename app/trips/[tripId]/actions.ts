@@ -607,12 +607,18 @@ export async function reportElementBooked(
   elementId: string,
   outcome: "booked" | "unavailable",
   actualAmountPaid?: number,
+  // Optional booking confirmation (free text + an attachment already
+  // uploaded via prepareConfirmationUpload's signed URL). Visible to the
+  // whole trip once saved.
+  confirmation?: { details?: string; attachmentPath?: string },
 ): Promise<ReportElementBookedResult> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("report_element_booked", {
     p_element_id: elementId,
     p_outcome: outcome,
     p_actual_amount_paid: actualAmountPaid ?? null,
+    p_confirmation_details: confirmation?.details ?? null,
+    p_confirmation_attachment_path: confirmation?.attachmentPath ?? null,
   });
   if (error) return { error: toUserFacingError(error) };
 
