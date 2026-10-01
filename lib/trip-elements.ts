@@ -274,6 +274,12 @@ export type TravelValue = LinkPreview & {
   flight_number?: string;
   depart_time?: string;
   arrival_time?: string;
+  // Set only on a flight picked from a live Duffel search: the offer it came
+  // from stands in for a booking link (Duffel offers have no public page).
+  // Offers expire (~minutes); this is provenance, not a held fare.
+  vendor_source?: "duffel";
+  vendor_offer_id?: string;
+  vendor_offer_expires_at?: string;
   travelers?: TravelersBreakdown;
   pickup_location?: string;
   pickup_datetime?: string;
@@ -754,6 +760,15 @@ function priceError(value: Record<string, unknown>, opts?: { optional?: boolean 
  * make candidates comparable at a glance on the voting page instead of just
  * bare text.
  */
+export function isDuffelFlight(value: Record<string, unknown>): boolean {
+  return (
+    String(value.mode ?? "") === "flight" &&
+    value.vendor_source === "duffel" &&
+    typeof value.vendor_offer_id === "string" &&
+    value.vendor_offer_id.trim() !== ""
+  );
+}
+
 function bookingLinkError(value: Record<string, unknown>): string | null {
   const raw = String(value.booking_link ?? "").trim();
   if (!raw) return "Add a booking link";
@@ -817,6 +832,11 @@ export function validateOptionValue(
         if (!str("depart_date")) return "Pick a travel date";
         if (Boolean(value.round_trip) && !str("return_date")) return "Pick a return date";
       }
+      // A flight picked from a live Duffel search carries its offer ID instead
+      // of a link (Duffel offers have no public booking page). This only
+      // relaxes the client-side check — submitOption() verifies the offer
+      // with Duffel and takes the price from it before anything is stored.
+      if (isDuffelFlight(value)) return priceError(value);
       return bookingLinkError(value) ?? priceError(value, { optional: str("mode") === "other" });
     }
     case "accommodation": {
@@ -907,6 +927,16 @@ export function normalizeOptionValue(
         if (str("flight_number")) out.flight_number = str("flight_number");
         if (str("depart_time")) out.depart_time = str("depart_time");
         if (str("arrival_time")) out.arrival_time = str("arrival_time");
+        if (isDuffelFlight(value)) {
+          out.vendor_source = "duffel";
+          out.vendor_offer_id = str("vendor_offer_id");
+          if (str("vendor_offer_expires_at")) out.vendor_offer_expires_at = str("vendor_offer_expires_at");
+          // No booking link means no Open Graph scrape to supply these later
+          // (that's how other vendor results get their card title) — keep
+          // the search result's own.
+          if (str("title")) out.title = str("title");
+          if (str("description")) out.description = str("description");
+        }
       }
       if (str("mode") === "rental_car") {
         if (str("pickup_location")) out.pickup_location = str("pickup_location");

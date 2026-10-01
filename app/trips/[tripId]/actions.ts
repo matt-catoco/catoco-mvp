@@ -5,11 +5,14 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   extractPricing,
+  isDuffelFlight,
+  type TravelersBreakdown,
   normalizeOptionValue,
   validateOptionValue,
   type ElementType,
 } from "@/lib/trip-elements";
 import { fetchLinkPreview } from "@/lib/link-preview";
+import { verifyDuffelOffer } from "@/lib/vendor-search/duffel";
 import { fetchUnsplashPhoto } from "@/lib/unsplash";
 import { sendCoreLoopEmail } from "@/lib/notifications";
 import { toUserFacingError } from "@/lib/action-errors";
@@ -54,6 +57,33 @@ async function applyLinkPreview(
     }
   }
   return value;
+}
+
+/**
+ * A flight picked from a live Duffel search skips the booking-link rule on
+ * the strength of its offer ID (Duffel offers have no public page). That
+ * can't rest on a client-supplied flag, so every server path that accepts
+ * an option value runs this: the offer must exist on our Duffel account and
+ * not be expired, and the price comes from Duffel, not the browser. A value
+ * that has a booking link is validated normally and skips this entirely.
+ */
+async function confirmVendorOffer(
+  type: ElementType,
+  rawValue: Record<string, unknown>,
+): Promise<{ value: Record<string, unknown> } | { error: string }> {
+  if (type !== "travel" || !isDuffelFlight(rawValue) || String(rawValue.booking_link ?? "").trim()) {
+    return { value: rawValue };
+  }
+  const travelers = rawValue.travelers as TravelersBreakdown | undefined;
+  const passengerCount =
+    Math.max(1, travelers?.adults ?? 1) + (travelers?.children_ages?.length ?? 0) + (travelers?.infants_ages?.length ?? 0);
+  const offer = await verifyDuffelOffer(String(rawValue.vendor_offer_id), passengerCount);
+  if (!offer) {
+    return {
+      error: "That Duffel fare has expired or couldn't be confirmed — search again, or add a booking link instead.",
+    };
+  }
+  return { value: { ...rawValue, price: offer.perPersonPrice, currency: offer.currency, pricing_basis: "per_person" } };
 }
 
 /**
@@ -110,7 +140,9 @@ export async function createElement(input: {
   if (input.state === "locked") {
     const err = validateOptionValue(input.type, input.lockedValue);
     if (err) return { error: err };
-    const value = normalizeOptionValue(input.type, input.lockedValue!) as Record<string, unknown>;
+    const confirmed = await confirmVendorOffer(input.type, input.lockedValue!);
+    if ("error" in confirmed) return { error: confirmed.error };
+    const value = normalizeOptionValue(input.type, confirmed.value) as Record<string, unknown>;
     const withPreview = await applyLinkPreview(input.type, value);
     const { unitPrice, pricingBasis } = extractPricing(withPreview);
     options = [{ value: withPreview, unit_price: unitPrice, pricing_basis: pricingBasis }];
@@ -167,7 +199,9 @@ export async function updateElement(input: {
   if (input.state === "locked" && input.lockedValue) {
     const err = validateOptionValue(input.type, input.lockedValue);
     if (err) return { error: err };
-    const value = normalizeOptionValue(input.type, input.lockedValue) as Record<string, unknown>;
+    const confirmed = await confirmVendorOffer(input.type, input.lockedValue);
+    if ("error" in confirmed) return { error: confirmed.error };
+    const value = normalizeOptionValue(input.type, confirmed.value) as Record<string, unknown>;
     lockedValue = await applyLinkPreview(input.type, value);
   }
 
@@ -278,6 +312,10 @@ export async function submitOption(
   const validationError = validateOptionValue(type, rawValue);
   if (validationError) return { error: validationError };
 
+  const confirmed = await confirmVendorOffer(type, rawValue);
+  if ("error" in confirmed) return { error: confirmed.error };
+  rawValue = confirmed.value;
+
   const value = await applyLinkPreview(
     type,
     normalizeOptionValue(type, rawValue) as Record<string, unknown>,
@@ -357,6 +395,10 @@ export async function updateOption(
 
   const validationError = validateOptionValue(type, rawValue);
   if (validationError) return { error: validationError };
+
+  const confirmed = await confirmVendorOffer(type, rawValue);
+  if ("error" in confirmed) return { error: confirmed.error };
+  rawValue = confirmed.value;
 
   const value = await applyLinkPreview(
     type,

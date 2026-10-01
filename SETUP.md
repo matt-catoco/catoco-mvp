@@ -210,6 +210,38 @@ every payment → the off-session charge fails with authentication_required),
 `4000 0025 0000 3155` (3DS at setup only, off-session charge succeeds); IBANs `AT321904300235473204` (succeeds after ~3
 min), `AT861904300235473202` (fails).
 
+## 6b. Vendor search — Duffel (flights), Travelpayouts
+
+- `DUFFEL_API_KEY` — Duffel **test** token (`duffel_test_…`) for now; the same var
+  takes the live key once Duffel KYC clears post-incorporation. Server-only.
+  Flight search (`lib/vendor-search/duffel.ts`) is live in test mode; Rental
+  Car/Train/Bus stay mock. A picked Duffel flight carries its offer ID instead of
+  a booking link (offers have no public page); every server path that accepts an
+  option re-verifies the offer with Duffel and takes the price from it.
+- Booking stays manual ("Mark booked") for every type. The sandbox
+  search → select → book check is a standalone script, not app code:
+  `node scripts/duffel-sandbox-order-check.mjs` (refuses non-test keys; pays
+  with Duffel's unlimited test balance; books Duffel Airways ZZ).
+- **Duffel Stays (accommodations) and Cars (rental cars)** — search modules are
+  built (`duffelStaysSearch` / `duffelCarsSearch`) but both products are
+  switched off on the Duffel account until Duffel approves access (requested
+  2026-10-01; the API answers 403 "not enabled"). Each is gated by
+  `DUFFEL_STAYS_ENABLED` / `DUFFEL_CARS_ENABLED` (default `false` → labeled mock
+  data). Before flipping either to `true`: check live responses against the
+  mapping and add the pick-path re-verification (results carry a Duffel ID, not a
+  booking link — same pattern as flights). Location text is geocoded via Mapbox
+  (`lib/vendor-search/geo.ts`); car search uses placeholder driver details
+  (age 30, NL) for pricing only.
+- `TRAVELPAYOUTS_API_TOKEN` / `TRAVELPAYOUTS_MARKER` — set, but **no hotel data
+  API exists to use them for**: Travelpayouts' hotel API was Hotellook's, and
+  Hotellook shut down 2025-10-20 (every hotel endpoint 404s with a valid token;
+  Travelpayouts says no other hotel brand offers partners an API yet).
+  Accommodations stays mock. Flight reference data (e.g. `data/en/cities.json`)
+  does respond.
+- Omio (Train/Bus): its Travelpayouts data feed is a static popular-routes
+  catalog (no dates, no live fares); the real-time API is approval-gated. Train/
+  Bus stay mock.
+
 ## 7. Vercel
 
 - Import `matt-catoco/catoco-mvp`. Framework auto-detects as Next.js; leave build

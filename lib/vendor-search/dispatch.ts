@@ -2,6 +2,14 @@ import "server-only";
 import type { VendorSearchParams, VendorSearchResponse } from "./types";
 import { mockSearch } from "./mock";
 import { viatorSearch } from "./viator";
+import {
+  DuffelNotEnabledError,
+  duffelCarsSearch,
+  duffelConfigured,
+  duffelSearch,
+  duffelStaysSearch,
+} from "./duffel";
+import { geocodePlace } from "./geo";
 
 // One dispatch point, routing by (elementType, searchSubtype) to whichever
 // vendor module actually owns that search today — never by element type
@@ -15,14 +23,23 @@ export async function searchVendor(params: VendorSearchParams): Promise<VendorSe
     case "experience":
       return viatorSearch(params);
 
-    // Flight (Duffel) is the right vendor but blocked on sandbox keys;
-    // Rental Car/Train/Bus's actual covering vendor is unconfirmed;
-    // Accommodations and Dining have no vendor picked yet. All five stay on
-    // mock data — see mock.ts and the build prompt's §1 for the per-vendor
-    // status. Swapping any one of these to a real call later is a single
-    // case here pointing at a new module, same as Viator's.
+    // Flight → Duffel (test mode). Rental Car/Train/Bus have no confirmed
+    // live vendor and stay on mock — Omio's Travelpayouts feed was checked
+    // for Train/Bus and is a static popular-routes catalog (no dates, no
+    // live fares); its real-time API is approval-gated.
     case "travel":
+      if (params.searchSubtype === "flight") return duffelSearch(params);
+      if (params.searchSubtype === "rental_car") {
+        return duffelOrMock(params, "DUFFEL_CARS_ENABLED", "Duffel Cars", duffelCarsSearch);
+      }
+      return mockSearch(params, vendorLabelFor(params));
+
+    // Accommodations → Duffel Stays once enabled. (Travelpayouts was ruled
+    // out: its hotel data API was Hotellook's, which shut down 2025-10-20 —
+    // every hotel endpoint 404s with a valid token, checked 2026-10-01.)
     case "accommodation":
+      return duffelOrMock(params, "DUFFEL_STAYS_ENABLED", "Duffel Stays", duffelStaysSearch);
+
     case "dining":
       return mockSearch(params, vendorLabelFor(params));
 
@@ -31,9 +48,34 @@ export async function searchVendor(params: VendorSearchParams): Promise<VendorSe
   }
 }
 
+/**
+ * Duffel Stays/Cars, each behind its own flag until verified against live
+ * responses (see duffel.ts). Not enabled on the Duffel account, flag off, or
+ * no key → the same labeled mock data as before, never a crashed modal.
+ */
+async function duffelOrMock(
+  params: VendorSearchParams,
+  flag: "DUFFEL_STAYS_ENABLED" | "DUFFEL_CARS_ENABLED",
+  product: string,
+  search: (p: VendorSearchParams, c: { lat: number; lng: number }) => Promise<VendorSearchResponse>,
+): Promise<VendorSearchResponse> {
+  if (process.env[flag] !== "true" || !duffelConfigured()) {
+    return mockSearch(params, `Mock data — ${product} access pending`);
+  }
+  const coords = await geocodePlace(params.location ?? "");
+  if (!coords) return { status: "live", vendorLabel: product, results: [] };
+  try {
+    return await search(params, coords);
+  } catch (err) {
+    if (err instanceof DuffelNotEnabledError) {
+      return mockSearch(params, `Mock data — ${product} not enabled on the Duffel account yet`);
+    }
+    throw err;
+  }
+}
+
 function vendorLabelFor(params: VendorSearchParams): string {
   if (params.elementType === "travel") {
-    if (params.searchSubtype === "flight") return "Mock data — Duffel (blocked on sandbox keys)";
     return "Mock data — vendor coverage unconfirmed";
   }
   return "Mock data — partner pending";
