@@ -30,6 +30,7 @@ import { stripeConfigured } from "@/lib/stripe/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
 import { ConfirmationDetails } from "@/components/confirmation-details";
+import { ElementScopePanel, type ScopeMember } from "../../participation-controls";
 import { BookingConfirmation } from "../../booking-confirmation";
 import { getTripContext } from "../../trip-context";
 
@@ -49,6 +50,7 @@ type ElementRow = {
   created_by: string | null;
   confirmation_details: string | null;
   confirmation_attachment_path: string | null;
+  bundle_group_id: string | null;
 };
 
 type FundingRow = {
@@ -170,7 +172,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -558,6 +560,28 @@ export default async function ElementDetailPage({
     );
     const myRanking = (myVotes ?? []).map((v) => v.option_id);
 
+    // "Who's in": scope rows (RLS shows organizers every row, a participant
+    // their own) joined to the roster. Organizers also see trip members who
+    // aren't in scope at all, so they can add them.
+    const [{ data: scopeRows }, { data: scopeRoster }] = await Promise.all([
+      supabase
+        .from("element_participants")
+        .select("participant_id, opted_in")
+        .eq("element_id", element.id)
+        .returns<{ participant_id: string; opted_in: boolean }[]>(),
+      supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
+    ]);
+    const optedInById = new Map((scopeRows ?? []).map((r) => [r.participant_id, r.opted_in]));
+    const scopeMembers: ScopeMember[] = ((scopeRoster ?? []) as RosterRow[])
+      .filter((r) => canManage || r.user_id === user.id)
+      .map((r) => ({
+        userId: r.user_id,
+        displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
+        optedIn: optedInById.has(r.user_id) ? optedInById.get(r.user_id)! : null,
+      }))
+      .filter((m) => canManage || m.optedIn !== null);
+    const iOptedOut = optedInById.get(user.id) === false;
+
     const status = describeElementStatus({
       type: element.type,
       state: "open",
@@ -622,6 +646,15 @@ export default async function ElementDetailPage({
           </p>
         )}
 
+        <ElementScopePanel
+          tripId={tripId}
+          elementId={element.id}
+          currentUserId={user.id}
+          canManage={Boolean(canManage)}
+          bundled={element.bundle_group_id !== null}
+          members={scopeMembers}
+        />
+
         <div className="mt-3 flex flex-col gap-2">
           {(options ?? []).length > 0 ? (
             <VotingSection
@@ -638,13 +671,13 @@ export default async function ElementDetailPage({
               votingDeadline={element.voting_deadline}
               currentUserId={user.id}
               canManage={Boolean(canManage)}
-              readOnly={stillSubmitting}
+              readOnly={stillSubmitting || iOptedOut}
             />
           ) : (
             <p className="text-xs text-brand-muted">No options yet.</p>
           )}
 
-          {stillSubmitting && (
+          {stillSubmitting && !iOptedOut && (
             <SubmitOptionForm elementId={element.id} type={element.type} tripContext={tripContext} />
           )}
         </div>

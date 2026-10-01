@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { InviteLink } from "../invite-link";
 import { ParticipantRoleSelect } from "../participant-role-select";
 import { CapacityForm } from "../capacity-form";
+import { LeaveTripButton, RemoveParticipantButton } from "../participation-controls";
 
 type RosterRow = {
   user_id: string;
@@ -109,7 +110,12 @@ export default async function ParticipantsPage({
                   Organizer
                 </span>
               ) : canManage ? (
-                <ParticipantRoleSelect tripId={tripId} userId={r.userId} role={r.role as "participant" | "co_organizer"} />
+                <span className="flex items-center gap-3">
+                  <ParticipantRoleSelect tripId={tripId} userId={r.userId} role={r.role as "participant" | "co_organizer"} />
+                  {r.userId !== user.id && (
+                    <RemoveParticipantButton tripId={tripId} userId={r.userId} name={r.displayName} />
+                  )}
+                </span>
               ) : (
                 <span className="rounded-full border border-black/[.12] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-white/[.16]">
                   {r.role === "co_organizer" ? "Co-Organizer" : "Participant"}
@@ -119,6 +125,10 @@ export default async function ParticipantsPage({
           );
         })}
       </ul>
+
+      {/* Anyone but the organizer can leave (the organizer's way out is
+          deleting the trip). Money guards live in leave_trip(). */}
+      {user.id !== trip.organizer_id && <LeaveTripButton tripId={tripId} />}
 
       {canManage && (
         <>
