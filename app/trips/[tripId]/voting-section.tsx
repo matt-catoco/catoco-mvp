@@ -28,6 +28,7 @@ export function VotingSection({
   votingDeadline,
   currentUserId,
   canManage,
+  canLockAny = false,
   readOnly = false,
 }: {
   tripId: string;
@@ -38,6 +39,9 @@ export function VotingSection({
   votingDeadline: string | null;
   currentUserId: string;
   canManage: boolean;
+  /** Lock rights beyond canManage — a participant locking their own
+   * subgroup element when the trip allows it (lock_element() re-checks). */
+  canLockAny?: boolean;
   /** Submission phase (before options_deadline) — options are visible but
    * not yet rankable. §11: the two phases must never show both the propose
    * form and ranking UI at once; this is the "show the list, not the
@@ -154,7 +158,7 @@ export function VotingSection({
               myRank={myRank}
               groupRank={groupRank}
               canEdit={canEdit}
-              canLock={!readOnly && canManage}
+              canLock={!readOnly && (canManage || canLockAny)}
               readOnly={readOnly}
               onToggle={() => toggle(opt.id)}
               registerNode={registerNode}

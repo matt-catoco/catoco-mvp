@@ -87,10 +87,15 @@ export function AddElementForm({
   onChainedSubmit = () => {},
   onFinalSubmit = () => {},
   allowBundling = true,
+  allowParticipantSubgroups = false,
 }: {
   tripId: string;
   currentUserId: string;
   isOrganizer: boolean;
+  // Trip setting (Trip settings → Permissions): participants may choose a
+  // subgroup and lock in their own subgroup elements. Enforced again in
+  // create_element(); this only decides what to show.
+  allowParticipantSubgroups?: boolean;
   roster: RosterEntry[];
   tripContext?: TripContext;
   // null for the first element of a (possible) bundle; set for every
@@ -137,7 +142,14 @@ export function AddElementForm({
   // of exactly {you}), but a regular participant can no longer choose any
   // custom scope at all (organizer-only now, see the "Who's this for"
   // block below) -- only the organizer/co-organizer can lock at creation.
-  const canLock = isOrganizer;
+  // Organizers can always pick scope and lock. A participant can when the
+  // trip allows participant subgroups — and can only lock a SUBGROUP element
+  // (Everyone elements stay organizer-locked).
+  const canPickScope = isOrganizer || allowParticipantSubgroups;
+  const canLock = isOrganizer || (allowParticipantSubgroups && scopeMode === "custom");
+  // Switching a participant's scope back to Everyone takes the lock option
+  // away — don't leave the form in a locked state it can no longer submit.
+  if (!canLock && state === "locked") setState("open");
   const canBundle = isOrganizer && allowBundling;
 
   function onTypeChange(next: ElementType) {
@@ -317,7 +329,7 @@ export function AddElementForm({
                   .join(", ") || "—"}
           </p>
         </div>
-      ) : isOrganizer ? (
+      ) : canPickScope ? (
         <div className="flex flex-col gap-2">
           <span className={labelClass}>Who's this for</span>
           <div className="flex flex-wrap justify-center gap-1.5">

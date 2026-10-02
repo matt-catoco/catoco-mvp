@@ -45,12 +45,13 @@ type ElementRow = {
   tie_notified: boolean;
   empty_notified: boolean;
   locked_option_id: string | null;
-  locked_via: "organizer" | "vote" | null;
+  locked_via: "organizer" | "vote" | "creator" | null;
   booked_at: string | null;
   created_by: string | null;
   confirmation_details: string | null;
   confirmation_attachment_path: string | null;
   bundle_group_id: string | null;
+  scope_all: boolean;
 };
 
 type FundingRow = {
@@ -172,7 +173,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -582,6 +583,16 @@ export default async function ElementDetailPage({
       .filter((m) => canManage || m.optedIn !== null);
     const iOptedOut = optedInById.get(user.id) === false;
 
+    // Trip setting: a participant may lock in their own SUBGROUP element
+    // (never an Everyone one) — lock_element() enforces the same rule.
+    const { data: lockSettings } = await supabase
+      .from("trips")
+      .select("allow_participant_subgroups")
+      .eq("id", tripId)
+      .maybeSingle();
+    const creatorCanLock =
+      Boolean(lockSettings?.allow_participant_subgroups) && !element.scope_all && element.created_by === user.id;
+
     const status = describeElementStatus({
       type: element.type,
       state: "open",
@@ -671,6 +682,7 @@ export default async function ElementDetailPage({
               votingDeadline={element.voting_deadline}
               currentUserId={user.id}
               canManage={Boolean(canManage)}
+              canLockAny={creatorCanLock}
               readOnly={stillSubmitting || iOptedOut}
             />
           ) : (

@@ -27,12 +27,15 @@ export function AddElementModal({
   isOrganizer,
   roster,
   tripContext,
+  allowParticipantSubgroups = false,
 }: {
   tripId: string;
   currentUserId: string;
   isOrganizer: boolean;
   roster: RosterEntry[];
   tripContext?: TripContext;
+  /** Trip setting: participants may pick a subgroup and lock their own. */
+  allowParticipantSubgroups?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [bundleContext, setBundleContext] = useState<BundleContext | null>(null);
@@ -102,6 +105,7 @@ export function AddElementModal({
               tripId={tripId}
               currentUserId={currentUserId}
               isOrganizer={isOrganizer}
+              allowParticipantSubgroups={allowParticipantSubgroups}
               roster={roster}
               tripContext={tripContext}
               bundleContext={bundleContext}

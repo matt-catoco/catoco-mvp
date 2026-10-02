@@ -24,7 +24,7 @@ type ElementRow = {
   label: string;
   state: "locked" | "open";
   locked_option_id: string | null;
-  locked_via: "organizer" | "vote" | null;
+  locked_via: "organizer" | "vote" | "creator" | null;
   options_deadline: string | null;
   booked_at: string | null;
   created_at: string;
@@ -74,7 +74,7 @@ export default async function TripLandingPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id")
+    .select("id, name, organizer_id, allow_participant_elements, allow_participant_subgroups")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -252,13 +252,18 @@ export default async function TripLandingPage({
         subheader={tripSubheader}
         canManage={Boolean(canManage)}
         addElementModal={
-          <AddElementModal
-            tripId={tripId}
-            currentUserId={user.id}
-            isOrganizer={Boolean(canManage)}
-            roster={addElementRoster}
-            tripContext={tripContext}
-          />
+          // Trip setting: participants only see Add element when the
+          // organizer allows it (create_element() enforces the same rule).
+          canManage || trip.allow_participant_elements ? (
+            <AddElementModal
+              tripId={tripId}
+              currentUserId={user.id}
+              isOrganizer={Boolean(canManage)}
+              allowParticipantSubgroups={trip.allow_participant_subgroups}
+              roster={addElementRoster}
+              tripContext={tripContext}
+            />
+          ) : null
         }
         elements={overviewElements}
         tripDates={tripDates}

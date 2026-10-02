@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TripSettingsForm } from "../trip-settings-form";
+import { TripPermissionsForm } from "../trip-permissions-form";
 import type { IconAttribution } from "@/lib/trip-icons";
 
 /**
@@ -31,7 +32,9 @@ export default async function TripSettingsPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, icon, icon_attribution, organizer_id")
+    .select(
+      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, funding_deadline_days, funding_grace_hours",
+    )
     .eq("id", tripId)
     .maybeSingle();
 
@@ -52,6 +55,18 @@ export default async function TripSettingsPage({
       <h1 className="mt-4 text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
         Trip settings
       </h1>
+
+      <div className="mt-8">
+        <TripPermissionsForm
+          tripId={tripId}
+          initial={{
+            allowParticipantElements: trip.allow_participant_elements,
+            allowParticipantSubgroups: trip.allow_participant_subgroups,
+            fundingDeadlineDays: trip.funding_deadline_days,
+            fundingGraceHours: trip.funding_grace_hours,
+          }}
+        />
+      </div>
 
       <div className="mt-8">
         <TripSettingsForm

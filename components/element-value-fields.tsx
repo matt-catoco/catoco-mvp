@@ -22,6 +22,7 @@ import {
   type AccommodationFieldKey,
   type ExperienceSubtype,
   type PricingTier,
+  DINING_TIME_SLOTS,
 } from "@/lib/trip-elements";
 import { fieldClass, labelClass, pillInactive } from "@/lib/ui";
 import { PlacePicker, type GeoPlaceValue } from "@/components/place-picker";
@@ -438,12 +439,22 @@ export function ElementValueFields({
             </label>
             <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Time (optional)</span>
-<input
-                type="time"
+<select
                 className={field}
                 value={str("dining_time")}
                 onChange={(e) => set("dining_time", e.target.value)}
-              />
+              >
+                <option value="">Any time</option>
+                {/* A pre-slot value (free entry used to allow any minute) stays selectable. */}
+                {str("dining_time") && !DINING_TIME_SLOTS.some((s) => s.value === str("dining_time")) && (
+                  <option value={str("dining_time")}>{str("dining_time")}</option>
+                )}
+                {DINING_TIME_SLOTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
           <div className="flex gap-2">

@@ -766,3 +766,29 @@ export async function markFundingRequestRefunded(
 }
 
 
+export type UpdateTripPermissionsResult = { error?: string };
+
+/** Trip settings → Permissions & funding. Organizer/co-organizer only —
+ * enforced (with the value ranges) inside update_trip_permissions(). */
+export async function updateTripPermissions(
+  tripId: string,
+  input: {
+    allowParticipantElements: boolean;
+    allowParticipantSubgroups: boolean;
+    fundingDeadlineDays: number;
+    fundingGraceHours: number;
+  },
+): Promise<UpdateTripPermissionsResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_trip_permissions", {
+    p_trip_id: tripId,
+    p_allow_participant_elements: input.allowParticipantElements,
+    p_allow_participant_subgroups: input.allowParticipantElements && input.allowParticipantSubgroups,
+    p_funding_deadline_days: Math.round(input.fundingDeadlineDays),
+    p_funding_grace_hours: Math.round(input.fundingGraceHours),
+  });
+  if (error) return { error: toUserFacingError(error) };
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/settings`);
+  return {};
+}

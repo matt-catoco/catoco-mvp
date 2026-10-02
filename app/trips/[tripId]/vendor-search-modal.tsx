@@ -16,6 +16,7 @@ import {
   type ExperienceSearchSubtype,
   type TravelersBreakdown,
   type TripContext,
+  DINING_TIME_SLOTS,
 } from "@/lib/trip-elements";
 import { fieldClass, labelClass, pillActiveTeal, pillInactive, btnPrimary, btnSecondary } from "@/lib/ui";
 import type { VendorSearchParams, VendorSearchResult, VendorSearchResponse } from "@/lib/vendor-search/types";
@@ -423,7 +424,22 @@ export function VendorSearchPanel({
           </label>
           <label className="flex min-w-0 flex-1 flex-col gap-1">
             <span className={labelClass}>Time</span>
-            <input type="time" className={field} value={time} onChange={(e) => setTime(e.target.value)} />
+            <select
+                className={field}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              >
+                <option value="">Any time</option>
+                {/* A pre-slot value (free entry used to allow any minute) stays selectable. */}
+                {time && !DINING_TIME_SLOTS.some((s) => s.value === time) && (
+                  <option value={time}>{time}</option>
+                )}
+                {DINING_TIME_SLOTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
           </label>
           <label className="flex w-24 flex-col gap-1">
             <span className={labelClass}>Party</span>

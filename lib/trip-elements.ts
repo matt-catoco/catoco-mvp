@@ -138,7 +138,7 @@ export type ElementTileInfo = {
 
 export function describeElementStatus(row: {
   state: ElementState;
-  lockedVia: "organizer" | "vote" | null;
+  lockedVia: "organizer" | "vote" | "creator" | null;
   fundingStatus: FundingStatus;
   optionCount: number;
   optionsDeadline: string | null;
@@ -161,7 +161,9 @@ export function describeElementStatus(row: {
           ? "Confirmed"
           : row.lockedVia === "vote"
             ? "Locked by Group"
-            : "Locked by Organizer";
+            : row.lockedVia === "creator"
+              ? "Locked by Creator"
+              : "Locked by Organizer";
     return {
       state: "locked",
       funded: funded || booked,
@@ -1165,3 +1167,17 @@ export function priceLabel(value: Record<string, unknown>): string {
   return `${formatted}${suffix}`;
 }
 
+// Dining time: 15-minute slots across the whole day for every meal (founder
+// decision 2026-10-02 — no per-meal ranges). Values stay "HH:MM" (what
+// dining_time always stored); labels are 12-hour for reading.
+export const DINING_TIME_SLOTS: { value: string; label: string }[] = Array.from(
+  { length: ((23 - 6) * 60 + 45) / 15 + 1 },
+  (_, i) => {
+    const mins = 6 * 60 + i * 15;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const label = `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+    return { value, label };
+  },
+);
