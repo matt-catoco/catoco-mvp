@@ -62,3 +62,20 @@ h3 {
 html {
   scroll-behavior: smooth;
 }
+
+/* iOS Safari renders an EMPTY <input type="date"> at its own native minimum
+   width with native chrome, ignoring width:100% — in a two-column row (Travel
+   date / Return date, Check-in / Check-out, Pickup / Drop-off) the second
+   field overflowed its card and showed a stray pill-shaped control. Strip the
+   native appearance, let the field shrink like any other input, and keep the
+   chosen value left-aligned. 18 date inputs across the app share this. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}

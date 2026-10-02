@@ -294,13 +294,13 @@ export function VendorSearchPanel({
           <>
             <input className={field} placeholder="Pickup location" value={location} onChange={(e) => setLocation(e.target.value)} />
             <div className="flex gap-3">
-              <label className="flex flex-1 flex-col gap-1">
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className={labelClass}>
                   Pickup <span className="text-red-500">*</span>
                 </span>
                 <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </label>
-              <label className="flex flex-1 flex-col gap-1">
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className={labelClass}>
                   Drop-off <span className="text-red-500">*</span>
                 </span>
@@ -332,14 +332,14 @@ export function VendorSearchPanel({
             onChange={(v) => setRoundTrip(v === "round_trip")}
           />
           <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={labelClass}>
                 {subtype === "flight" ? "Depart" : "Travel date"} <span className="text-red-500">*</span>
               </span>
               <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
             {roundTrip && (
-              <label className="flex flex-1 flex-col gap-1">
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className={labelClass}>
                   Return <span className="text-red-500">*</span>
                 </span>
@@ -363,13 +363,13 @@ export function VendorSearchPanel({
         <>
           <input className={field} placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
           <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={labelClass}>
                 Check-in <span className="text-red-500">*</span>
               </span>
               <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </label>
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={labelClass}>
                 Check-out <span className="text-red-500">*</span>
               </span>
@@ -417,11 +417,11 @@ export function VendorSearchPanel({
       <>
         <input className={field} placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
         <div className="flex gap-3">
-          <label className="flex flex-1 flex-col gap-1">
+          <label className="flex min-w-0 flex-1 flex-col gap-1">
             <span className={labelClass}>Date</span>
             <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </label>
-          <label className="flex flex-1 flex-col gap-1">
+          <label className="flex min-w-0 flex-1 flex-col gap-1">
             <span className={labelClass}>Time</span>
             <input type="time" className={field} value={time} onChange={(e) => setTime(e.target.value)} />
           </label>
@@ -489,6 +489,7 @@ export function VendorSearchPanel({
                     // can differ once someone checks real availability, so
                     // this shouldn't read as a firm quote.
                     <p className="text-xs text-brand-muted">
+                      {r.source && <span className="mr-1.5 rounded-full border border-brand-line px-1.5 py-px text-[10px]">via {r.source}</span>}
                       From {priceLabel({ price: r.price, currency: r.currency, pricing_basis: r.pricing_basis, mode: subtype })}
                     </p>
                   )}

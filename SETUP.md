@@ -222,6 +222,13 @@ min), `AT861904300235473202` (fails).
   search → select → book check is a standalone script, not app code:
   `node scripts/duffel-sandbox-order-check.mjs` (refuses non-test keys; pays
   with Duffel's unlimited test balance; books Duffel Airways ZZ).
+- **Hotels are aggregated** (`aggregateHotels` in `lib/vendor-search/dispatch.ts`):
+  every configured hotel source is searched in parallel, results merged, tagged
+  "via <source>", same-name duplicates collapsed to the cheaper, a failing source
+  skipped. Live today: **LiteAPI** (`LITEAPI_KEY`, sandbox `sand_…`, server-only;
+  `lib/vendor-search/liteapi.ts`). A picked LiteAPI hotel carries its hotel id in
+  place of a booking link and is re-priced with LiteAPI on every save path. Search
+  uses a placeholder guest nationality (US) and USD pricing.
 - **Duffel Stays (accommodations) and Cars (rental cars)** — search modules are
   built (`duffelStaysSearch` / `duffelCarsSearch`) but both products are
   switched off on the Duffel account until Duffel approves access (requested

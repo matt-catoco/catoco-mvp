@@ -164,7 +164,7 @@ export function ElementValueFields({
                 ]}
               />
               <div className="flex gap-2">
-                <label className="flex flex-1 flex-col gap-1">
+                <label className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className={label}>
                     Travel date {requireDates && <span className="text-red-500">*</span>}
                   </span>
@@ -177,7 +177,7 @@ export function ElementValueFields({
                   />
                 </label>
                 {value.round_trip !== false && (
-                  <label className="flex flex-1 flex-col gap-1">
+                  <label className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className={label}>
                       Return date {requireDates && <span className="text-red-500">*</span>}
                     </span>
@@ -353,7 +353,7 @@ export function ElementValueFields({
             }
           />
           <div className="flex gap-2">
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Date (optional)</span>
               <input
                 type="date"
@@ -362,7 +362,7 @@ export function ElementValueFields({
                 onChange={(e) => set("date", e.target.value)}
               />
             </label>
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Time (optional)</span>
               <input
                 type="time"
@@ -427,7 +427,7 @@ export function ElementValueFields({
             }
           />
           <div className="flex gap-2">
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Date (optional)</span>
               <input
                 type="date"
@@ -436,9 +436,9 @@ export function ElementValueFields({
                 onChange={(e) => set("date", e.target.value)}
               />
             </label>
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Time (optional)</span>
-              <input
+<input
                 type="time"
                 className={field}
                 value={str("dining_time")}
@@ -447,7 +447,7 @@ export function ElementValueFields({
             </label>
           </div>
           <div className="flex gap-2">
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Party size (optional)</span>
               <input
                 type="number"
@@ -458,7 +458,7 @@ export function ElementValueFields({
                 onChange={(e) => set("guests", e.target.value)}
               />
             </label>
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Cuisine (optional)</span>
               <select className={field} value={str("cuisine")} onChange={(e) => set("cuisine", e.target.value)}>
                 <option value="">Select a cuisine</option>

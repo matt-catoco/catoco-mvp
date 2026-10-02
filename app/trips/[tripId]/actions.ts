@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   extractPricing,
   isDuffelFlight,
+  isLiteapiStay,
   type TravelersBreakdown,
   normalizeOptionValue,
   validateOptionValue,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/trip-elements";
 import { fetchLinkPreview } from "@/lib/link-preview";
 import { verifyDuffelOffer } from "@/lib/vendor-search/duffel";
+import { verifyLiteapiHotel } from "@/lib/vendor-search/liteapi";
 import { fetchUnsplashPhoto } from "@/lib/unsplash";
 import { sendCoreLoopEmail } from "@/lib/notifications";
 import { toUserFacingError } from "@/lib/action-errors";
@@ -71,7 +73,23 @@ async function confirmVendorOffer(
   type: ElementType,
   rawValue: Record<string, unknown>,
 ): Promise<{ value: Record<string, unknown> } | { error: string }> {
-  if (type !== "travel" || !isDuffelFlight(rawValue) || String(rawValue.booking_link ?? "").trim()) {
+  if (String(rawValue.booking_link ?? "").trim()) return { value: rawValue };
+
+  if (type === "accommodation" && isLiteapiStay(rawValue)) {
+    const dates = (rawValue.dates ?? {}) as { start_date?: string; end_date?: string };
+    const stay = await verifyLiteapiHotel(
+      String(rawValue.vendor_offer_id),
+      String(dates.start_date ?? ""),
+      String(dates.end_date ?? ""),
+      rawValue.travelers as TravelersBreakdown | undefined,
+    );
+    if (!stay) {
+      return { error: "That hotel no longer has availability for these dates — search again, or add a booking link instead." };
+    }
+    return { value: { ...rawValue, price: stay.perNightPrice, currency: stay.currency, pricing_basis: "per_night" } };
+  }
+
+  if (type !== "travel" || !isDuffelFlight(rawValue)) {
     return { value: rawValue };
   }
   const travelers = rawValue.travelers as TravelersBreakdown | undefined;
@@ -746,4 +764,5 @@ export async function markFundingRequestRefunded(
   revalidatePath(`/trips/${tripId}/settings`);
   return {};
 }
+
 

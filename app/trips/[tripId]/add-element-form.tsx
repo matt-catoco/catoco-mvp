@@ -20,6 +20,25 @@ import { VendorSearchPanel, VENDOR_SEARCHABLE_TYPES } from "./vendor-search-moda
 
 const field = `h-10 ${fieldClass}`;
 
+/**
+ * Chained elements share the bundle's currency/pricing basis — but only
+ * once the bundle actually has them. An anchor that was open, unpriced, or
+ * Dates/Destination leaves both empty, and forcing that empty string over a
+ * real value (e.g. a hotel result's per_night) is what made picking a
+ * search result fail with "Pick what the price is per…".
+ */
+function withBundlePricing(
+  value: Record<string, unknown>,
+  ctx: { currency: string; pricingBasis: string } | null | undefined,
+): Record<string, unknown> {
+  if (!ctx) return value;
+  return {
+    ...value,
+    ...(ctx.currency ? { currency: ctx.currency } : {}),
+    ...(ctx.pricingBasis ? { pricing_basis: ctx.pricingBasis } : {}),
+  };
+}
+
 type RosterEntry = { userId: string; displayName: string; isOrganizer: boolean };
 
 /**
@@ -101,13 +120,9 @@ export function AddElementForm({
     () => new Set(bundleContext?.customScope ?? [currentUserId]),
   );
   const [state, setState] = useState<"open" | "locked">("open");
-  const [lockedValue, setLockedValue] = useState<Record<string, unknown>>(() => {
-    const base = applyTripContext("dates", emptyValueFor("dates"), tripContext);
-    if (bundleContext) {
-      return { ...base, currency: bundleContext.currency, pricing_basis: bundleContext.pricingBasis };
-    }
-    return base;
-  });
+  const [lockedValue, setLockedValue] = useState<Record<string, unknown>>(() =>
+    withBundlePricing(applyTripContext("dates", emptyValueFor("dates"), tripContext), bundleContext),
+  );
   const [optionsDeadline, setOptionsDeadline] = useState(bundleContext?.optionsDeadline ?? "");
   const [votingDeadline, setVotingDeadline] = useState(bundleContext?.votingDeadline ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -129,12 +144,7 @@ export function AddElementForm({
     setType(next);
     if (!labelTouched) setLabel(ELEMENT_LABELS[next]);
     setMetadata(emptyMetadataFor(next));
-    const base = applyTripContext(next, emptyValueFor(next), tripContext);
-    setLockedValue(
-      bundleContext
-        ? { ...base, currency: bundleContext.currency, pricing_basis: bundleContext.pricingBasis }
-        : base,
-    );
+    setLockedValue(withBundlePricing(applyTripContext(next, emptyValueFor(next), tripContext), bundleContext));
     setManualEntry(false);
   }
 
@@ -173,8 +183,10 @@ export function AddElementForm({
       customScope: Array.from(customScope),
       optionsDeadline,
       votingDeadline,
-      currency: bundleContext?.currency ?? String(priceValue.currency ?? "USD"),
-      pricingBasis: bundleContext?.pricingBasis ?? String(priceValue.pricing_basis ?? ""),
+      // `||`, not `??`: an empty inherited value means the bundle hasn't
+      // established one yet, so the first priced element in the chain sets it.
+      currency: bundleContext?.currency || String(priceValue.currency ?? "USD"),
+      pricingBasis: bundleContext?.pricingBasis || String(priceValue.pricing_basis ?? ""),
     };
   }
 
@@ -217,9 +229,7 @@ export function AddElementForm({
   // lockedPricing — a vendor's own price stays whatever it searched, but
   // those two fields can't quietly diverge from the rest of the bundle.
   function handleSearchSelect(value: Record<string, unknown>) {
-    const finalValue = isChained
-      ? { ...value, currency: bundleContext!.currency, pricing_basis: bundleContext!.pricingBasis }
-      : value;
+    const finalValue = withBundlePricing(value, bundleContext);
     setError(null);
     setLockedValue(finalValue);
     finalize(finalValue);
@@ -402,7 +412,9 @@ export function AddElementForm({
               value={lockedValue}
               onChange={setLockedValue}
               requireDates={false}
-              lockedPricing={isChained}
+              // Only lock what the bundle has actually established — a chain
+              // whose anchor had no pricing must let this element pick one.
+              lockedPricing={isChained && Boolean(bundleContext?.pricingBasis)}
             />
           )}
         </div>

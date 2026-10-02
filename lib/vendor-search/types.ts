@@ -21,6 +21,9 @@ export type VendorSearchParams = {
 
 export type VendorSearchResult = {
   id: string;
+  /** Which source this came from when a search aggregates several
+   * (e.g. "LiteAPI", "Duffel Stays") — shown on the result card. */
+  source?: string;
   title: string;
   description?: string;
   thumbnail_url?: string;

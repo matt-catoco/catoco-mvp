@@ -518,6 +518,10 @@ export type PricingTier = (typeof PRICING_TIERS)[number];
 export type PlaceValue = LinkPreview & {
   name: string;
   booking_link?: string;
+  // Accommodations picked from a live LiteAPI search: the hotel id stands
+  // in for a booking link (re-verified + re-priced server-side on save).
+  vendor_source?: "liteapi";
+  vendor_offer_id?: string;
   // Free-text reference note, same optional field Travel already has for
   // manually-entered options — a place to jot down a discount code, a
   // reservation name, or anything else worth remembering that isn't a
@@ -769,6 +773,15 @@ export function isDuffelFlight(value: Record<string, unknown>): boolean {
   );
 }
 
+/** A stay picked from a live LiteAPI search — carries the hotel id, no link. */
+export function isLiteapiStay(value: Record<string, unknown>): boolean {
+  return (
+    value.vendor_source === "liteapi" &&
+    typeof value.vendor_offer_id === "string" &&
+    value.vendor_offer_id.trim() !== ""
+  );
+}
+
 function bookingLinkError(value: Record<string, unknown>): string | null {
   const raw = String(value.booking_link ?? "").trim();
   if (!raw) return "Add a booking link";
@@ -848,6 +861,9 @@ export function validateOptionValue(
         if (!String(dates.start_date ?? "").trim()) return "Pick a check-in date";
         if (!String(dates.end_date ?? "").trim()) return "Pick a check-out date";
       }
+      // Same as Duffel flights: a live LiteAPI result has no public page;
+      // its hotel id stands in, re-verified (and re-priced) server-side.
+      if (isLiteapiStay(value)) return priceError(value);
       return bookingLinkError(value) ?? priceError(value, { optional: str("subtype") === "other" });
     }
     case "experience": {
@@ -978,6 +994,14 @@ export function normalizeOptionValue(
         out.price = Number(value.price);
         out.currency = str("currency") || "USD";
         out.pricing_basis = str("pricing_basis");
+      }
+      if (isLiteapiStay(value)) {
+        out.vendor_source = "liteapi";
+        out.vendor_offer_id = str("vendor_offer_id");
+        // No link → no Open Graph scrape later; keep the result's own card data.
+        if (str("title")) out.title = str("title");
+        if (str("description")) out.description = str("description");
+        if (str("thumbnail_url")) out.thumbnail_url = str("thumbnail_url");
       }
       return out;
     }
@@ -1140,3 +1164,4 @@ export function priceLabel(value: Record<string, unknown>): string {
     : `${str("currency") || "USD"} ${str("price")}`;
   return `${formatted}${suffix}`;
 }
+
