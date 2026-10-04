@@ -8,8 +8,8 @@ import { btnPrimary, fieldClass, labelClass } from "@/lib/ui";
 export type TripPermissions = {
   allowParticipantElements: boolean;
   allowParticipantSubgroups: boolean;
+  submissionDeadlineDays: number;
   fundingDeadlineDays: number;
-  fundingGraceHours: number;
 };
 
 function Toggle({
@@ -24,13 +24,35 @@ function Toggle({
   detail: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3">
-      <input type="checkbox" className="mt-0.5 h-4 w-4 accent-teal-700" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span>
+    <div className="flex items-start justify-between gap-4">
+      <span className="min-w-0">
         <span className="block text-sm text-black dark:text-zinc-50">{title}</span>
         <span className="block text-xs text-brand-muted">{detail}</span>
       </span>
-    </label>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={title}
+        onClick={() => onChange(!checked)}
+        className="flex shrink-0 items-center gap-2"
+      >
+        <span className={`w-6 text-right text-xs font-medium ${checked ? "text-teal-700 dark:text-teal-400" : "text-brand-muted"}`}>
+          {checked ? "On" : "Off"}
+        </span>
+        <span
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+            checked ? "bg-teal-700" : "bg-black/[.15] dark:bg-white/[.2]"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+              checked ? "translate-x-[18px]" : "translate-x-0.5"
+            }`}
+          />
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -56,49 +78,60 @@ export function TripPermissionsForm({ tripId, initial }: { tripId: string; initi
           checked={v.allowParticipantElements}
           onChange={(x) => setV({ ...v, allowParticipantElements: x, allowParticipantSubgroups: x && v.allowParticipantSubgroups })}
           title="Participants can add elements"
-          detail="Off: only you and co-organizers can add things to the trip."
+          detail={
+            v.allowParticipantElements
+              ? "Anyone on the trip can add things to it."
+              : "Only you and co-organizers can add things to the trip."
+          }
         />
         <div className={v.allowParticipantElements ? "" : "pointer-events-none opacity-40"}>
           <Toggle
             checked={v.allowParticipantSubgroups}
             onChange={(x) => setV({ ...v, allowParticipantSubgroups: x })}
             title="Participants can plan for a subgroup"
-            detail="Lets participants pick who an element is for and lock in their own subgroup elements. Elements for Everyone stay organizer-locked."
+            detail={
+              v.allowParticipantSubgroups
+                ? "Participants can pick who an element is for and lock in their own subgroup elements. Elements for Everyone stay organizer-locked."
+                : "Participants' elements are always for Everyone, and only organizers lock them in."
+            }
           />
         </div>
 
         <div className="border-t border-black/[.08] pt-4 dark:border-white/[.1]">
-          <span className="text-xs font-medium text-black dark:text-zinc-50">Funding deadline</span>
+          <span className="text-xs font-medium text-black dark:text-zinc-50">Default timing</span>
           <p className="text-xs text-brand-muted">
-            Applies to funding started after you change it — existing deadlines stay as they are.
+            Applies to elements and funding started after you change it — existing deadlines stay as they are.
           </p>
           <div className="mt-2 flex gap-3">
             <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className={labelClass}>Days after lock-in (1–60)</span>
-              <input
-                type="number"
-                min={1}
-                max={60}
-                className={`h-9 ${fieldClass}`}
-                value={v.fundingDeadlineDays}
-                onChange={(e) => setV({ ...v, fundingDeadlineDays: Number(e.target.value) })}
-              />
+              <span className={labelClass}>Submission deadline</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  className={`h-9 w-20 ${fieldClass}`}
+                  value={v.submissionDeadlineDays}
+                  onChange={(e) => setV({ ...v, submissionDeadlineDays: Number(e.target.value) })}
+                />
+                <span className="text-xs text-brand-muted">days after added</span>
+              </span>
             </label>
             <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className={labelClass}>Reminder grace (hours, 0–72)</span>
-              <input
-                type="number"
-                min={0}
-                max={72}
-                className={`h-9 ${fieldClass}`}
-                value={v.fundingGraceHours}
-                onChange={(e) => setV({ ...v, fundingGraceHours: Number(e.target.value) })}
-              />
+              <span className={labelClass}>Funding deadline</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  className={`h-9 w-20 ${fieldClass}`}
+                  value={v.fundingDeadlineDays}
+                  onChange={(e) => setV({ ...v, fundingDeadlineDays: Number(e.target.value) })}
+                />
+                <span className="text-xs text-brand-muted">days after lock-in</span>
+              </span>
             </label>
           </div>
-          <p className="mt-1 text-[11px] text-brand-muted">
-            Grace = how long after funding opens before &quot;funding needed&quot; reminders start.
-          </p>
         </div>
       </div>
 

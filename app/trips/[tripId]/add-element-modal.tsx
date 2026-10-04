@@ -28,6 +28,7 @@ export function AddElementModal({
   roster,
   tripContext,
   allowParticipantSubgroups = false,
+  submissionDeadlineDays,
 }: {
   tripId: string;
   currentUserId: string;
@@ -36,6 +37,8 @@ export function AddElementModal({
   tripContext?: TripContext;
   /** Trip setting: participants may pick a subgroup and lock their own. */
   allowParticipantSubgroups?: boolean;
+  /** Trip setting: pre-fills the submission deadline (still editable). */
+  submissionDeadlineDays?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [bundleContext, setBundleContext] = useState<BundleContext | null>(null);
@@ -106,6 +109,7 @@ export function AddElementModal({
               currentUserId={currentUserId}
               isOrganizer={isOrganizer}
               allowParticipantSubgroups={allowParticipantSubgroups}
+              submissionDeadlineDays={submissionDeadlineDays}
               roster={roster}
               tripContext={tripContext}
               bundleContext={bundleContext}

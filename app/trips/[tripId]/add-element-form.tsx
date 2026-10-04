@@ -41,6 +41,13 @@ function withBundlePricing(
 
 type RosterEntry = { userId: string; displayName: string; isOrganizer: boolean };
 
+/** YYYY-MM-DD for today + n days in the viewer's own time zone (what a date input shows). */
+function localDatePlusDays(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /**
  * Everything a chained element after the first inherits from the anchor —
  * scope, deadlines, currency, pricing basis (§2 of the chain-at-creation
@@ -88,6 +95,7 @@ export function AddElementForm({
   onFinalSubmit = () => {},
   allowBundling = true,
   allowParticipantSubgroups = false,
+  submissionDeadlineDays,
 }: {
   tripId: string;
   currentUserId: string;
@@ -96,6 +104,9 @@ export function AddElementForm({
   // subgroup and lock in their own subgroup elements. Enforced again in
   // create_element(); this only decides what to show.
   allowParticipantSubgroups?: boolean;
+  // Trip setting (Trip settings → Default timing): the submission deadline
+  // starts N days from today. Only a pre-fill — the date stays editable.
+  submissionDeadlineDays?: number;
   roster: RosterEntry[];
   tripContext?: TripContext;
   // null for the first element of a (possible) bundle; set for every
@@ -128,7 +139,9 @@ export function AddElementForm({
   const [lockedValue, setLockedValue] = useState<Record<string, unknown>>(() =>
     withBundlePricing(applyTripContext("dates", emptyValueFor("dates"), tripContext), bundleContext),
   );
-  const [optionsDeadline, setOptionsDeadline] = useState(bundleContext?.optionsDeadline ?? "");
+  const [optionsDeadline, setOptionsDeadline] = useState(
+    () => bundleContext?.optionsDeadline ?? (submissionDeadlineDays ? localDatePlusDays(submissionDeadlineDays) : ""),
+  );
   const [votingDeadline, setVotingDeadline] = useState(bundleContext?.votingDeadline ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

@@ -74,7 +74,7 @@ export default async function TripLandingPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, allow_participant_elements, allow_participant_subgroups")
+    .select("id, name, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -260,6 +260,7 @@ export default async function TripLandingPage({
               currentUserId={user.id}
               isOrganizer={Boolean(canManage)}
               allowParticipantSubgroups={trip.allow_participant_subgroups}
+              submissionDeadlineDays={trip.submission_deadline_days}
               roster={addElementRoster}
               tripContext={tripContext}
             />

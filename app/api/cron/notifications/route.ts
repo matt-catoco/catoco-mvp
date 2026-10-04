@@ -29,7 +29,6 @@ type FundingRow = {
   required_amount: number;
   funding_deadline: string | null;
   created_at: string;
-  trips: { funding_grace_hours: number } | { funding_grace_hours: number }[] | null;
 };
 
 type NewFundingRow = {
@@ -39,21 +38,16 @@ type NewFundingRow = {
   funding_deadline: string | null;
   created_at: string;
   trips:
-    | { name: string; organizer_id: string; funding_grace_hours: number; funding_deadline_days: number }
-    | { name: string; organizer_id: string; funding_grace_hours: number; funding_deadline_days: number }[]
+    | { name: string; organizer_id: string; funding_deadline_days: number }
+    | { name: string; organizer_id: string; funding_deadline_days: number }[]
     | null;
 };
 
 // §13: the 24h grace window after a funding_request is created -- freely
 // editable by the organizer during it, and no funding_needed reminder fires
 // for it until this elapses. Derived from created_at, no separate column.
-// Per-trip now (trips.funding_grace_hours, Trip settings → Permissions &
-// funding); this is only the fallback for a row that somehow lacks it.
+// Always 24h (founder, 2026-10-04) — not a trip setting.
 const GRACE_WINDOW_HOURS = 24;
-const MAX_GRACE_WINDOW_HOURS = 72; // the setting's upper bound
-
-const graceHoursOf = (t: { funding_grace_hours?: number } | { funding_grace_hours?: number }[] | null) =>
-  (Array.isArray(t) ? t[0] : t)?.funding_grace_hours ?? GRACE_WINDOW_HOURS;
 
 function tripName(row: ElementRow): string {
   const t = Array.isArray(row.trips) ? row.trips[0] : row.trips;
@@ -70,8 +64,7 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const nowIso = now.toISOString();
   const windowEndIso = new Date(now.getTime() + LOOKAHEAD_HOURS * 60 * 60 * 1000).toISOString();
-  const graceCutoffIso = new Date(now.getTime() - MAX_GRACE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-  const pastGrace = (createdAt: string, hours: number) => now.getTime() - Date.parse(createdAt) >= hours * 3600 * 1000;
+  const graceCutoffIso = new Date(now.getTime() - GRACE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
   const origin = request.nextUrl.origin;
 
   // ---- gather every candidate recipient across both triggers first, so
@@ -177,18 +170,18 @@ export async function GET(request: NextRequest) {
   // above) -- if the organizer shortens a deadline during/after its grace
   // window to something already within the lookahead or even already past,
   // this still needs to catch it and fire on the very next run rather than
-  // waiting for a moment that's already gone. Grace window itself is each
-  // trip's own funding_grace_hours (Trip settings), applied per row below:
-  // nothing still inside its trip's grace window is eligible yet.
+  // waiting for a moment that's already gone. Grace window itself is
+  // enforced via created_at <= graceCutoffIso: nothing created within the
+  // last 24h is eligible yet, regardless of what its deadline says.
   const { data: fundingDue } = await supabase
     .from("funding_requests")
-    .select("id, trip_id, required_amount, funding_deadline, created_at, trips(funding_grace_hours)")
+    .select("id, trip_id, required_amount, funding_deadline, created_at")
     .eq("status", "collecting")
     .lte("funding_deadline", windowEndIso)
+    .lte("created_at", graceCutoffIso)
     .returns<FundingRow[]>();
 
   for (const fr of fundingDue ?? []) {
-    if (!pastGrace(fr.created_at, graceHoursOf(fr.trips))) continue;
     const [{ data: linkRows }, { data: contributions }, { data: trip }] = await Promise.all([
       supabase.from("funding_request_elements").select("element_id").eq("funding_request_id", fr.id),
       supabase.from("funding_contributions").select("contributor_id, amount").eq("funding_request_id", fr.id),
@@ -246,7 +239,7 @@ export async function GET(request: NextRequest) {
   // everything else in this route.
   const { data: newlyCreated } = await supabase
     .from("funding_requests")
-    .select("id, trip_id, required_amount, funding_deadline, created_at, trips(name, organizer_id, funding_grace_hours, funding_deadline_days)")
+    .select("id, trip_id, required_amount, funding_deadline, created_at, trips(name, organizer_id, funding_deadline_days)")
     .eq("status", "collecting")
     .gte("created_at", graceCutoffIso)
     .returns<NewFundingRow[]>();
@@ -254,18 +247,15 @@ export async function GET(request: NextRequest) {
   for (const fr of newlyCreated ?? []) {
     const trip = Array.isArray(fr.trips) ? fr.trips[0] : fr.trips;
     if (!trip || !fr.funding_deadline) continue;
-    // Only while still inside this trip's own grace window.
-    if (pastGrace(fr.created_at, trip.funding_grace_hours ?? GRACE_WINDOW_HOURS)) continue;
     const deadline = fr.funding_deadline.slice(0, 10);
     const days = trip.funding_deadline_days ?? 14;
-    const grace = trip.funding_grace_hours ?? GRACE_WINDOW_HOURS;
     pending.push({
       userId: trip.organizer_id,
       kind: "funding_deadline_set",
       subjectId: fr.id,
       subject: `Funding deadline auto-set to ${deadline} — ${trip.name}`,
       html: `
-        <p>A funding deadline was auto-set to <strong>${deadline}</strong> (${days} days out) on <strong>${trip.name}</strong>. You've got ${grace} hours before funding reminders start — update it if that doesn't work.</p>
+        <p>A funding deadline was auto-set to <strong>${deadline}</strong> (${days} days out) on <strong>${trip.name}</strong>. You've got ${GRACE_WINDOW_HOURS} hours before funding reminders start — update it if that doesn't work.</p>
         <p><a href="${origin}/trips/${fr.trip_id}">Take a look</a></p>
       `,
     });

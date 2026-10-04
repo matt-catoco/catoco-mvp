@@ -775,8 +775,8 @@ export async function updateTripPermissions(
   input: {
     allowParticipantElements: boolean;
     allowParticipantSubgroups: boolean;
+    submissionDeadlineDays: number;
     fundingDeadlineDays: number;
-    fundingGraceHours: number;
   },
 ): Promise<UpdateTripPermissionsResult> {
   const supabase = await createClient();
@@ -784,8 +784,8 @@ export async function updateTripPermissions(
     p_trip_id: tripId,
     p_allow_participant_elements: input.allowParticipantElements,
     p_allow_participant_subgroups: input.allowParticipantElements && input.allowParticipantSubgroups,
+    p_submission_deadline_days: Math.round(input.submissionDeadlineDays),
     p_funding_deadline_days: Math.round(input.fundingDeadlineDays),
-    p_funding_grace_hours: Math.round(input.fundingGraceHours),
   });
   if (error) return { error: toUserFacingError(error) };
   revalidatePath(`/trips/${tripId}`);
