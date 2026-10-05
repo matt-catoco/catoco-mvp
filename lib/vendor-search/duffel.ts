@@ -1,6 +1,7 @@
 import "server-only";
 import type { TravelersBreakdown } from "@/lib/trip-elements";
 import type { VendorSearchParams, VendorSearchResponse, VendorSearchResult } from "./types";
+import { airportSuggestions } from "./airports";
 
 // Duffel (Flights). TEST token today (duffel_test_…); the same
 // DUFFEL_API_KEY becomes the live key after Duffel KYC clears
@@ -30,21 +31,16 @@ export function duffelConfigured(): boolean {
   return Boolean(process.env.DUFFEL_API_KEY);
 }
 
-type DuffelPlace = { iata_code?: string; iata_city_code?: string; name?: string; type?: string };
-
-/** "SFO" / "lhr" pass straight through; "San Francisco" → best IATA match. */
-async function resolveIata(apiKey: string, input: string): Promise<string | null> {
+/**
+ * "SFO" / "nyc" / "San Francisco" / "Positano" → an IATA airport or city
+ * code: the same lookup the From/To picker shows (lib/vendor-search/
+ * airports.ts — geocoded place, its city code, else the nearest airport),
+ * taking the top suggestion when the user typed instead of picking.
+ */
+async function resolveIata(input: string): Promise<string | null> {
   const q = input.trim();
   if (/^[A-Za-z]{3}$/.test(q)) return q.toUpperCase();
-  const url = new URL(`${DUFFEL_BASE}/places/suggestions`);
-  url.searchParams.set("query", q);
-  const res = await fetch(url, { headers: headers(apiKey) });
-  if (!res.ok) throw new Error(`Duffel place lookup failed (${res.status})`);
-  const data = (await res.json())?.data as DuffelPlace[] | undefined;
-  // A city code (e.g. LON) searches every airport in it — the right default
-  // for a group comparing options; fall back to the airport's own code.
-  const top = data?.[0];
-  return top?.iata_city_code || top?.iata_code || null;
+  return (await airportSuggestions(q))[0]?.code ?? null;
 }
 
 /** Duffel passengers: adults by type, children/infants by age (Duffel derives the fare type). */
@@ -104,9 +100,15 @@ export async function duffelSearch(params: VendorSearchParams): Promise<VendorSe
     return { status: "live", vendorLabel: label, results: [] };
   }
 
-  const [origin, destination] = await Promise.all([resolveIata(apiKey, fromText), resolveIata(apiKey, toText)]);
+  const [origin, destination] = await Promise.all([resolveIata(fromText), resolveIata(toText)]);
   if (!origin || !destination) {
-    return { status: "live", vendorLabel: label, results: [] };
+    const missing = !origin ? fromText : toText;
+    return {
+      status: "live",
+      vendorLabel: label,
+      results: [],
+      notice: `Couldn't find an airport for "${missing}" — pick one from the list, or type an airport code (e.g. SFO).`,
+    };
   }
 
   // endDate present = round trip (the modal omits it for one-way) — the

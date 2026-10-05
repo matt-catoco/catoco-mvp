@@ -22,6 +22,8 @@ import { fieldClass, labelClass, pillActiveTeal, pillInactive, btnPrimary, btnSe
 import type { VendorSearchParams, VendorSearchResult, VendorSearchResponse } from "@/lib/vendor-search/types";
 import { vendorResultToOptionValue } from "@/lib/vendor-search/to-option-value";
 import { submitOption } from "./actions";
+import { DateRangeField } from "@/components/date-range-field";
+import { AirportPicker } from "@/components/airport-picker";
 
 const field = `h-10 ${fieldClass}`;
 
@@ -294,20 +296,17 @@ export function VendorSearchPanel({
         return (
           <>
             <input className={field} placeholder="Pickup location" value={location} onChange={(e) => setLocation(e.target.value)} />
-            <div className="flex gap-3">
-              <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className={labelClass}>
-                  Pickup <span className="text-red-500">*</span>
-                </span>
-                <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-              </label>
-              <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className={labelClass}>
-                  Drop-off <span className="text-red-500">*</span>
-                </span>
-                <input type="date" required className={field} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-              </label>
-            </div>
+            <DateRangeField
+              startLabel="Pickup"
+              endLabel="Drop-off"
+              required
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(s, e) => {
+                setStartDate(s);
+                setEndDate(e);
+              }}
+            />
             <div className="flex gap-3">
               <input className={field} placeholder="Vehicle type" value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} />
               <PillRow
@@ -322,39 +321,37 @@ export function VendorSearchPanel({
       }
       return (
         <>
-          <div className="flex gap-3">
-            <input className={field} placeholder="From" value={location} onChange={(e) => setLocation(e.target.value)} />
-            <input className={field} placeholder="To" value={destination} onChange={(e) => setDestination(e.target.value)} />
-          </div>
+          {subtype === "flight" ? (
+            // key: a fresh picker per subtype switch, so its display text
+            // never drifts from the parent's value.
+            <div key="flight-places" className="flex gap-3">
+              <AirportPicker placeholder="From — city or airport" value={location} onChange={setLocation} />
+              <AirportPicker placeholder="To — city or airport" value={destination} onChange={setDestination} />
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <input className={field} placeholder="From" value={location} onChange={(e) => setLocation(e.target.value)} />
+              <input className={field} placeholder="To" value={destination} onChange={(e) => setDestination(e.target.value)} />
+            </div>
+          )}
           <PillRow
             value={roundTrip ? "round_trip" : "one_way"}
             options={["round_trip", "one_way"] as const}
             labels={{ round_trip: "Round trip", one_way: "One-way" }}
             onChange={(v) => setRoundTrip(v === "round_trip")}
           />
-          <div className="flex gap-3">
-            <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className={labelClass}>
-                {subtype === "flight" ? "Depart" : "Travel date"} <span className="text-red-500">*</span>
-              </span>
-              <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </label>
-            {roundTrip && (
-              <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className={labelClass}>
-                  Return <span className="text-red-500">*</span>
-                </span>
-                <input
-                  type="date"
-                  required
-                  className={field}
-                  min={startDate || undefined}
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </label>
-            )}
-          </div>
+          <DateRangeField
+            startLabel={subtype === "flight" ? "Depart" : "Travel date"}
+            endLabel="Return"
+            required
+            single={!roundTrip}
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(s, e) => {
+              setStartDate(s);
+              setEndDate(e);
+            }}
+          />
           {subtype === "flight" && <TravelersField value={travelers} onChange={setTravelers} />}
         </>
       );
@@ -363,27 +360,17 @@ export function VendorSearchPanel({
       return (
         <>
           <input className={field} placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
-          <div className="flex gap-3">
-            <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className={labelClass}>
-                Check-in <span className="text-red-500">*</span>
-              </span>
-              <input type="date" required className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </label>
-            <label className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className={labelClass}>
-                Check-out <span className="text-red-500">*</span>
-              </span>
-              <input
-                type="date"
-                required
-                className={field}
-                min={startDate || undefined}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </label>
-          </div>
+          <DateRangeField
+            startLabel="Check-in"
+            endLabel="Check-out"
+            required
+            startDate={startDate}
+            endDate={endDate}
+            onChange={(s, e) => {
+              setStartDate(s);
+              setEndDate(e);
+            }}
+          />
           <TravelersField value={travelers} onChange={setTravelers} />
         </>
       );
@@ -488,7 +475,7 @@ export function VendorSearchPanel({
         <div className="flex flex-col gap-2 border-t border-brand-line pt-3">
           {response.results.length === 0 ? (
             <p className="rounded-lg bg-black/[.03] px-3 py-2 text-xs text-zinc-500 dark:bg-white/[.05]">
-              No results for this search — try different dates, a different location, or broaden the search.
+              {response.notice ?? "No results for this search — try different dates, a different location, or broaden the search."}
             </p>
           ) : (
             response.results.map((r) => (

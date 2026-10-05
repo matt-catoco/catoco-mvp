@@ -26,6 +26,7 @@ import {
 } from "@/lib/trip-elements";
 import { fieldClass, labelClass, pillInactive } from "@/lib/ui";
 import { PlacePicker, type GeoPlaceValue } from "@/components/place-picker";
+import { DateRangeField, RangeCalendar } from "@/components/date-range-field";
 
 // Shared between the trip-creation wizard (app/trips/new) and the post-
 // creation option-submission form (app/trips/[tripId]) — same input shapes,
@@ -164,35 +165,16 @@ export function ElementValueFields({
                   { value: "one_way", label: "One-way" },
                 ]}
               />
-              <div className="flex gap-2">
-                <label className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className={label}>
-                    Travel date {requireDates && <span className="text-red-500">*</span>}
-                  </span>
-                  <input
-                    type="date"
-                    required={requireDates}
-                    className={field}
-                    value={str("depart_date")}
-                    onChange={(e) => set("depart_date", e.target.value)}
-                  />
-                </label>
-                {value.round_trip !== false && (
-                  <label className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className={label}>
-                      Return date {requireDates && <span className="text-red-500">*</span>}
-                    </span>
-                    <input
-                      type="date"
-                      required={requireDates}
-                      className={field}
-                      min={str("depart_date") || undefined}
-                      value={str("return_date")}
-                      onChange={(e) => set("return_date", e.target.value)}
-                    />
-                  </label>
-                )}
-              </div>
+              <DateRangeField
+                startLabel="Travel date"
+                endLabel="Return date"
+                required={requireDates}
+                single={value.round_trip === false}
+                minDate=""
+                startDate={str("depart_date")}
+                endDate={str("return_date")}
+                onChange={(depart, ret) => onChange({ ...value, depart_date: depart, return_date: ret })}
+              />
               <input
                 className={field}
                 placeholder="Note (optional)"
@@ -591,15 +573,10 @@ function AccommodationField({
   );
 }
 
-const DOW_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
 /**
- * A real click-to-select calendar range picker — matches the design-chat
- * mockup's Dates scene (a month grid with the selected range highlighted
- * directly, teal for the two endpoints, teal-wash for the days between),
- * not the native <input type="date"> pair this used to be. First click
- * starts a fresh range (clears any existing end); second click sets the
- * end, swapping automatically if it lands before the start.
+ * The Dates element's inline range calendar: first click starts a fresh
+ * range (clears any existing end); second click sets the end, swapping
+ * automatically if it lands before the start.
  */
 function DateRangeCalendar({
   startDate,
@@ -610,88 +587,16 @@ function DateRangeCalendar({
   endDate: string;
   onSelect: (start: string, end: string) => void;
 }) {
-  const [viewMonth, setViewMonth] = useState(() => {
-    const base = startDate ? new Date(`${startDate}T00:00:00`) : new Date();
-    return new Date(base.getFullYear(), base.getMonth(), 1);
-  });
-
-  const year = viewMonth.getFullYear();
-  const month = viewMonth.getMonth();
-  const firstDow = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthLabel = viewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
-  function toISO(day: number): string {
-    return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-
-  function handleDayClick(day: number) {
-    const iso = toISO(day);
-    if (!startDate || endDate) {
-      onSelect(iso, "");
-    } else if (iso < startDate) {
-      onSelect(iso, startDate);
-    } else {
-      onSelect(startDate, iso);
-    }
-  }
-
-  const cells: (number | null)[] = [
-    ...Array.from({ length: firstDow }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-brand-line p-3">
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setViewMonth(new Date(year, month - 1, 1))}
-          aria-label="Previous month"
-          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
-        >
-          ‹
-        </button>
-        <span className="text-sm font-semibold">{monthLabel}</span>
-        <button
-          type="button"
-          onClick={() => setViewMonth(new Date(year, month + 1, 1))}
-          aria-label="Next month"
-          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
-        >
-          ›
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {DOW_LABELS.map((d) => (
-          <div key={d} className="text-center text-[11px] font-semibold text-brand-muted">
-            {d}
-          </div>
-        ))}
-        {cells.map((day, i) => {
-          if (day === null) return <div key={`empty-${i}`} />;
-          const iso = toISO(day);
-          const isEndpoint = iso === startDate || iso === endDate;
-          const inRange = Boolean(startDate && endDate && iso > startDate && iso < endDate);
-          return (
-            <button
-              key={iso}
-              type="button"
-              onClick={() => handleDayClick(day)}
-              className={`aspect-square rounded-lg text-xs font-medium transition-colors ${
-                isEndpoint
-                  ? "bg-brand-teal-deep text-white"
-                  : inRange
-                    ? "bg-brand-teal-wash text-brand-teal-deep"
-                    : "text-foreground hover:bg-brand-teal-wash"
-              }`}
-            >
-              {day}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <RangeCalendar
+      startDate={startDate}
+      endDate={endDate}
+      onDayClick={(iso) => {
+        if (!startDate || endDate) onSelect(iso, "");
+        else if (iso < startDate) onSelect(iso, startDate);
+        else onSelect(startDate, iso);
+      }}
+    />
   );
 }
 

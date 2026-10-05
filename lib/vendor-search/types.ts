@@ -45,4 +45,6 @@ export type VendorSearchResponse = {
   status: VendorSearchStatus;
   vendorLabel: string; // shown as the search modal's source badge
   results: VendorSearchResult[];
+  /** Why results are empty when it's not just "nothing matched" — shown in place of the generic message. */
+  notice?: string;
 };
