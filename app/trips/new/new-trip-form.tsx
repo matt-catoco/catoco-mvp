@@ -4,17 +4,24 @@ import { useState, useTransition } from "react";
 import { IconPicker } from "./icon-picker";
 import { createTrip } from "./actions";
 import type { IconAttribution } from "@/lib/trip-icons";
+import {
+  DEFAULT_TRIP_PERMISSIONS,
+  TripPermissionsFields,
+  tripPermissionsError,
+} from "@/components/trip-permissions-fields";
 
 /**
- * Trip creation, reduced to just a name (+ optional icon) — the multi-step
- * element wizard was retired in the 2026-09-01 redesign. Everything else
- * (Dates, Destination, Travel, ...) is added from Trip Home once the trip
- * exists, by the organizer or by whoever they invite.
+ * Trip creation: a name, optional icon, and the trip's settings
+ * (permissions + default timing — prefilled with the defaults, changeable
+ * later in Trip settings). The multi-step element wizard was retired in the
+ * 2026-09-01 redesign; elements (Dates, Destination, Travel, ...) are added
+ * from Trip Home once the trip exists.
  */
 export function NewTripForm({ userId }: { userId: string }) {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string | null>(null);
   const [iconAttribution, setIconAttribution] = useState<IconAttribution | null>(null);
+  const [permissions, setPermissions] = useState(DEFAULT_TRIP_PERMISSIONS);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -22,9 +29,11 @@ export function NewTripForm({ userId }: { userId: string }) {
 
   function submit() {
     if (!nameOk) return;
+    const invalid = tripPermissionsError(permissions);
+    if (invalid) return setError(invalid);
     setError(null);
     startTransition(async () => {
-      const res = await createTrip(name, icon, iconAttribution);
+      const res = await createTrip(name, icon, iconAttribution, permissions);
       if (res?.error) setError(res.error);
     });
   }
@@ -65,6 +74,14 @@ export function NewTripForm({ userId }: { userId: string }) {
             setIconAttribution(nextAttribution);
           }}
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Trip settings</span>
+        <div className="rounded-xl border border-black/[.1] p-4 dark:border-white/[.14]">
+          <TripPermissionsFields value={permissions} onChange={setPermissions} />
+        </div>
+        <span className="text-xs text-brand-muted">You can change these any time in Trip settings.</span>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
