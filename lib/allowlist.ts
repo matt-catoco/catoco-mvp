@@ -18,6 +18,18 @@ const ALLOWED_EMAILS = new Set(
     "matt+t5@catoco.co",
     "matt+t6@catoco.co",
     "matt+t7@catoco.co",
+    // Reviewers (2026-10-07)
+    "moriah.jacobs1@gmail.com",
+    "dmorando1@icloud.com",
+    "reidhm@gmail.com",
+    "ajacobs726@gmail.com",
+    "perks.hilary@gmail.com",
+    "yono38@gmail.com",
+    "gpolinger@gmail.com",
+    "julietrmullins@gmail.com",
+    "kimberlyrosecallison@gmail.com",
+    "toddneale13@gmail.com",
+    "cpapish@gmail.com",
   ].map((e) => e.toLowerCase()),
 );
 
