@@ -90,6 +90,29 @@ export function TripPermissionsFields({
         />
       </div>
 
+      <div className="flex flex-col gap-4 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
+        <Toggle
+          checked={v.allowParticipantInvites}
+          onChange={(x) => onChange({ ...v, allowParticipantInvites: x })}
+          title="Participants can invite others"
+          detail={
+            v.allowParticipantInvites
+              ? "Everyone on the trip can share the invite link."
+              : "Only you and co-organizers can share the invite link."
+          }
+        />
+        <Toggle
+          checked={v.allowOverMax}
+          onChange={(x) => onChange({ ...v, allowOverMax: x })}
+          title="Allow joining past the max"
+          detail={
+            v.allowOverMax
+              ? "More people than the max can join. Anything with limited spots (e.g. a ski house for 8) goes to the first to commit; the rest are waitlisted."
+              : "Once the trip reaches its max (you included), the invite link shows it's full."
+          }
+        />
+      </div>
+
       <div className="border-t border-black/[.08] pt-4 dark:border-white/[.1]">
         <span className="text-xs font-medium text-black dark:text-zinc-50">Default timing</span>
         {timingNote && <p className="text-xs text-brand-muted">{timingNote}</p>}

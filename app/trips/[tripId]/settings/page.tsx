@@ -33,7 +33,7 @@ export default async function TripSettingsPage({
   const { data: trip } = await supabase
     .from("trips")
     .select(
-      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days",
+      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days, allow_over_max, allow_participant_invites",
     )
     .eq("id", tripId)
     .maybeSingle();
@@ -64,6 +64,8 @@ export default async function TripSettingsPage({
             allowParticipantSubgroups: trip.allow_participant_subgroups,
             submissionDeadlineDays: trip.submission_deadline_days,
             fundingDeadlineDays: trip.funding_deadline_days,
+            allowOverMax: trip.allow_over_max,
+            allowParticipantInvites: trip.allow_participant_invites,
           }}
         />
       </div>

@@ -7,6 +7,7 @@ import { ElementMetadataFields } from "@/components/element-metadata-fields";
 import type { ElementType } from "@/lib/trip-elements";
 import { deleteElement, updateElement } from "./actions";
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
+import { SpotsField, parseSpots } from "@/components/spots-field";
 
 const field = `h-10 ${fieldClass}`;
 
@@ -27,6 +28,8 @@ export function EditElementForm({
   initialOptionsDeadline,
   initialVotingDeadline,
   initialLockedValue,
+  canSetSpots = false,
+  initialSpots = null,
 }: {
   tripId: string;
   elementId: string;
@@ -37,6 +40,9 @@ export function EditElementForm({
   initialOptionsDeadline: string | null;
   initialVotingDeadline: string | null;
   initialLockedValue: Record<string, unknown> | null;
+  /** Organizer / co-organizer, and not a Dates/Destination element. */
+  canSetSpots?: boolean;
+  initialSpots?: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -51,6 +57,7 @@ export function EditElementForm({
   const [lockedValue, setLockedValue] = useState<Record<string, unknown>>(
     initialLockedValue ?? {},
   );
+  const [spots, setSpots] = useState(initialSpots != null ? String(initialSpots) : "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -71,6 +78,8 @@ export function EditElementForm({
 
   function submit() {
     setError(null);
+    const parsedSpots = canSetSpots ? parseSpots(spots) : null;
+    if (parsedSpots === undefined) return setError("Spots must be a whole number of at least 1.");
     startTransition(async () => {
       const res = await updateElement({
         tripId,
@@ -82,6 +91,7 @@ export function EditElementForm({
         optionsDeadline: optionsDeadline || null,
         votingDeadline: votingDeadline || null,
         lockedValue: state === "locked" ? lockedValue : undefined,
+        spots: canSetSpots && parsedSpots !== (initialSpots ?? null) ? parsedSpots : undefined,
       });
       if (res.error) {
         setError(res.error);
@@ -128,6 +138,8 @@ export function EditElementForm({
           </label>
         </div>
       )}
+
+      {canSetSpots && <SpotsField value={spots} onChange={setSpots} />}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 

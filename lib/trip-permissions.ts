@@ -7,6 +7,10 @@ export type TripPermissions = {
   allowParticipantSubgroups: boolean;
   submissionDeadlineDays: number;
   fundingDeadlineDays: number;
+  /** Newcomers can join past the trip's max (elements with limited spots go to the first to commit). */
+  allowOverMax: boolean;
+  /** Participants see the invite link too. */
+  allowParticipantInvites: boolean;
 };
 
 /** Same defaults as the trips table columns (20261002000000 / 20261004000000). */
@@ -15,6 +19,8 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   allowParticipantSubgroups: false,
   submissionDeadlineDays: 7,
   fundingDeadlineDays: 14,
+  allowOverMax: false,
+  allowParticipantInvites: false,
 };
 
 /** Range check, mirroring the DB constraints (1–60 days). */

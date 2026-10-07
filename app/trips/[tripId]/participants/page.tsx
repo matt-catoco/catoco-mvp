@@ -42,7 +42,7 @@ export default async function ParticipantsPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, invites_sent, min_participants, max_participants")
+    .select("id, name, organizer_id, invites_sent, min_participants, max_participants, allow_over_max, allow_participant_invites")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -61,14 +61,12 @@ export default async function ParticipantsPage({
   }));
 
   const max = trip.max_participants;
-  // First-come-first-served by join order (roster is already ordered by
-  // joined_at, organizer first with a null joined_at). Informational only —
-  // nobody's blocked from the roster itself, this just shows who'd have
-  // "the spot" today if capacity matters to how you're using it.
-  const nonOrganizerIds = roster.filter((r) => !r.isOrganizer).map((r) => r.userId);
-  const withinCapacity = new Set(
-    max != null ? nonOrganizerIds.slice(0, max) : nonOrganizerIds,
-  );
+  // Max counts every traveller, the organizer included (roster is ordered
+  // by joined_at, organizer first). With joining past the max off, nobody
+  // can be over it; with it on, this flags who joined beyond it — elements
+  // with limited spots still go to whoever commits first.
+  const travellerIds = roster.map((r) => r.userId);
+  const withinCapacity = new Set(max != null ? travellerIds.slice(0, max) : travellerIds);
 
   return (
     <div className="mx-auto w-full max-w-xl flex-1 px-6 py-16">
@@ -83,7 +81,7 @@ export default async function ParticipantsPage({
         Participants
       </h1>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        {nonOrganizerIds.length} joined
+        {travellerIds.length} travelling (organizer included)
         {trip.min_participants != null && ` · needs ${trip.min_participants}`}
         {max != null && ` · caps at ${max}`}
       </p>
@@ -101,7 +99,7 @@ export default async function ParticipantsPage({
                 {r.userId === user.id && " (you)"}
                 {overCapacity && (
                   <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                    over capacity
+                    over max
                   </span>
                 )}
               </span>
@@ -135,8 +133,10 @@ export default async function ParticipantsPage({
           <div className="mt-8 rounded-xl border border-black/[.1] p-4 dark:border-white/[.14]">
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Group size</h2>
             <p className="mt-1 text-xs text-zinc-500">
-              Doesn&apos;t block anyone from joining via the invite link — first to join gets
-              the spot within max, shown above.
+              Max counts everyone travelling, you included.{" "}
+              {trip.allow_over_max
+                ? "Joining past the max is on (Trip settings): more people can join, and anything with limited spots goes to the first to commit."
+                : "Once it's reached, the invite link shows the trip is full (change this in Trip settings)."}
             </p>
             <div className="mt-3">
               <CapacityForm
@@ -147,11 +147,14 @@ export default async function ParticipantsPage({
             </div>
           </div>
 
-          <div className="mt-4 rounded-xl border border-black/[.1] p-4 dark:border-white/[.14]">
-            <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Invite people</h2>
-            <InviteLink tripId={tripId} initialInvitesSent={trip.invites_sent} />
-          </div>
         </>
+      )}
+
+      {(canManage || trip.allow_participant_invites) && (
+        <div className="mt-4 rounded-xl border border-black/[.1] p-4 dark:border-white/[.14]">
+          <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Invite people</h2>
+          <InviteLink tripId={tripId} initialInvitesSent={trip.invites_sent} />
+        </div>
       )}
     </div>
   );

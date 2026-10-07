@@ -40,6 +40,8 @@ export type MandatePanelProps = {
   covered: number;
   /** Already covered by a pre-Stripe manual contribution. */
   alreadyContributed: boolean;
+  /** Every spot is already committed by others (limited-spots element). */
+  waitlisted?: boolean;
 };
 
 const METHOD_LABEL = { card: "card", sepa_debit: "SEPA Direct Debit" } as const;
@@ -108,6 +110,19 @@ export function MandatePanel(props: MandatePanelProps) {
       <div className="rounded-lg border border-brand-line p-3">
         {header}
         <p className="mt-2 text-xs text-brand-muted">{failureCopy(props.chargeFailureReason)}</p>
+      </div>
+    );
+  }
+
+  if (props.waitlisted && !active && !inFlight) {
+    return (
+      <div className="rounded-lg border border-brand-line p-3">
+        {header}
+        <p className="mt-2 text-sm font-medium text-black dark:text-zinc-50">Full — you&apos;re on the waitlist</p>
+        <p className="mt-1 text-xs text-brand-muted">
+          All {population} spots were taken by the first people to commit. If someone cancels before the
+          deadline, a spot opens up and you can authorize here.
+        </p>
       </div>
     );
   }

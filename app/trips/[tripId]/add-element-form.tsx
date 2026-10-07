@@ -16,6 +16,7 @@ import {
 } from "@/lib/trip-elements";
 import { createElement } from "./actions";
 import { btnPrimary, fieldClass, labelClass, pillActiveTeal, pillInactive } from "@/lib/ui";
+import { SpotsField, parseSpots } from "@/components/spots-field";
 import { VendorSearchPanel, VENDOR_SEARCHABLE_TYPES } from "./vendor-search-modal";
 
 const field = `h-10 ${fieldClass}`;
@@ -143,6 +144,7 @@ export function AddElementForm({
     () => bundleContext?.optionsDeadline ?? (submissionDeadlineDays ? localDatePlusDays(submissionDeadlineDays) : ""),
   );
   const [votingDeadline, setVotingDeadline] = useState(bundleContext?.votingDeadline ?? "");
+  const [spots, setSpots] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // Locking a searchable type in now defaults to picking a real vendor
@@ -164,6 +166,8 @@ export function AddElementForm({
   // away — don't leave the form in a locked state it can no longer submit.
   if (!canLock && state === "locked") setState("open");
   const canBundle = isOrganizer && allowBundling;
+  // Spots: organizer-set capacity for things with limited room.
+  const showSpots = isOrganizer && type !== "dates" && type !== "destination";
 
   function onTypeChange(next: ElementType) {
     setType(next);
@@ -183,6 +187,7 @@ export function AddElementForm({
   }
 
   function validate(): string | null {
+    if (showSpots && parseSpots(spots) === undefined) return "Spots must be a whole number of at least 1.";
     if (state === "locked") {
       return validateOptionValue(type, lockedValue, { requireDates: false });
     }
@@ -244,6 +249,7 @@ export function AddElementForm({
         bundleGroupId: bundleContext?.anchorId ?? null,
         startBundle: false,
         bundleContinues: false,
+        spots: showSpots ? (parseSpots(spots) ?? null) : null,
       });
       if (res.error) {
         setError(res.error);
@@ -285,6 +291,7 @@ export function AddElementForm({
         bundleGroupId: bundleContext?.anchorId ?? null,
         startBundle: !isChained,
         bundleContinues: true,
+        spots: showSpots ? (parseSpots(spots) ?? null) : null,
       });
       if (res.error) {
         setError(res.error);
@@ -389,6 +396,8 @@ export function AddElementForm({
           people.
         </p>
       )}
+
+      {showSpots && <SpotsField value={spots} onChange={setSpots} />}
 
       <div className="flex flex-col gap-2">
         <span className={`${labelClass} text-center`}>State</span>

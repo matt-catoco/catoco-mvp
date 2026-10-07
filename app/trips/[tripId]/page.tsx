@@ -79,7 +79,30 @@ export default async function TripLandingPage({
     .maybeSingle();
 
   if (!trip) {
-    // Not a member and nothing to join into (trip doesn't exist).
+    // Not a member: either the trip is full (max reached, joining past it
+    // turned off — join_trip() refused) or it doesn't exist.
+    const { data: joinStatus } = await supabase.rpc("trip_join_status", { p_trip_id: tripId });
+    const status = (Array.isArray(joinStatus) ? joinStatus[0] : joinStatus) as
+      | { name: string; status: string }
+      | undefined;
+    if (status?.status === "full") {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
+          <div className="w-full max-w-md">
+            <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
+              This trip is full
+            </h1>
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+              <span className="font-medium text-black dark:text-zinc-50">{status.name}</span> has reached its
+              group size, so new people can&apos;t join right now.
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Ask the organizer — they can raise the limit or open the trip up, and this same link will work.
+            </p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
         <div className="w-full max-w-md">

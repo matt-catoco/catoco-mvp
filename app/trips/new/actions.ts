@@ -53,6 +53,8 @@ export async function createTrip(
       allow_participant_subgroups: allowElements && permissions.allowParticipantSubgroups === true,
       submission_deadline_days: submissionDays,
       funding_deadline_days: fundingDays,
+      allow_over_max: permissions.allowOverMax === true,
+      allow_participant_invites: permissions.allowParticipantInvites === true,
     })
     .select("id")
     .single();

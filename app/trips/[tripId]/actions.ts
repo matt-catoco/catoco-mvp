@@ -145,6 +145,8 @@ export async function createElement(input: {
   bundleGroupId?: string | null;
   startBundle?: boolean;
   bundleContinues?: boolean;
+  /** Organizer only: how many people it can take (null = trip max). */
+  spots?: number | null;
 }): Promise<CreateElementResult> {
   const supabase = await createClient();
   const {
@@ -183,6 +185,17 @@ export async function createElement(input: {
 
   if (error) return { error: toUserFacingError(error) };
 
+  if (input.spots != null) {
+    const { error: spotsError } = await supabase.rpc("set_element_spots", {
+      p_element_id: data as string,
+      p_spots: input.spots,
+    });
+    if (spotsError) {
+      revalidatePath(`/trips/${input.tripId}`);
+      return { elementId: data as string, error: `Added, but spots weren't saved: ${toUserFacingError(spotsError)}` };
+    }
+  }
+
   revalidatePath(`/trips/${input.tripId}`);
   return { elementId: data as string };
 }
@@ -204,6 +217,8 @@ export async function updateElement(input: {
   optionsDeadline?: string | null;
   votingDeadline?: string | null;
   lockedValue?: Record<string, unknown>;
+  /** Organizer only; undefined = leave as is, null = back to the trip max. */
+  spots?: number | null;
 }): Promise<UpdateElementResult> {
   const supabase = await createClient();
   const {
@@ -233,6 +248,14 @@ export async function updateElement(input: {
   });
 
   if (error) return { error: toUserFacingError(error) };
+
+  if (input.spots !== undefined) {
+    const { error: spotsError } = await supabase.rpc("set_element_spots", {
+      p_element_id: input.elementId,
+      p_spots: input.spots,
+    });
+    if (spotsError) return { error: toUserFacingError(spotsError) };
+  }
 
   revalidatePath(`/trips/${input.tripId}`);
   revalidatePath(`/trips/${input.tripId}/elements/${input.elementId}`);
@@ -777,6 +800,8 @@ export async function updateTripPermissions(
     allowParticipantSubgroups: boolean;
     submissionDeadlineDays: number;
     fundingDeadlineDays: number;
+    allowOverMax: boolean;
+    allowParticipantInvites: boolean;
   },
 ): Promise<UpdateTripPermissionsResult> {
   const supabase = await createClient();
@@ -786,6 +811,8 @@ export async function updateTripPermissions(
     p_allow_participant_subgroups: input.allowParticipantElements && input.allowParticipantSubgroups,
     p_submission_deadline_days: Math.round(input.submissionDeadlineDays),
     p_funding_deadline_days: Math.round(input.fundingDeadlineDays),
+    p_allow_over_max: input.allowOverMax,
+    p_allow_participant_invites: input.allowParticipantInvites,
   });
   if (error) return { error: toUserFacingError(error) };
   revalidatePath(`/trips/${tripId}`);

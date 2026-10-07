@@ -52,6 +52,7 @@ type ElementRow = {
   confirmation_attachment_path: string | null;
   bundle_group_id: string | null;
   scope_all: boolean;
+  spots: number | null;
 };
 
 type FundingRow = {
@@ -173,7 +174,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all, spots",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -269,7 +270,7 @@ export default async function ElementDetailPage({
         // RLS scopes these: the organizer reads every mandate on the
         // request, a participant only their own. Contributions are visible
         // to all members (existing policy).
-        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }] = await Promise.all([
+        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }, { data: spotsFull }] = await Promise.all([
           supabase
             .from("funding_mandates")
             .select("id, participant_id, status, payment_method_type, failure_reason, created_at")
@@ -283,6 +284,7 @@ export default async function ElementDetailPage({
             .eq("funding_request_id", fundingRow.id)
             .order("created_at", { ascending: false })
             .returns<ContributionRow[]>(),
+          supabase.rpc("funding_request_spots_full", { p_funding_request_id: fundingRow.id, p_user_id: user.id }),
         ]);
         const summary = (Array.isArray(summaryRows) ? summaryRows[0] : summaryRows) as
           | { population: number; covered: number }
@@ -357,6 +359,8 @@ export default async function ElementDetailPage({
             // A Stripe-sourced row also lands here once charged; the panel's
             // charge-state branches take precedence over this in that case.
             alreadyContributed: Boolean(myContribution && !myContribution.refunded_at) && !mandateRow,
+            // Every spot committed by others: this viewer is waitlisted.
+            waitlisted: Boolean(spotsFull),
           },
           roster: paymentRoster,
           isOrganizerView,
@@ -490,6 +494,8 @@ export default async function ElementDetailPage({
               initialOptionsDeadline={null}
               initialVotingDeadline={null}
               initialLockedValue={option?.value ?? {}}
+              canSetSpots={Boolean(canManage) && element.type !== "dates" && element.type !== "destination"}
+              initialSpots={element.spots}
             />
           </div>
         )}
@@ -634,6 +640,8 @@ export default async function ElementDetailPage({
               initialOptionsDeadline={element.options_deadline}
               initialVotingDeadline={element.voting_deadline}
               initialLockedValue={null}
+              canSetSpots={Boolean(canManage) && element.type !== "dates" && element.type !== "destination"}
+              initialSpots={element.spots}
             />
           </div>
         )}
