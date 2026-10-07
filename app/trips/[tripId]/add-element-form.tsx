@@ -196,6 +196,13 @@ export function AddElementForm({
     return null;
   }
 
+  // "Me (Name)" for yourself; the organizer is tagged so a participant
+  // planning a subgroup can include or leave them out by name.
+  function scopeLabel(r: RosterEntry): string {
+    const base = r.userId === currentUserId ? `Me (${r.displayName})` : r.displayName;
+    return r.isOrganizer ? `${base} · Organizer` : base;
+  }
+
   function currentScopeUserIds(): string[] | null {
     return scopeMode === "everyone" ? null : Array.from(customScope);
   }
@@ -338,7 +345,7 @@ export function AddElementForm({
               ? "Everyone"
               : roster
                   .filter((r) => customScope.has(r.userId))
-                  .map((r) => (r.userId === currentUserId ? `${r.displayName} (you)` : r.displayName))
+                  .map((r) => scopeLabel(r))
                   .join(", ") || "—"}
           </p>
         </div>
@@ -369,8 +376,7 @@ export function AddElementForm({
                       checked={customScope.has(r.userId)}
                       onChange={() => toggleScopeMember(r.userId)}
                     />
-                    {r.displayName}
-                    {r.userId === currentUserId && " (you)"}
+                    {scopeLabel(r)}
                   </label>
                 </li>
               ))}
