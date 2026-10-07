@@ -1,6 +1,6 @@
 {
   "crons": [
     { "path": "/api/cron/notifications", "schedule": "0 13 * * *" },
-    { "path": "/api/cron/funding-charges", "schedule": "15 0 * * *" }
+    { "path": "/api/cron/funding-charges", "schedule": "15 * * * *" }
   ]
 }
