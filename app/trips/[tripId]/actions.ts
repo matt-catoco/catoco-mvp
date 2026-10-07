@@ -829,6 +829,7 @@ export async function updateTripPermissions(
     allowParticipantInvites: boolean;
     cushionKind: "percent" | "amount";
     cushionValue: number;
+    retryHours: number;
   },
 ): Promise<UpdateTripPermissionsResult> {
   const supabase = await createClient();
@@ -848,6 +849,11 @@ export async function updateTripPermissions(
     p_value: input.cushionValue,
   });
   if (cushionError) return { error: toUserFacingError(cushionError) };
+  const { error: retryError } = await supabase.rpc("update_trip_retry_hours", {
+    p_trip_id: tripId,
+    p_hours: Math.round(input.retryHours),
+  });
+  if (retryError) return { error: toUserFacingError(retryError) };
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/settings`);
   return {};

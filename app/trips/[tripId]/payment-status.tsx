@@ -13,6 +13,8 @@ export type PaymentState =
   | "started"
   | "authorized"
   | "charging"
+  | "on_hold"
+  | "needs_retry"
   | "paid"
   | "used"
   | "charge_failed"
@@ -33,6 +35,8 @@ const STATE_LABEL: Record<PaymentState, string> = {
   started: "Started, not finished",
   authorized: "Authorized — not charged",
   charging: "Charging…",
+  on_hold: "Card on hold — not charged",
+  needs_retry: "Needs to update payment",
   paid: "Paid",
   used: "Paid · used for booking",
   charge_failed: "Charge failed",
@@ -48,6 +52,8 @@ const STATE_TONE: Record<PaymentState, string> = {
   started: "border-dashed border-brand-line text-brand-muted",
   authorized: "border-dashed border-brand-teal-deep text-brand-teal-deep",
   charging: "border-dashed border-amber-500 text-amber-700 dark:text-amber-400",
+  on_hold: "border-dashed border-brand-teal-deep text-brand-teal-deep",
+  needs_retry: "border-amber-500 text-amber-700 dark:text-amber-400",
   paid: "border-brand-teal-deep bg-brand-teal-deep text-white",
   used: "border-foreground bg-foreground text-background",
   charge_failed: "border-red-500 text-red-600 dark:text-red-400",

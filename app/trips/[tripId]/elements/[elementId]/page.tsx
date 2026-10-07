@@ -84,6 +84,7 @@ type MandateRow = {
   failure_reason: string | null;
   created_at: string;
   max_amount: number | null;
+  retry_reason: string | null;
 };
 
 type ContributionRow = {
@@ -304,10 +305,10 @@ export default async function ElementDetailPage({
         // RLS scopes these: the organizer reads every mandate on the
         // request, a participant only their own. Contributions are visible
         // to all members (existing policy).
-        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }, { data: spotsFull }, { data: capAmount }] = await Promise.all([
+        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }, { data: spotsFull }, { data: capAmount }, { data: retryRows }] = await Promise.all([
           supabase
             .from("funding_mandates")
-            .select("id, participant_id, status, payment_method_type, failure_reason, created_at, max_amount")
+            .select("id, participant_id, status, payment_method_type, failure_reason, created_at, max_amount, retry_reason")
             .eq("funding_request_id", fundingRow.id)
             .order("created_at", { ascending: false })
             .returns<MandateRow[]>(),
@@ -323,7 +324,14 @@ export default async function ElementDetailPage({
             p_funding_request_id: fundingRow.id,
             p_individual: fundingRow.individual_amount ?? fundingRow.required_amount,
           }),
+          fundingRow.charge_status === "charging"
+            ? supabase.rpc("get_funding_retry_status", { p_funding_request_id: fundingRow.id })
+            : Promise.resolve({ data: null }),
         ]);
+        const retryRow = (Array.isArray(retryRows) ? retryRows[0] : retryRows) as
+          | { waiting: number; held: number; total: number; retry_deadline: string | null; hold_cap_at: string | null }
+          | null
+          | undefined;
         const summary = (Array.isArray(summaryRows) ? summaryRows[0] : summaryRows) as
           | { population: number; covered: number }
           | undefined;
@@ -369,6 +377,8 @@ export default async function ElementDetailPage({
                 pending: "started",
                 active: "authorized",
                 charging: "charging",
+                held: "on_hold",
+                awaiting_retry: "needs_retry",
                 charge_succeeded: "paid",
                 charge_failed: "charge_failed",
                 refunded: "refunded",
@@ -391,6 +401,7 @@ export default async function ElementDetailPage({
                   paymentMethodType: mandateRow.payment_method_type,
                   failureReason: mandateRow.failure_reason,
                   maxAmount: mandateRow.max_amount,
+                  retryReason: mandateRow.retry_reason,
                 }
               : null,
             population: summary?.population ?? 0,
@@ -402,6 +413,16 @@ export default async function ElementDetailPage({
             waitlisted: Boolean(spotsFull),
             // "Up to" for a new authorization: share + the price cushion.
             capAmount: (capAmount as number | null) ?? null,
+            retry: retryRow
+              ? {
+                  waiting: retryRow.waiting,
+                  held: retryRow.held,
+                  total: retryRow.total,
+                  retryDeadline: retryRow.retry_deadline,
+                  holdCapAt: retryRow.hold_cap_at,
+                }
+              : null,
+            isOrganizerView,
           },
           roster: paymentRoster,
           isOrganizerView,

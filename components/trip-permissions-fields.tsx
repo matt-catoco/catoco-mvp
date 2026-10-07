@@ -173,6 +173,24 @@ export function TripPermissionsFields({
             only charged the real price. Each element can override it.
           </span>
         </label>
+        <label className="mt-3 flex flex-col gap-1">
+          <span className={labelClass}>Payment retry window</span>
+          <span className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={144}
+              className={`h-9 w-20 ${fieldClass}`}
+              value={v.retryHours}
+              onChange={(e) => onChange({ ...v, retryHours: Number(e.target.value) })}
+            />
+            <span className="text-xs text-brand-muted">hours</span>
+          </span>
+          <span className="text-xs text-brand-muted">
+            At the funding deadline everyone&apos;s card is put on hold. If someone&apos;s card fails, they get this long
+            to fix it while the others wait — nobody is charged until every hold is in.
+          </span>
+        </label>
       </div>
     </div>
   );

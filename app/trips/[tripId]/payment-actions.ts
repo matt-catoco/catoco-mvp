@@ -7,7 +7,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { toUserFacingError } from "@/lib/action-errors";
 import { getStripe, stripeConfigured } from "@/lib/stripe/server";
 import { activateFromSetupIntent, getOrCreateStripeCustomer } from "@/lib/stripe/mandates";
-import { refundOwedContributions } from "@/lib/stripe/charges";
+import { headers } from "next/headers";
+import { advanceBatch, refundOwedContributions, syncRetriedHold } from "@/lib/stripe/charges";
 
 /**
  * Mandate-based funding (flow #4, Stripe TEST MODE). A participant
@@ -203,4 +204,160 @@ export async function refundEveryone(
     revalidateFunding(tripId, elementId);
     return { error: toUserFacingError({ message: (err as Error).message }) };
   }
+}
+
+// ---- retry buffer (authorize-then-capture) ---------------------------------
+
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host");
+  const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+  return host ? `${proto}://${host}` : "https://www.catoco.co";
+}
+
+type OwnRetryMandate = {
+  id: string;
+  status: string;
+  retry_reason: string | null;
+  currency: string;
+  funding_request_id: string;
+  stripe_customer_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_payment_method_id: string | null;
+  hold_attempt: number;
+};
+
+/** The caller's OWN mandate (RLS), only while it's waiting on them. */
+async function loadOwnRetryMandate(mandateId: string): Promise<OwnRetryMandate | { error: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("funding_mandates")
+    .select("id, status, retry_reason, currency, funding_request_id, stripe_customer_id, stripe_payment_intent_id, stripe_payment_method_id, hold_attempt, participant_id")
+    .eq("id", mandateId)
+    .maybeSingle();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!data || !user || data.participant_id !== user.id) return { error: "Payment not found." };
+  if (data.status !== "awaiting_retry") return { error: "This payment isn't waiting on you anymore." };
+  return data as OwnRetryMandate;
+}
+
+export type RetrySetupResult = { error?: string; clientSecret?: string; paymentMethodTypes?: string[] };
+
+/** Declined / expired card: collect a NEW payment method (fresh SetupIntent). */
+export async function startRetryPaymentMethod(tripId: string, elementId: string, mandateId: string): Promise<RetrySetupResult> {
+  if (!stripeConfigured()) return { error: "Payments aren't set up in this environment yet." };
+  const m = await loadOwnRetryMandate(mandateId);
+  if ("error" in m) return m;
+  if (m.retry_reason !== "payment_method_failed" || !m.stripe_customer_id) {
+    return { error: "This payment needs you to confirm it with your bank instead." };
+  }
+  try {
+    const si = await getStripe().setupIntents.create(
+      {
+        customer: m.stripe_customer_id,
+        usage: "off_session",
+        payment_method_types: m.currency === "EUR" ? ["card", "sepa_debit"] : ["card"],
+        metadata: { mandate_id: m.id, funding_request_id: m.funding_request_id, purpose: "retry" },
+      },
+      { idempotencyKey: `catoco-mandate-retry-setup-${m.id}-${m.hold_attempt}` },
+    ).catch(async (err) => {
+      if (!(err instanceof Stripe.errors.StripeInvalidRequestError) || m.currency !== "EUR") throw err;
+      return getStripe().setupIntents.create(
+        { customer: m.stripe_customer_id!, usage: "off_session", payment_method_types: ["card"], metadata: { mandate_id: m.id, funding_request_id: m.funding_request_id, purpose: "retry" } },
+        { idempotencyKey: `catoco-mandate-retry-setup-${m.id}-${m.hold_attempt}-card` },
+      );
+    });
+    revalidateFunding(tripId, elementId);
+    return { clientSecret: si.client_secret ?? undefined, paymentMethodTypes: si.payment_method_types };
+  } catch (err) {
+    return { error: toUserFacingError({ message: (err as Error).message }) };
+  }
+}
+
+/** After confirmSetup(): swap in the new method and place a fresh hold. */
+export async function completeRetryPaymentMethod(
+  tripId: string,
+  elementId: string,
+  mandateId: string,
+  setupIntentId: string,
+): Promise<{ error?: string; outcome?: string }> {
+  const m = await loadOwnRetryMandate(mandateId);
+  if ("error" in m) return m;
+  try {
+    const stripe = getStripe();
+    const si = await stripe.setupIntents.retrieve(setupIntentId);
+    if (si.metadata?.mandate_id !== m.id) return { error: "That payment method doesn't belong to this payment." };
+    if (si.status !== "succeeded" || !si.payment_method) return { error: "The new payment method wasn't confirmed." };
+    const pm = typeof si.payment_method === "string" ? await stripe.paymentMethods.retrieve(si.payment_method) : si.payment_method;
+    const service = createServiceClient();
+    const { data: frId, error } = await service.rpc("reset_mandate_for_new_hold", {
+      p_mandate_id: m.id,
+      p_payment_method_id: pm.id,
+      p_payment_method_type: pm.type,
+      p_setup_intent_id: si.id,
+    });
+    if (error) return { error: toUserFacingError(error) };
+    if (!frId) return { error: "This payment isn't waiting on you anymore." };
+    const res = await advanceBatch(service, frId as string, await requestOrigin());
+    revalidateFunding(tripId, elementId);
+    return { outcome: res.outcome };
+  } catch (err) {
+    return { error: toUserFacingError({ message: (err as Error).message }) };
+  }
+}
+
+/** Bank wants SCA: hand the client the SAME PaymentIntent to authenticate on-session. */
+export async function getRetryAuthentication(
+  tripId: string,
+  elementId: string,
+  mandateId: string,
+): Promise<{ error?: string; clientSecret?: string; paymentMethodId?: string }> {
+  const m = await loadOwnRetryMandate(mandateId);
+  if ("error" in m) return m;
+  if (m.retry_reason !== "authentication_required" || !m.stripe_payment_intent_id) {
+    return { error: "This payment needs a new payment method instead." };
+  }
+  try {
+    const pi = await getStripe().paymentIntents.retrieve(m.stripe_payment_intent_id);
+    return { clientSecret: pi.client_secret ?? undefined, paymentMethodId: m.stripe_payment_method_id ?? undefined };
+  } catch (err) {
+    return { error: toUserFacingError({ message: (err as Error).message }) };
+  }
+}
+
+/** After the on-session authentication: re-read the hold from Stripe. */
+export async function syncRetryAuthentication(
+  tripId: string,
+  elementId: string,
+  mandateId: string,
+): Promise<{ error?: string; outcome?: string }> {
+  const m = await loadOwnRetryMandate(mandateId);
+  if ("error" in m) return m;
+  if (!m.stripe_payment_intent_id) return { error: "Payment not found." };
+  try {
+    const outcome = await syncRetriedHold(createServiceClient(), m.id, m.funding_request_id, m.stripe_payment_intent_id, await requestOrigin());
+    revalidateFunding(tripId, elementId);
+    return { outcome };
+  } catch (err) {
+    return { error: toUserFacingError({ message: (err as Error).message }) };
+  }
+}
+
+/** Organizer: give the person more time (capped inside the hold lifetime). */
+export async function extendPaymentRetry(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  hours: number,
+): Promise<{ error?: string; retryDeadline?: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("extend_funding_retry", {
+    p_funding_request_id: fundingRequestId,
+    p_hours: Math.round(hours),
+  });
+  if (error) return { error: toUserFacingError(error) };
+  revalidateFunding(tripId, elementId);
+  return { retryDeadline: data as string };
 }

@@ -4,8 +4,11 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getStripe } from "@/lib/stripe/server";
 import { activateFromSetupIntent } from "@/lib/stripe/mandates";
 import {
+  handleHoldPlaced,
+  handlePaymentIntentCanceled,
   handlePaymentIntentFailed,
   handlePaymentIntentSucceeded,
+  handleRequiresAction,
 } from "@/lib/stripe/charges";
 
 /**
@@ -16,8 +19,15 @@ import {
  * retries delivery rather than the event being silently dropped.
  *
  * Subscribe the endpoint to: setup_intent.succeeded,
- * setup_intent.setup_failed, payment_intent.succeeded,
- * payment_intent.payment_failed, charge.refunded.
+ * setup_intent.setup_failed, payment_intent.amount_capturable_updated,
+ * payment_intent.requires_action, payment_intent.succeeded,
+ * payment_intent.payment_failed, payment_intent.canceled, charge.refunded.
+ *
+ * Authorize-then-capture: amount_capturable_updated = a card hold landed;
+ * succeeded = a capture or SEPA debit settled (the only event that writes
+ * a contribution); payment_failed on a hold = retry window, on SEPA =
+ * settlement failure; charge.refunded only follows a settlement failure or
+ * an organizer's Refund everyone.
  */
 export async function POST(request: NextRequest) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -43,6 +53,7 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceClient();
+  const origin = request.nextUrl.origin;
   try {
     switch (event.type) {
       case "setup_intent.succeeded":
@@ -60,7 +71,16 @@ export async function POST(request: NextRequest) {
         await handlePaymentIntentSucceeded(supabase, event.data.object);
         break;
       case "payment_intent.payment_failed":
-        await handlePaymentIntentFailed(supabase, event.data.object);
+        await handlePaymentIntentFailed(supabase, event.data.object, origin);
+        break;
+      case "payment_intent.amount_capturable_updated":
+        await handleHoldPlaced(supabase, event.data.object, origin);
+        break;
+      case "payment_intent.requires_action":
+        await handleRequiresAction(supabase, event.data.object, origin);
+        break;
+      case "payment_intent.canceled":
+        await handlePaymentIntentCanceled(supabase, event.data.object);
         break;
       case "charge.refunded": {
         const charge = event.data.object;

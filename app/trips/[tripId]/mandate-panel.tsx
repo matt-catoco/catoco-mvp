@@ -8,6 +8,7 @@ import { cancelFundingMandate, startFundingMandate, syncFundingMandate } from ".
 import { btnPrimary, btnSecondary, labelClass } from "@/lib/ui";
 import { formatCurrency } from "@/lib/trip-elements";
 import { estimateFee, SEPA_FLAT } from "@/lib/stripe/fees";
+import { HoldPhasePanel, type RetryStatus } from "./retry-panel";
 
 // Loaded once per page, lazily, only when this panel actually renders.
 let stripePromise: Promise<StripeJs | null> | null = null;
@@ -21,7 +22,18 @@ function getStripeJs() {
 
 export type MyMandateInfo = {
   id: string;
-  status: "pending" | "active" | "charging" | "charge_succeeded" | "charge_failed" | "canceled" | "refunded";
+  status:
+    | "pending"
+    | "active"
+    | "charging"
+    | "held"
+    | "awaiting_retry"
+    | "charge_succeeded"
+    | "charge_failed"
+    | "canceled"
+    | "refunded";
+  /** awaiting_retry: what the participant must do. */
+  retryReason?: string | null;
   paymentMethodType: "card" | "sepa_debit" | null;
   failureReason: string | null;
   /** Authorized "up to" (share + cushion at the time). */
@@ -35,7 +47,7 @@ export type MandatePanelProps = {
   currency: string;
   individualAmount: number;
   deadline: string | null;
-  chargeStatus: "charging" | "charged" | "failed" | null;
+  chargeStatus: "charging" | "capturing" | "charged" | "failed" | null;
   chargeFailureReason: string | null;
   myMandate: MyMandateInfo | null;
   population: number;
@@ -46,6 +58,9 @@ export type MandatePanelProps = {
   waitlisted?: boolean;
   /** Share + price cushion — what a new authorization covers "up to". */
   capAmount?: number | null;
+  /** Holds phase: the group's live retry-buffer status. */
+  retry?: RetryStatus | null;
+  isOrganizerView?: boolean;
 };
 
 const METHOD_LABEL = { card: "card", sepa_debit: "SEPA Direct Debit" } as const;
@@ -54,7 +69,10 @@ function failureCopy(reason: string | null): string {
   if (reason === "not_fully_mandated") {
     return "Not everyone authorized their share by the deadline, so nobody was charged.";
   }
-  return "At least one charge didn't go through, so the whole pool was called off — any charges that did succeed are being refunded automatically.";
+  if (reason === "retry_expired") {
+    return "One payment couldn't be fixed in time, so the group's holds were released — nobody was charged.";
+  }
+  return "A payment failed at the final step after others had gone through, so the pool was called off — those charges are being refunded automatically.";
 }
 
 /**
@@ -99,11 +117,28 @@ export function MandatePanel(props: MandatePanelProps) {
 
   if (chargeStatus === "charging") {
     return (
+      <HoldPhasePanel
+        tripId={props.tripId}
+        elementId={props.elementId}
+        fundingRequestId={props.fundingRequestId}
+        currency={currency}
+        share={individualAmount}
+        myStatus={myMandate?.status ?? null}
+        myRetryReason={myMandate?.retryReason ?? null}
+        myMandateId={myMandate?.id ?? null}
+        retry={props.retry ?? null}
+        isOrganizerView={Boolean(props.isOrganizerView)}
+        stripeJs={stripeJs}
+      />
+    );
+  }
+
+  if (chargeStatus === "capturing") {
+    return (
       <div className="rounded-lg border border-brand-line p-3">
         {header}
         <p className="mt-2 text-xs text-brand-muted">
-          The deadline hit and everyone was authorized — charging each share now. Bank debits can
-          take a little while to settle.
+          Everyone&apos;s hold is in — charging each share now. Bank debits can take a little while to settle.
         </p>
       </div>
     );

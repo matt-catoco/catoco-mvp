@@ -3,12 +3,14 @@ import { runFundingChargeJob } from "@/lib/stripe/charges";
 import { stripeConfigured } from "@/lib/stripe/server";
 
 /**
- * Deadline charge job (flow #4). Vercel Cron hits this on the schedule in
- * vercel.json with "Authorization: Bearer $CRON_SECRET" — same gate as the
- * notifications cron. At each run: claim every collecting funding_request
- * whose real funding_deadline has passed, fire its off-session charges (or
- * fail it if it isn't fully mandated), and settle refunds on any failed
- * batch. Charging never depends on someone loading a page.
+ * Deadline charge job (flow #4, authorize-then-capture). Vercel Cron hits
+ * this on the schedule in vercel.json with "Authorization: Bearer
+ * $CRON_SECRET" — same gate as the notifications cron. Each run: claim every
+ * collecting funding_request whose funding_deadline has passed, place card
+ * HOLDS, expire elapsed retry windows (releasing the other holds), capture
+ * batches whose holds are all in, and settle refunds owed after a
+ * settlement failure. Captures also happen immediately when the last
+ * participant fixes their payment — this job is the backstop.
  *
  * Safe to call repeatedly (manual test runs included): claiming is atomic
  * in begin_funding_charge_batch() and every Stripe write is idempotent.
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const summary = await runFundingChargeJob();
+    const summary = await runFundingChargeJob(request.nextUrl.origin);
     if (summary.errors.length) console.error("[funding-charges] errors", summary.errors);
     return NextResponse.json(summary);
   } catch (err) {

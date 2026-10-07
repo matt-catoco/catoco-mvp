@@ -39,7 +39,7 @@ export type FundingRequestInfo = {
   // is still blocking the trip from being deleted.
   refundedAt: string | null;
   /** Flow #4 charge-batch state (Stripe mandates). null = not started. */
-  chargeStatus: "charging" | "charged" | "failed" | null;
+  chargeStatus: "charging" | "capturing" | "charged" | "failed" | null;
 };
 
 /** Present only when Stripe is configured in this environment — the
@@ -274,7 +274,7 @@ export function FundingCard({
           // Real Stripe money on this pool: the only way out is actually
           // returning it — the manual flag below refuses in this case.
           canManage &&
-          funding.chargeStatus !== "charging" && (
+          funding.chargeStatus !== "charging" && funding.chargeStatus !== "capturing" && (
             <RefundEveryone
               tripId={tripId}
               elementId={elementId}

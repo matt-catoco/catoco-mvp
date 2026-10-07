@@ -181,14 +181,23 @@ Without both API keys set, the app keeps the old manual "Commit" ledger — that
 how Production behaves today.
 
 **Webhook endpoint:** `/api/stripe/webhook`, events `setup_intent.succeeded`,
-`setup_intent.setup_failed`, `payment_intent.succeeded`,
-`payment_intent.payment_failed`, `charge.refunded`. Locally, use the Stripe CLI (`winget install Stripe.StripeCli`)
+`setup_intent.setup_failed`, `payment_intent.amount_capturable_updated`,
+`payment_intent.requires_action`, `payment_intent.succeeded`,
+`payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`.
+Each environment has its own endpoint + signing secret (staging.catoco.co,
+www.catoco.co — www, since the apex redirects). Locally, use the Stripe CLI (`winget install Stripe.StripeCli`)
 — no `stripe login` needed if you pass the test key:
 `stripe listen --api-key <sk_test_…> --forward-to localhost:3000/api/stripe/webhook`,
 then put the `whsec_…` it prints into `.env.local`.
 
-**Refunds:** a failed charge batch refunds its succeeded charges automatically.
-To cancel a funded element/trip, the organizer uses **Refund everyone** on the
+**Authorize, then capture:** at the funding deadline every card gets a HOLD
+(nothing charged, no fee). Only when every hold is in are they captured and
+SEPA debits confirmed. A failed hold puts that person in a retry window (trip
+setting, default 24h, organizer-extendable, capped 6 days after the first hold)
+to add a new payment method or confirm with their bank; they and the organizer
+are emailed. If the window expires, everyone else's hold is released — no
+refunds. **Refunds** now only follow a settlement failure (a SEPA debit or a
+capture failing after money moved). To cancel a funded element/trip, the organizer uses **Refund everyone** on the
 element's funding card (also available after "Mark booked", for a cancelled
 booking). It shows Refunded once every `charge.refunded` webhook lands; only
 then can the element/trip be deleted. Delete element, "Report unavailable" and

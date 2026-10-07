@@ -57,6 +57,10 @@ export async function createTrip(
       allow_participant_invites: permissions.allowParticipantInvites === true,
       price_cushion_kind: permissions.cushionKind === "amount" ? "amount" : "percent",
       price_cushion_value: Number.isFinite(permissions.cushionValue) ? permissions.cushionValue : 10,
+      payment_retry_hours:
+        Number.isInteger(permissions.retryHours) && permissions.retryHours >= 1 && permissions.retryHours <= 144
+          ? permissions.retryHours
+          : 24,
     })
     .select("id")
     .single();

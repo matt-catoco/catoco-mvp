@@ -16,6 +16,8 @@ export type TripPermissions = {
   /** Price cushion: a percent of each share, or a fixed amount per person. */
   cushionKind: "percent" | "amount";
   cushionValue: number;
+  /** Hours a participant gets to fix a failed card hold before the group's holds are released. */
+  retryHours: number;
 };
 
 /** Same defaults as the trips table columns (20261002000000 / 20261004000000). */
@@ -28,6 +30,7 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   allowParticipantInvites: false,
   cushionKind: "percent",
   cushionValue: 10,
+  retryHours: 24,
 };
 
 /** Range check, mirroring the DB constraints (1–60 days). */
@@ -37,6 +40,9 @@ export function tripPermissionsError(v: TripPermissions): string | null {
   if (!ok(v.fundingDeadlineDays)) return "Funding deadline must be 1–60 days.";
   if (!Number.isFinite(v.cushionValue) || v.cushionValue < 0 || (v.cushionKind === "percent" && v.cushionValue > 100)) {
     return "Price cushion must be 0–100% or a non-negative amount.";
+  }
+  if (!Number.isInteger(v.retryHours) || v.retryHours < 1 || v.retryHours > 144) {
+    return "Payment retry window must be 1–144 hours.";
   }
   return null;
 }
