@@ -31,6 +31,7 @@ const ALLOWED_EMAILS = new Set(
     "toddneale13@gmail.com",
     "cpapish@gmail.com",
     "staleyblake@gmail.com",
+    "bowman390@yahoo.com",
   ].map((e) => e.toLowerCase()),
 );
 
