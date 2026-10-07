@@ -27,6 +27,8 @@ import {
 import type { MyMandateInfo } from "../../mandate-panel";
 import type { PaymentRosterEntry, PaymentState } from "../../payment-status";
 import { stripeConfigured } from "@/lib/stripe/server";
+import type { PriceInfo } from "../../price-check";
+import { cushionLabel } from "@/lib/trip-permissions";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
 import { ConfirmationDetails } from "@/components/confirmation-details";
@@ -53,6 +55,8 @@ type ElementRow = {
   bundle_group_id: string | null;
   scope_all: boolean;
   spots: number | null;
+  cushion_kind: string | null;
+  cushion_value: number | null;
 };
 
 type FundingRow = {
@@ -68,6 +72,8 @@ type FundingRow = {
   charge_status: "charging" | "charged" | "failed" | null;
   charge_failure_reason: string | null;
   refund_all_requested_at: string | null;
+  previous_individual_amount: number | null;
+  price_changed_at: string | null;
 };
 
 type MandateRow = {
@@ -77,6 +83,7 @@ type MandateRow = {
   payment_method_type: MyMandateInfo["paymentMethodType"];
   failure_reason: string | null;
   created_at: string;
+  max_amount: number | null;
 };
 
 type ContributionRow = {
@@ -174,7 +181,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all, spots",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all, spots, cushion_kind, cushion_value",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -194,7 +201,7 @@ export default async function ElementDetailPage({
     const { data: option } = element.locked_option_id
       ? await supabase
           .from("element_options")
-          .select("value")
+          .select("value, unit_price, pricing_basis")
           .eq("id", element.locked_option_id)
           .maybeSingle()
       : { data: null };
@@ -202,7 +209,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -241,7 +248,34 @@ export default async function ElementDetailPage({
     let fundingRoster: RosterRow[] = [];
     let bundleMembers: BundleMemberInfo[] = [];
     let payments: FundingPayments | undefined;
+    let priceInfo: PriceInfo | undefined;
     if (fundingRow) {
+      const optionValue = (option?.value ?? {}) as Record<string, unknown>;
+      const { data: cushionTrip } = await supabase
+        .from("trips")
+        .select("price_cushion_kind, price_cushion_value")
+        .eq("id", tripId)
+        .maybeSingle();
+      const vendor = String(optionValue.vendor_source ?? "");
+      priceInfo = {
+        unitPrice: option?.unit_price ?? null,
+        basisSuffix:
+          option?.pricing_basis === "per_person"
+            ? "/person"
+            : option?.pricing_basis === "per_night"
+              ? optionValue.mode === "rental_car"
+                ? "/day"
+                : "/night"
+              : "",
+        vendorLabel: vendor === "duffel" ? "Duffel" : vendor === "liteapi" ? "LiteAPI" : null,
+        cushionLabel: cushionLabel(
+          element.cushion_kind ?? cushionTrip?.price_cushion_kind,
+          element.cushion_kind ? element.cushion_value : cushionTrip?.price_cushion_value,
+          fundingRow.currency ?? String(optionValue.currency ?? "USD"),
+        ),
+        previousShare: fundingRow.previous_individual_amount,
+        priceChangedAt: fundingRow.price_changed_at,
+      };
       const { data: collected } = await supabase.rpc("get_funding_collected", {
         p_funding_request_id: fundingRow.id,
       });
@@ -270,10 +304,10 @@ export default async function ElementDetailPage({
         // RLS scopes these: the organizer reads every mandate on the
         // request, a participant only their own. Contributions are visible
         // to all members (existing policy).
-        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }, { data: spotsFull }] = await Promise.all([
+        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }, { data: spotsFull }, { data: capAmount }] = await Promise.all([
           supabase
             .from("funding_mandates")
-            .select("id, participant_id, status, payment_method_type, failure_reason, created_at")
+            .select("id, participant_id, status, payment_method_type, failure_reason, created_at, max_amount")
             .eq("funding_request_id", fundingRow.id)
             .order("created_at", { ascending: false })
             .returns<MandateRow[]>(),
@@ -285,6 +319,10 @@ export default async function ElementDetailPage({
             .order("created_at", { ascending: false })
             .returns<ContributionRow[]>(),
           supabase.rpc("funding_request_spots_full", { p_funding_request_id: fundingRow.id, p_user_id: user.id }),
+          supabase.rpc("funding_request_cushion_cap", {
+            p_funding_request_id: fundingRow.id,
+            p_individual: fundingRow.individual_amount ?? fundingRow.required_amount,
+          }),
         ]);
         const summary = (Array.isArray(summaryRows) ? summaryRows[0] : summaryRows) as
           | { population: number; covered: number }
@@ -352,6 +390,7 @@ export default async function ElementDetailPage({
                   status: mandateRow.status,
                   paymentMethodType: mandateRow.payment_method_type,
                   failureReason: mandateRow.failure_reason,
+                  maxAmount: mandateRow.max_amount,
                 }
               : null,
             population: summary?.population ?? 0,
@@ -361,6 +400,8 @@ export default async function ElementDetailPage({
             alreadyContributed: Boolean(myContribution && !myContribution.refunded_at) && !mandateRow,
             // Every spot committed by others: this viewer is waitlisted.
             waitlisted: Boolean(spotsFull),
+            // "Up to" for a new authorization: share + the price cushion.
+            capAmount: (capAmount as number | null) ?? null,
           },
           roster: paymentRoster,
           isOrganizerView,
@@ -496,6 +537,8 @@ export default async function ElementDetailPage({
               initialLockedValue={option?.value ?? {}}
               canSetSpots={Boolean(canManage) && element.type !== "dates" && element.type !== "destination"}
               initialSpots={element.spots}
+              initialCushionKind={element.cushion_kind}
+              initialCushionValue={element.cushion_value}
             />
           </div>
         )}
@@ -522,6 +565,7 @@ export default async function ElementDetailPage({
               }
               members={bundleMembers}
               payments={payments}
+              priceInfo={priceInfo}
             />
           ) : (
             // Dates/Destination are never price-bearing, so `funding` is
@@ -642,6 +686,8 @@ export default async function ElementDetailPage({
               initialLockedValue={null}
               canSetSpots={Boolean(canManage) && element.type !== "dates" && element.type !== "destination"}
               initialSpots={element.spots}
+              initialCushionKind={element.cushion_kind}
+              initialCushionValue={element.cushion_value}
             />
           </div>
         )}

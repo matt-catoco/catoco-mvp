@@ -17,6 +17,7 @@ import {
 import { createElement } from "./actions";
 import { btnPrimary, fieldClass, labelClass, pillActiveTeal, pillInactive } from "@/lib/ui";
 import { SpotsField, parseSpots } from "@/components/spots-field";
+import { CushionField, parseCushion, type CushionChoice } from "@/components/cushion-field";
 import { VendorSearchPanel, VENDOR_SEARCHABLE_TYPES } from "./vendor-search-modal";
 
 const field = `h-10 ${fieldClass}`;
@@ -145,6 +146,7 @@ export function AddElementForm({
   );
   const [votingDeadline, setVotingDeadline] = useState(bundleContext?.votingDeadline ?? "");
   const [spots, setSpots] = useState("");
+  const [cushion, setCushion] = useState<CushionChoice>({ kind: "", value: "" });
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // Locking a searchable type in now defaults to picking a real vendor
@@ -188,6 +190,7 @@ export function AddElementForm({
 
   function validate(): string | null {
     if (showSpots && parseSpots(spots) === undefined) return "Spots must be a whole number of at least 1.";
+    if (showSpots && parseCushion(cushion) === undefined) return "Price cushion must be 0–100% or a non-negative amount.";
     if (state === "locked") {
       return validateOptionValue(type, lockedValue, { requireDates: false });
     }
@@ -250,6 +253,7 @@ export function AddElementForm({
         startBundle: false,
         bundleContinues: false,
         spots: showSpots ? (parseSpots(spots) ?? null) : null,
+        cushion: showSpots ? parseCushion(cushion) : undefined,
       });
       if (res.error) {
         setError(res.error);
@@ -292,6 +296,7 @@ export function AddElementForm({
         startBundle: !isChained,
         bundleContinues: true,
         spots: showSpots ? (parseSpots(spots) ?? null) : null,
+        cushion: showSpots ? parseCushion(cushion) : undefined,
       });
       if (res.error) {
         setError(res.error);
@@ -398,6 +403,7 @@ export function AddElementForm({
       )}
 
       {showSpots && <SpotsField value={spots} onChange={setSpots} />}
+      {showSpots && <CushionField value={cushion} onChange={setCushion} />}
 
       <div className="flex flex-col gap-2">
         <span className={`${labelClass} text-center`}>State</span>

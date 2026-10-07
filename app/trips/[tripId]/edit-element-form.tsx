@@ -8,6 +8,7 @@ import type { ElementType } from "@/lib/trip-elements";
 import { deleteElement, updateElement } from "./actions";
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 import { SpotsField, parseSpots } from "@/components/spots-field";
+import { CushionField, parseCushion, type CushionChoice } from "@/components/cushion-field";
 
 const field = `h-10 ${fieldClass}`;
 
@@ -30,6 +31,8 @@ export function EditElementForm({
   initialLockedValue,
   canSetSpots = false,
   initialSpots = null,
+  initialCushionKind = null,
+  initialCushionValue = null,
 }: {
   tripId: string;
   elementId: string;
@@ -43,6 +46,8 @@ export function EditElementForm({
   /** Organizer / co-organizer, and not a Dates/Destination element. */
   canSetSpots?: boolean;
   initialSpots?: number | null;
+  initialCushionKind?: string | null;
+  initialCushionValue?: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -58,6 +63,11 @@ export function EditElementForm({
     initialLockedValue ?? {},
   );
   const [spots, setSpots] = useState(initialSpots != null ? String(initialSpots) : "");
+  const initialCushion: CushionChoice = {
+    kind: initialCushionKind === "percent" || initialCushionKind === "amount" ? initialCushionKind : "",
+    value: initialCushionValue != null ? String(initialCushionValue) : "",
+  };
+  const [cushion, setCushion] = useState<CushionChoice>(initialCushion);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -80,6 +90,9 @@ export function EditElementForm({
     setError(null);
     const parsedSpots = canSetSpots ? parseSpots(spots) : null;
     if (parsedSpots === undefined) return setError("Spots must be a whole number of at least 1.");
+    const parsedCushion = canSetSpots ? parseCushion(cushion) : undefined;
+    if (canSetSpots && parsedCushion === undefined) return setError("Price cushion must be 0–100% or a non-negative amount.");
+    const cushionChanged = JSON.stringify(cushion) !== JSON.stringify(initialCushion);
     startTransition(async () => {
       const res = await updateElement({
         tripId,
@@ -92,6 +105,7 @@ export function EditElementForm({
         votingDeadline: votingDeadline || null,
         lockedValue: state === "locked" ? lockedValue : undefined,
         spots: canSetSpots && parsedSpots !== (initialSpots ?? null) ? parsedSpots : undefined,
+        cushion: canSetSpots && cushionChanged ? parsedCushion : undefined,
       });
       if (res.error) {
         setError(res.error);
@@ -140,6 +154,7 @@ export function EditElementForm({
       )}
 
       {canSetSpots && <SpotsField value={spots} onChange={setSpots} />}
+      {canSetSpots && <CushionField value={cushion} onChange={setCushion} />}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 

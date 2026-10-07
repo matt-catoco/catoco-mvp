@@ -24,6 +24,8 @@ export type MyMandateInfo = {
   status: "pending" | "active" | "charging" | "charge_succeeded" | "charge_failed" | "canceled" | "refunded";
   paymentMethodType: "card" | "sepa_debit" | null;
   failureReason: string | null;
+  /** Authorized "up to" (share + cushion at the time). */
+  maxAmount?: number | null;
 };
 
 export type MandatePanelProps = {
@@ -42,6 +44,8 @@ export type MandatePanelProps = {
   alreadyContributed: boolean;
   /** Every spot is already committed by others (limited-spots element). */
   waitlisted?: boolean;
+  /** Share + price cushion — what a new authorization covers "up to". */
+  capAmount?: number | null;
 };
 
 const METHOD_LABEL = { card: "card", sepa_debit: "SEPA Direct Debit" } as const;
@@ -145,6 +149,15 @@ export function MandatePanel(props: MandatePanelProps) {
         <p className="text-sm font-medium text-black dark:text-zinc-50">
           {formatCurrency(individualAmount, currency)}
         </p>
+        {(() => {
+          const upTo = active || inFlight ? myMandate?.maxAmount : props.capAmount;
+          return upTo != null && upTo > individualAmount ? (
+            <p className="text-[11px] text-brand-muted">
+              {active || inFlight ? "Authorized" : "You'll authorize"} up to {formatCurrency(upTo, currency)} in case
+              the price moves before booking — you&apos;re only charged the actual share.
+            </p>
+          ) : null;
+        })()}
       </div>
 
       {active || inFlight ? (

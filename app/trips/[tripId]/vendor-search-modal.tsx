@@ -478,7 +478,12 @@ export function VendorSearchPanel({
               {response.notice ?? "No results for this search — try different dates, a different location, or broaden the search."}
             </p>
           ) : (
-            response.results.map((r) => (
+            <>
+            <p className="text-[11px] text-brand-muted">
+              Prices are live quotes, not guaranteed until booked — they can move before the group pays
+              (covered up to the trip&apos;s price cushion).
+            </p>
+            {response.results.map((r) => (
               <div
                 key={r.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-brand-line p-2.5 text-sm"
@@ -506,7 +511,8 @@ export function VendorSearchPanel({
                   {selecting ? "Adding…" : "Select"}
                 </button>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       )}

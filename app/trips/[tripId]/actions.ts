@@ -147,6 +147,8 @@ export async function createElement(input: {
   bundleContinues?: boolean;
   /** Organizer only: how many people it can take (null = trip max). */
   spots?: number | null;
+  /** Organizer only: price cushion override (kind null = trip default). */
+  cushion?: { kind: "percent" | "amount" | null; value: number | null };
 }): Promise<CreateElementResult> {
   const supabase = await createClient();
   const {
@@ -185,6 +187,18 @@ export async function createElement(input: {
 
   if (error) return { error: toUserFacingError(error) };
 
+  if (input.cushion?.kind) {
+    const { error: cushionError } = await supabase.rpc("set_element_cushion", {
+      p_element_id: data as string,
+      p_kind: input.cushion.kind,
+      p_value: input.cushion.value,
+    });
+    if (cushionError) {
+      revalidatePath(`/trips/${input.tripId}`);
+      return { elementId: data as string, error: `Added, but the price cushion wasn't saved: ${toUserFacingError(cushionError)}` };
+    }
+  }
+
   if (input.spots != null) {
     const { error: spotsError } = await supabase.rpc("set_element_spots", {
       p_element_id: data as string,
@@ -219,6 +233,8 @@ export async function updateElement(input: {
   lockedValue?: Record<string, unknown>;
   /** Organizer only; undefined = leave as is, null = back to the trip max. */
   spots?: number | null;
+  /** Organizer only; undefined = leave as is. */
+  cushion?: { kind: "percent" | "amount" | null; value: number | null };
 }): Promise<UpdateElementResult> {
   const supabase = await createClient();
   const {
@@ -248,6 +264,15 @@ export async function updateElement(input: {
   });
 
   if (error) return { error: toUserFacingError(error) };
+
+  if (input.cushion !== undefined) {
+    const { error: cushionError } = await supabase.rpc("set_element_cushion", {
+      p_element_id: input.elementId,
+      p_kind: input.cushion.kind,
+      p_value: input.cushion.value,
+    });
+    if (cushionError) return { error: toUserFacingError(cushionError) };
+  }
 
   if (input.spots !== undefined) {
     const { error: spotsError } = await supabase.rpc("set_element_spots", {
@@ -802,6 +827,8 @@ export async function updateTripPermissions(
     fundingDeadlineDays: number;
     allowOverMax: boolean;
     allowParticipantInvites: boolean;
+    cushionKind: "percent" | "amount";
+    cushionValue: number;
   },
 ): Promise<UpdateTripPermissionsResult> {
   const supabase = await createClient();
@@ -815,6 +842,12 @@ export async function updateTripPermissions(
     p_allow_participant_invites: input.allowParticipantInvites,
   });
   if (error) return { error: toUserFacingError(error) };
+  const { error: cushionError } = await supabase.rpc("update_trip_cushion", {
+    p_trip_id: tripId,
+    p_kind: input.cushionKind,
+    p_value: input.cushionValue,
+  });
+  if (cushionError) return { error: toUserFacingError(cushionError) };
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/settings`);
   return {};

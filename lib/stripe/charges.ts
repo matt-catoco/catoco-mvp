@@ -2,6 +2,7 @@ import "server-only";
 import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fromMinorUnits, getStripe, toMinorUnits } from "@/lib/stripe/server";
+import { requoteOption } from "@/lib/vendor-search/requote";
 
 /**
  * The charge/refund engine for mandate-based funding (flow #4), shared by
@@ -53,11 +54,40 @@ export type ChargeJobSummary = {
   failedBatches: string[];
   refundsRequested: number;
   errors: string[];
+  /** Price cushion: vendor options re-quoted right before charging. */
+  repriced: { elementId: string; outcome: string }[];
 };
+
+// Re-quote vendor-priced options whose deadline is within this window, so
+// the charge reflects the price at charge time (price cushion).
+const RECHECK_WINDOW_HOURS = 2;
 
 export async function runFundingChargeJob(): Promise<ChargeJobSummary> {
   const supabase = createServiceClient();
-  const summary: ChargeJobSummary = { claimed: [], fired: 0, failedBatches: [], refundsRequested: 0, errors: [] };
+  const summary: ChargeJobSummary = { claimed: [], fired: 0, failedBatches: [], refundsRequested: 0, errors: [], repriced: [] };
+
+  // 0. recheck vendor prices (Duffel / LiteAPI) right before charging. A
+  // rise beyond the cushion cancels authorizations (reprice_locked_element),
+  // so that batch then fails as not fully authorized instead of
+  // overcharging. A failed re-quote leaves the price as it was.
+  const { data: dueForRecheck } = await supabase.rpc("list_vendor_priced_elements_due", {
+    p_hours: RECHECK_WINDOW_HOURS,
+  });
+  for (const row of (dueForRecheck ?? []) as { element_id: string; value: Record<string, unknown> }[]) {
+    try {
+      const quote = await requoteOption(row.value);
+      const currency = String(row.value.currency ?? "").toUpperCase();
+      if (!quote.ok || (currency && quote.currency.toUpperCase() !== currency)) continue;
+      const { data: outcome, error } = await supabase.rpc("reprice_locked_element", {
+        p_element_id: row.element_id,
+        p_unit_price: Math.round(quote.unitPrice * 100) / 100,
+      });
+      if (error) summary.errors.push(`reprice ${row.element_id}: ${error.message}`);
+      else summary.repriced.push({ elementId: row.element_id, outcome: outcome as string });
+    } catch (err) {
+      summary.errors.push(`requote ${row.element_id}: ${(err as Error).message}`);
+    }
+  }
 
   // 1. claim everything whose deadline has passed
   const { data: due, error: dueError } = await supabase.rpc("list_due_funding_charges");

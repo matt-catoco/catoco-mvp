@@ -796,6 +796,11 @@ function PriceField({
         <p className="text-xs text-brand-muted">Currency and pricing basis are shared across the bundle.</p>
       )}
       {price.trim() && (
+        <p className="text-[11px] text-brand-muted">
+          Prices aren&apos;t guaranteed until booked — the trip&apos;s price cushion covers small changes.
+        </p>
+      )}
+      {price.trim() && (
         <label className="flex flex-col gap-1">
           <span className={label}>Price is per</span>
           <select

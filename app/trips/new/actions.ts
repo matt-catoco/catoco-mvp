@@ -55,6 +55,8 @@ export async function createTrip(
       funding_deadline_days: fundingDays,
       allow_over_max: permissions.allowOverMax === true,
       allow_participant_invites: permissions.allowParticipantInvites === true,
+      price_cushion_kind: permissions.cushionKind === "amount" ? "amount" : "percent",
+      price_cushion_value: Number.isFinite(permissions.cushionValue) ? permissions.cushionValue : 10,
     })
     .select("id")
     .single();

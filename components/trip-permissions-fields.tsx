@@ -146,6 +146,33 @@ export function TripPermissionsFields({
             </span>
           </label>
         </div>
+        <label className="mt-3 flex flex-col gap-1">
+          <span className={labelClass}>Price cushion</span>
+          <span className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={v.cushionKind === "percent" ? 100 : undefined}
+              step="any"
+              className={`h-9 w-20 ${fieldClass}`}
+              value={v.cushionValue}
+              onChange={(e) => onChange({ ...v, cushionValue: Number(e.target.value) })}
+            />
+            <select
+              className={`h-9 w-auto ${fieldClass}`}
+              value={v.cushionKind}
+              onChange={(e) => onChange({ ...v, cushionKind: e.target.value as "percent" | "amount" })}
+              aria-label="Cushion type"
+            >
+              <option value="percent">% of each share</option>
+              <option value="amount">per person (trip currency)</option>
+            </select>
+          </span>
+          <span className="text-xs text-brand-muted">
+            Prices move between lock-in and booking. Everyone authorizes up to their share plus this, and is
+            only charged the real price. Each element can override it.
+          </span>
+        </label>
       </div>
     </div>
   );

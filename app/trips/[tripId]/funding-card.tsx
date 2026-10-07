@@ -13,6 +13,7 @@ import {
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 import { formatCurrency } from "@/lib/trip-elements";
 import { MandatePanel, type MandatePanelProps } from "./mandate-panel";
+import { PriceCheck, type PriceInfo } from "./price-check";
 import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
 import { ConfirmationFields, useConfirmationFields } from "./confirmation-fields";
 
@@ -89,6 +90,7 @@ export function FundingCard({
   currency = "USD",
   members = [],
   payments,
+  priceInfo,
 }: {
   tripId: string;
   elementId: string;
@@ -103,6 +105,8 @@ export function FundingCard({
    * prompts. */
   members?: BundleMemberInfo[];
   payments?: FundingPayments;
+  /** Price cushion: current price, cushion, recheck/update (locked elements). */
+  priceInfo?: PriceInfo;
 }) {
   const router = useRouter();
   // Functional purchaser access stays a separate, user-ID-based check —
@@ -248,6 +252,18 @@ export function FundingCard({
             processing until payment integration exists. */}
         {payments && (
           <PaymentRoster entries={payments.roster} isOrganizerView={payments.isOrganizerView} />
+        )}
+
+        {priceInfo && funding.status === "collecting" && (
+          <PriceCheck
+            tripId={tripId}
+            elementId={elementId}
+            currency={currency}
+            share={funding.individualAmount}
+            canAct={canAct}
+            editable={!funding.chargeStatus}
+            info={priceInfo}
+          />
         )}
 
         {funding.refundedAt ? (
