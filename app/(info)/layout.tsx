@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { infoPagesHidden } from "@/components/info/visibility";
 import { InfoFooter, InfoHeader } from "@/components/info/info-shell";
 
 // HIDDEN ON PRODUCTION: every page in this group (About, Contact, Help, Terms,
 // Privacy, Company, Tutorials) returns a 404 and is no-indexed on the
 // production deployment. Staging and preview deployments render normally.
 // To launch: delete the notFound() guard below (and the robots line).
+// The rule lives in components/info/visibility.ts.
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
 export default function InfoLayout({ children }: LayoutProps<"/">) {
-  if (process.env.VERCEL_ENV === "production") notFound();
+  if (infoPagesHidden()) notFound();
   return (
     <>
       <InfoHeader />

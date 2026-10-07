@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { infoPagesHidden } from "@/components/info/visibility";
 import { about, site } from "@/content/pages/en";
 import { Banner, PageHeading, T } from "@/components/info/text";
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  if (process.env.VERCEL_ENV === "production") notFound();
+  if (infoPagesHidden()) notFound();
   return (
     <article>
       <Banner>{site.draftBanner}</Banner>
