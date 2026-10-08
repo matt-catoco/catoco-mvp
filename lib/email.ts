@@ -11,7 +11,14 @@ import "server-only";
  * var this app reads directly).
  */
 
-const FROM = "Catoco <noreply@catoco.co>";
+/**
+ * Sender identity for every app email — one place, so all sends match.
+ * Replies go to support, not to the sending address.
+ */
+export const EMAIL_SENDER = {
+  from: "Catoco <notifications@catoco.co>",
+  replyTo: "support@catoco.co",
+} as const;
 
 /**
  * Staging/prod split: nothing here should ever email a real person outside
@@ -56,7 +63,8 @@ export async function sendEmail({
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: FROM, to, subject, html }),
+      // Raw REST API: the reply-to field is `reply_to` (the SDK calls it replyTo).
+      body: JSON.stringify({ from: EMAIL_SENDER.from, reply_to: EMAIL_SENDER.replyTo, to, subject, html }),
     });
     if (!res.ok) {
       return { error: `Resend responded ${res.status}` };
