@@ -8,7 +8,7 @@ import { cancelFundingMandate, startFundingMandate, syncFundingMandate } from ".
 import { btnPrimary, btnSecondary, labelClass } from "@/lib/ui";
 import { platformFee } from "@/lib/platform-fee";
 import { formatCurrency } from "@/lib/trip-elements";
-import { estimateFee, SEPA_FLAT } from "@/lib/stripe/fees";
+import { ShareBreakdown } from "@/components/share-breakdown";
 import { HoldPhasePanel, type RetryStatus } from "./retry-panel";
 
 // Loaded once per page, lazily, only when this panel actually renders.
@@ -98,7 +98,6 @@ export function MandatePanel(props: MandatePanelProps) {
   const [pending, startTransition] = useTransition();
   const stripeJs = useMemo(() => getStripeJs(), []);
 
-  const isEur = currency === "EUR";
   const deadlineLabel = deadline ? new Date(deadline).toLocaleDateString() : null;
   const active = myMandate?.status === "active";
   const inFlight = myMandate?.status === "charging" || myMandate?.status === "charge_succeeded";
@@ -185,22 +184,7 @@ export function MandatePanel(props: MandatePanelProps) {
       {header}
       <div className="mt-2">
         <span className={labelClass}>Your share</span>
-        {fee > 0 ? (
-          <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 text-xs">
-            <dt className="text-brand-muted">Share</dt>
-            <dd className="text-right tabular-nums">{formatCurrency(individualAmount, currency)}</dd>
-            <dt className="text-brand-muted">Catoco fee ({props.platformFeePercent}%)</dt>
-            <dd className="text-right tabular-nums">{formatCurrency(fee, currency)}</dd>
-            <dt className="font-medium text-black dark:text-zinc-50">Total</dt>
-            <dd className="text-right text-sm font-medium tabular-nums text-black dark:text-zinc-50">
-              {formatCurrency(individualAmount + fee, currency)}
-            </dd>
-          </dl>
-        ) : (
-          <p className="text-sm font-medium text-black dark:text-zinc-50">
-            {formatCurrency(individualAmount, currency)}
-          </p>
-        )}
+        <ShareBreakdown share={individualAmount} percent={props.platformFeePercent} currency={currency} />
         {(() => {
           const upTo = active || inFlight ? myMandate?.maxAmount : props.capAmount;
           return upTo != null && upTo > individualAmount ? (
@@ -275,7 +259,6 @@ export function MandatePanel(props: MandatePanelProps) {
       ) : (
         <>
           {progress}
-          <FeeNote currency={currency} amount={individualAmount + fee} isEur={isEur} />
           <button
             type="button"
             disabled={pending || !stripeJs}
@@ -309,23 +292,6 @@ export function MandatePanel(props: MandatePanelProps) {
       )}
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
-  );
-}
-
-/** Fee display branches by method: percentage for cards, flat for SEPA. */
-function FeeNote({ currency, amount, isEur }: { currency: string; amount: number; isEur: boolean }) {
-  const cardFee = estimateFee(amount, "card");
-  return (
-    <p className="mt-1 text-[11px] text-brand-muted">
-      {isEur ? (
-        <>
-          SEPA Direct Debit is recommended: {formatCurrency(SEPA_FLAT, currency)} flat processing fee vs.
-          about {formatCurrency(cardFee, currency)} by card (1.5% + €0.25).
-        </>
-      ) : (
-        <>Card processing fee: about {formatCurrency(cardFee, currency)} (est., 1.5% + 0.25).</>
-      )}
-    </p>
   );
 }
 

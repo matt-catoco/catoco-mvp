@@ -13,6 +13,7 @@ import {
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 import { formatCurrency } from "@/lib/trip-elements";
 import { MandatePanel, type MandatePanelProps } from "./mandate-panel";
+import { ShareBreakdown } from "@/components/share-breakdown";
 import { PriceCheck, type PriceInfo } from "./price-check";
 import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
 import { ConfirmationFields, useConfirmationFields } from "./confirmation-fields";
@@ -346,9 +347,7 @@ export function FundingCard({
               <div className="mt-2 flex items-center gap-3">
                 <div>
                   <span className={labelClass}>Your share</span>
-                  <p className="text-sm font-medium text-black dark:text-zinc-50">
-                    {formatCurrency(funding.individualAmount, currency)}
-                  </p>
+                  <ShareBreakdown share={funding.individualAmount} percent={funding.platformFeePercent} currency={currency} />
                 </div>
                 <button
                   type="button"
