@@ -24,6 +24,7 @@ import { vendorResultToOptionValue } from "@/lib/vendor-search/to-option-value";
 import { submitOption } from "./actions";
 import { DateRangeField } from "@/components/date-range-field";
 import { AirportPicker } from "@/components/airport-picker";
+import { NumberInput } from "@/components/number-input";
 
 const field = `h-10 ${fieldClass}`;
 
@@ -46,26 +47,26 @@ function TravelersField({
       <span className={labelClass}>Travelers</span>
       <div className="flex items-center gap-2">
         <span className="text-xs text-brand-muted">Adults</span>
-        <input
-          type="number"
+        <NumberInput
+          integer
           min={1}
           className={`${field} w-20`}
           value={value.adults}
-          onChange={(e) => onChange({ ...value, adults: Math.max(1, Number(e.target.value) || 1) })}
+          onValueChange={(n) => onChange({ ...value, adults: Math.max(1, n) })}
         />
       </div>
       {(value.children_ages ?? []).map((age, i) => (
         <div key={`child-${i}`} className="flex items-center gap-2">
           <span className="text-xs text-brand-muted">Child {i + 1} age</span>
-          <input
-            type="number"
+          <NumberInput
+            integer
             min={0}
             max={17}
             className={`${field} w-20`}
             value={age}
-            onChange={(e) => {
+            onValueChange={(n) => {
               const next = [...(value.children_ages ?? [])];
-              next[i] = Number(e.target.value) || 0;
+              next[i] = Math.min(17, Math.max(0, n));
               onChange({ ...value, children_ages: next });
             }}
           />
@@ -84,15 +85,15 @@ function TravelersField({
       {(value.infants_ages ?? []).map((age, i) => (
         <div key={`infant-${i}`} className="flex items-center gap-2">
           <span className="text-xs text-brand-muted">Infant {i + 1} age (months)</span>
-          <input
-            type="number"
+          <NumberInput
+            integer
             min={0}
             max={23}
             className={`${field} w-20`}
             value={age}
-            onChange={(e) => {
+            onValueChange={(n) => {
               const next = [...(value.infants_ages ?? [])];
-              next[i] = Number(e.target.value) || 0;
+              next[i] = Math.min(23, Math.max(0, n));
               onChange({ ...value, infants_ages: next });
             }}
           />
@@ -430,12 +431,12 @@ export function VendorSearchPanel({
           </label>
           <label className="flex w-24 flex-col gap-1">
             <span className={labelClass}>Party</span>
-            <input
-              type="number"
+            <NumberInput
+              integer
               min={1}
               className={field}
               value={partySize}
-              onChange={(e) => setPartySize(Math.max(1, Number(e.target.value) || 1))}
+              onValueChange={(n) => setPartySize(Math.max(1, n))}
             />
           </label>
         </div>

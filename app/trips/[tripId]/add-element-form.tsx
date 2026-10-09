@@ -98,6 +98,7 @@ export function AddElementForm({
   allowBundling = true,
   allowParticipantSubgroups = false,
   submissionDeadlineDays,
+  votingDeadlineDays,
 }: {
   tripId: string;
   currentUserId: string;
@@ -109,6 +110,8 @@ export function AddElementForm({
   // Trip setting (Trip settings → Default timing): the submission deadline
   // starts N days from today. Only a pre-fill — the date stays editable.
   submissionDeadlineDays?: number;
+  /** Trip setting: the voting deadline starts N days from today (null = no default). */
+  votingDeadlineDays?: number | null;
   roster: RosterEntry[];
   tripContext?: TripContext;
   // null for the first element of a (possible) bundle; set for every
@@ -144,7 +147,9 @@ export function AddElementForm({
   const [optionsDeadline, setOptionsDeadline] = useState(
     () => bundleContext?.optionsDeadline ?? (submissionDeadlineDays ? localDatePlusDays(submissionDeadlineDays) : ""),
   );
-  const [votingDeadline, setVotingDeadline] = useState(bundleContext?.votingDeadline ?? "");
+  const [votingDeadline, setVotingDeadline] = useState(
+    () => bundleContext?.votingDeadline ?? (votingDeadlineDays ? localDatePlusDays(votingDeadlineDays) : ""),
+  );
   const [spots, setSpots] = useState("");
   const [cushion, setCushion] = useState<CushionChoice>({ kind: "", value: "" });
   const [error, setError] = useState<string | null>(null);

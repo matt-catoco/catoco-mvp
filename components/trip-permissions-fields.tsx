@@ -1,6 +1,8 @@
 "use client";
 
 import { fieldClass, labelClass } from "@/lib/ui";
+import { NumberInput } from "@/components/number-input";
+import { CUSHION_PERCENT_WARNING } from "@/lib/trip-permissions";
 import type { TripPermissions } from "@/lib/trip-permissions";
 
 export { DEFAULT_TRIP_PERMISSIONS, tripPermissionsError, type TripPermissions } from "@/lib/trip-permissions";
@@ -90,7 +92,18 @@ export function TripPermissionsFields({
         />
       </div>
 
-      <div className="flex flex-col gap-4 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
+      <section className="flex flex-col gap-4 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
+        <span className="text-xs font-medium text-black dark:text-zinc-50">People</span>
+        <Toggle
+          checked={v.viewAllParticipants}
+          onChange={(x) => onChange({ ...v, viewAllParticipants: x })}
+          title="Participants can see everyone on the trip"
+          detail={
+            v.viewAllParticipants
+              ? "Everyone sees who else is going."
+              : "Participants see only their own name and yours — others appear without names. You and co-organizers always see everyone."
+          }
+        />
         <Toggle
           checked={v.allowParticipantInvites}
           onChange={(x) => onChange({ ...v, allowParticipantInvites: x })}
@@ -111,78 +124,100 @@ export function TripPermissionsFields({
               : "Once the trip reaches its max (you included), the invite link shows it's full."
           }
         />
-      </div>
+      </section>
 
-      <div className="border-t border-black/[.08] pt-4 dark:border-white/[.1]">
-        <span className="text-xs font-medium text-black dark:text-zinc-50">Default timing</span>
+      <section className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
+        <span className="text-xs font-medium text-black dark:text-zinc-50">Timing</span>
         {timingNote && <p className="text-xs text-brand-muted">{timingNote}</p>}
-        <div className="mt-2 flex gap-3">
-          <label className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap gap-x-4 gap-y-3">
+          <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
             <span className={labelClass}>Submission deadline</span>
-            <span className="flex items-center gap-2">
-              <input
-                type="number"
+            <span className="flex flex-wrap items-center gap-2">
+              <NumberInput
+                integer
                 min={1}
                 max={60}
                 className={`h-9 w-20 ${fieldClass}`}
                 value={v.submissionDeadlineDays}
-                onChange={(e) => onChange({ ...v, submissionDeadlineDays: Number(e.target.value) })}
+                onValueChange={(n) => onChange({ ...v, submissionDeadlineDays: n })}
               />
               <span className="text-xs text-brand-muted">days after added</span>
             </span>
           </label>
-          <label className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className={labelClass}>Funding deadline</span>
-            <span className="flex items-center gap-2">
+          <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
+            <span className={labelClass}>Voting deadline (optional)</span>
+            <span className="flex flex-wrap items-center gap-2">
               <input
                 type="number"
+                inputMode="numeric"
+                min={1}
+                max={90}
+                placeholder="—"
+                className={`h-9 w-20 ${fieldClass}`}
+                value={v.votingDeadlineDays ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  const n = Number(raw);
+                  onChange({ ...v, votingDeadlineDays: raw === "" || !Number.isFinite(n) ? null : n });
+                }}
+              />
+              <span className="text-xs text-brand-muted">days after added</span>
+            </span>
+          </label>
+          <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
+            <span className={labelClass}>Funding deadline</span>
+            <span className="flex flex-wrap items-center gap-2">
+              <NumberInput
+                integer
                 min={1}
                 max={60}
                 className={`h-9 w-20 ${fieldClass}`}
                 value={v.fundingDeadlineDays}
-                onChange={(e) => onChange({ ...v, fundingDeadlineDays: Number(e.target.value) })}
+                onValueChange={(n) => onChange({ ...v, fundingDeadlineDays: n })}
               />
               <span className="text-xs text-brand-muted">days after lock-in</span>
             </span>
           </label>
         </div>
-        <label className="mt-3 flex flex-col gap-1">
-          <span className={labelClass}>Price cushion</span>
-          <span className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              max={v.cushionKind === "percent" ? 100 : undefined}
-              step="any"
-              className={`h-9 w-20 ${fieldClass}`}
-              value={v.cushionValue}
-              onChange={(e) => onChange({ ...v, cushionValue: Number(e.target.value) })}
-            />
-            <select
-              className={`h-9 w-auto ${fieldClass}`}
-              value={v.cushionKind}
-              onChange={(e) => onChange({ ...v, cushionKind: e.target.value as "percent" | "amount" })}
-              aria-label="Cushion type"
-            >
-              <option value="percent">% of each share</option>
-              <option value="amount">per person (trip currency)</option>
-            </select>
-          </span>
+        <p className="text-[11px] text-brand-muted">
+          These pre-fill each new element&apos;s dates — you can still change them on the element.
+        </p>
+
+        <div className="flex flex-col gap-1">
+          <span className={labelClass}>Deadline alert</span>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Deadline alert">
+            {([12, 24, 48] as const).map((h) => (
+              <button
+                key={h}
+                type="button"
+                role="radio"
+                aria-checked={v.deadlineAlertHours === h}
+                onClick={() => onChange({ ...v, deadlineAlertHours: h })}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  v.deadlineAlertHours === h
+                    ? "border-teal-700 bg-teal-700 text-white"
+                    : "border-black/[.15] text-brand-muted dark:border-white/[.2]"
+                }`}
+              >
+                {h} hours
+              </button>
+            ))}
+          </div>
           <span className="text-xs text-brand-muted">
-            Prices move between lock-in and booking. Everyone authorizes up to their share plus this, and is
-            only charged the real price. Each element can override it.
+            Element cards show a clock when a submission, voting or funding deadline is this close.
           </span>
-        </label>
-        <label className="mt-3 flex flex-col gap-1">
+        </div>
+
+        <label className="flex flex-col gap-1">
           <span className={labelClass}>Payment retry window</span>
-          <span className="flex items-center gap-2">
-            <input
-              type="number"
+          <span className="flex flex-wrap items-center gap-2">
+            <NumberInput
+              integer
               min={1}
               max={144}
               className={`h-9 w-20 ${fieldClass}`}
               value={v.retryHours}
-              onChange={(e) => onChange({ ...v, retryHours: Number(e.target.value) })}
+              onValueChange={(n) => onChange({ ...v, retryHours: n })}
             />
             <span className="text-xs text-brand-muted">hours</span>
           </span>
@@ -191,7 +226,42 @@ export function TripPermissionsFields({
             to fix it while the others wait — nobody is charged until every hold is in.
           </span>
         </label>
-      </div>
+      </section>
+
+      <section className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
+        <span className="text-xs font-medium text-black dark:text-zinc-50">Money</span>
+        <label className="flex flex-col gap-1">
+          <span className={labelClass}>Price cushion</span>
+          <span className="flex flex-wrap items-center gap-2">
+            <NumberInput
+              min={0}
+              step="any"
+              className={`h-9 w-24 ${fieldClass}`}
+              value={v.cushionValue}
+              onValueChange={(n) => onChange({ ...v, cushionValue: Math.max(0, n) })}
+            />
+            <select
+              className={`h-9 w-auto max-w-full ${fieldClass}`}
+              value={v.cushionKind}
+              onChange={(e) => onChange({ ...v, cushionKind: e.target.value as "percent" | "amount" })}
+              aria-label="Cushion type"
+            >
+              <option value="percent">% of each share</option>
+              <option value="amount">per person (trip currency)</option>
+            </select>
+          </span>
+          {v.cushionKind === "percent" && v.cushionValue >= CUSHION_PERCENT_WARNING && (
+            <span className="text-xs text-amber-700 dark:text-amber-400">
+              That&apos;s a {v.cushionValue}% cushion — people will authorize up to {Math.round(1 + v.cushionValue / 100)}× their
+              share. Double-check it&apos;s not a typo.
+            </span>
+          )}
+          <span className="text-xs text-brand-muted">
+            Prices move between lock-in and booking. Everyone authorizes up to their share plus this, and is
+            only charged the real price. Each element can override it.
+          </span>
+        </label>
+      </section>
     </div>
   );
 }

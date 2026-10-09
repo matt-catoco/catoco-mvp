@@ -61,6 +61,14 @@ export async function createTrip(
         Number.isInteger(permissions.retryHours) && permissions.retryHours >= 1 && permissions.retryHours <= 144
           ? permissions.retryHours
           : 24,
+      voting_deadline_days:
+        Number.isInteger(permissions.votingDeadlineDays) &&
+        (permissions.votingDeadlineDays as number) >= 1 &&
+        (permissions.votingDeadlineDays as number) <= 90
+          ? permissions.votingDeadlineDays
+          : null,
+      view_all_participants: permissions.viewAllParticipants !== false,
+      deadline_alert_hours: [12, 24, 48].includes(permissions.deadlineAlertHours) ? permissions.deadlineAlertHours : 24,
     })
     .select("id")
     .single();

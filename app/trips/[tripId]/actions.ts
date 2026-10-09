@@ -830,6 +830,9 @@ export async function updateTripPermissions(
     cushionKind: "percent" | "amount";
     cushionValue: number;
     retryHours: number;
+    votingDeadlineDays: number | null;
+    viewAllParticipants: boolean;
+    deadlineAlertHours: number;
   },
 ): Promise<UpdateTripPermissionsResult> {
   const supabase = await createClient();
@@ -854,6 +857,13 @@ export async function updateTripPermissions(
     p_hours: Math.round(input.retryHours),
   });
   if (retryError) return { error: toUserFacingError(retryError) };
+  const { error: advancedError } = await supabase.rpc("update_trip_advanced", {
+    p_trip_id: tripId,
+    p_voting_deadline_days: input.votingDeadlineDays,
+    p_view_all_participants: input.viewAllParticipants,
+    p_deadline_alert_hours: input.deadlineAlertHours,
+  });
+  if (advancedError) return { error: toUserFacingError(advancedError) };
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/settings`);
   return {};

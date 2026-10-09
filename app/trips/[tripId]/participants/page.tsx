@@ -42,7 +42,7 @@ export default async function ParticipantsPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, invites_sent, min_participants, max_participants, allow_over_max, allow_participant_invites")
+    .select("id, name, organizer_id, invites_sent, min_participants, max_participants, allow_over_max, allow_participant_invites, view_all_participants")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -150,7 +150,7 @@ export default async function ParticipantsPage({
         </>
       )}
 
-      {(canManage || trip.allow_participant_invites) && (
+      {(canManage || (trip.allow_participant_invites && trip.view_all_participants)) && (
         <div className="mt-4 rounded-xl border border-black/[.1] p-4 dark:border-white/[.14]">
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Invite people</h2>
           <InviteLink tripId={tripId} initialInvitesSent={trip.invites_sent} />

@@ -76,13 +76,16 @@ export function NewTripForm({ userId }: { userId: string }) {
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Trip settings</span>
-        <div className="rounded-xl border border-black/[.1] p-4 dark:border-white/[.14]">
+      <details className="group rounded-xl border border-black/[.1] dark:border-white/[.14]">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium text-black dark:text-zinc-50">
+          Advanced settings
+          <span className="text-xs font-normal text-brand-muted group-open:hidden">Defaults are fine for most trips</span>
+        </summary>
+        <div className="border-t border-black/[.08] p-4 dark:border-white/[.1]">
           <TripPermissionsFields value={permissions} onChange={setPermissions} />
+          <p className="mt-4 text-xs text-brand-muted">You can change these any time from the trip&apos;s settings (gear icon).</p>
         </div>
-        <span className="text-xs text-brand-muted">You can change these any time in Trip settings.</span>
-      </div>
+      </details>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 

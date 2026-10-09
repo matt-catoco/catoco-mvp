@@ -29,6 +29,7 @@ export function AddElementModal({
   tripContext,
   allowParticipantSubgroups = false,
   submissionDeadlineDays,
+  votingDeadlineDays,
 }: {
   tripId: string;
   currentUserId: string;
@@ -39,6 +40,8 @@ export function AddElementModal({
   allowParticipantSubgroups?: boolean;
   /** Trip setting: pre-fills the submission deadline (still editable). */
   submissionDeadlineDays?: number;
+  /** Trip setting: pre-fills the voting deadline (still editable). */
+  votingDeadlineDays?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const [bundleContext, setBundleContext] = useState<BundleContext | null>(null);
@@ -110,6 +113,7 @@ export function AddElementModal({
               isOrganizer={isOrganizer}
               allowParticipantSubgroups={allowParticipantSubgroups}
               submissionDeadlineDays={submissionDeadlineDays}
+              votingDeadlineDays={votingDeadlineDays}
               roster={roster}
               tripContext={tripContext}
               bundleContext={bundleContext}

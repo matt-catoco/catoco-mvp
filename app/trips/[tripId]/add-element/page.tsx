@@ -27,7 +27,7 @@ export default async function AddElementPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, allow_participant_subgroups, submission_deadline_days")
+    .select("id, name, organizer_id, allow_participant_subgroups, submission_deadline_days, voting_deadline_days")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -58,6 +58,7 @@ export default async function AddElementPage({
           isOrganizer={Boolean(canManage)}
           allowParticipantSubgroups={trip.allow_participant_subgroups}
           submissionDeadlineDays={trip.submission_deadline_days}
+          votingDeadlineDays={trip.voting_deadline_days}
           roster={roster}
           tripContext={tripContext}
           allowBundling={false}

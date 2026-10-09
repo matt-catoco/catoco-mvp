@@ -27,7 +27,6 @@ export function CushionField({ value, onChange }: { value: CushionChoice; onChan
           <input
             type="number"
             min={0}
-            max={value.kind === "percent" ? 100 : undefined}
             step="any"
             className={`h-10 w-24 ${fieldClass}`}
             value={value.value}
@@ -44,6 +43,6 @@ export function CushionField({ value, onChange }: { value: CushionChoice; onChan
 export function parseCushion(c: CushionChoice): { kind: "percent" | "amount" | null; value: number | null } | undefined {
   if (!c.kind) return { kind: null, value: null };
   const n = Number(c.value);
-  if (!Number.isFinite(n) || n < 0 || (c.kind === "percent" && n > 100) || c.value.trim() === "") return undefined;
+  if (!Number.isFinite(n) || n < 0 || c.value.trim() === "") return undefined;
   return { kind: c.kind, value: n };
 }
