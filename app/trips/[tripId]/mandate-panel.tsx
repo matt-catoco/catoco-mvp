@@ -6,6 +6,7 @@ import { loadStripe, type Stripe as StripeJs } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { cancelFundingMandate, startFundingMandate, syncFundingMandate } from "./payment-actions";
 import { btnPrimary, btnSecondary, labelClass } from "@/lib/ui";
+import { platformFee } from "@/lib/platform-fee";
 import { formatCurrency } from "@/lib/trip-elements";
 import { estimateFee, SEPA_FLAT } from "@/lib/stripe/fees";
 import { HoldPhasePanel, type RetryStatus } from "./retry-panel";
@@ -46,6 +47,8 @@ export type MandatePanelProps = {
   fundingRequestId: string;
   currency: string;
   individualAmount: number;
+  /** Catoco fee % added on top of the share (0 for pre-fee requests). */
+  platformFeePercent: number;
   deadline: string | null;
   chargeStatus: "charging" | "capturing" | "charged" | "failed" | null;
   chargeFailureReason: string | null;
@@ -83,6 +86,7 @@ function failureCopy(reason: string | null): string {
  */
 export function MandatePanel(props: MandatePanelProps) {
   const { currency, individualAmount, deadline, chargeStatus, myMandate, population, covered } = props;
+  const fee = platformFee(individualAmount, props.platformFeePercent);
   const router = useRouter();
   const [setup, setSetup] = useState<{
     mandateId: string;
@@ -122,7 +126,7 @@ export function MandatePanel(props: MandatePanelProps) {
         elementId={props.elementId}
         fundingRequestId={props.fundingRequestId}
         currency={currency}
-        share={individualAmount}
+        share={individualAmount + fee}
         myStatus={myMandate?.status ?? null}
         myRetryReason={myMandate?.retryReason ?? null}
         myMandateId={myMandate?.id ?? null}
@@ -181,15 +185,30 @@ export function MandatePanel(props: MandatePanelProps) {
       {header}
       <div className="mt-2">
         <span className={labelClass}>Your share</span>
-        <p className="text-sm font-medium text-black dark:text-zinc-50">
-          {formatCurrency(individualAmount, currency)}
-        </p>
+        {fee > 0 ? (
+          <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 text-xs">
+            <dt className="text-brand-muted">Share</dt>
+            <dd className="text-right tabular-nums">{formatCurrency(individualAmount, currency)}</dd>
+            <dt className="text-brand-muted">Catoco fee ({props.platformFeePercent}%)</dt>
+            <dd className="text-right tabular-nums">{formatCurrency(fee, currency)}</dd>
+            <dt className="font-medium text-black dark:text-zinc-50">Total</dt>
+            <dd className="text-right text-sm font-medium tabular-nums text-black dark:text-zinc-50">
+              {formatCurrency(individualAmount + fee, currency)}
+            </dd>
+          </dl>
+        ) : (
+          <p className="text-sm font-medium text-black dark:text-zinc-50">
+            {formatCurrency(individualAmount, currency)}
+          </p>
+        )}
         {(() => {
           const upTo = active || inFlight ? myMandate?.maxAmount : props.capAmount;
           return upTo != null && upTo > individualAmount ? (
             <p className="text-[11px] text-brand-muted">
-              {active || inFlight ? "Authorized" : "You'll authorize"} up to {formatCurrency(upTo, currency)} in case
-              the price moves before booking — you&apos;re only charged the actual share.
+              {active || inFlight ? "Authorized" : "You'll authorize"} up to{" "}
+              {formatCurrency(upTo + platformFee(upTo, props.platformFeePercent), currency)}
+              {fee > 0 ? " incl. fee" : ""} in case the price moves before booking — you&apos;re only charged the
+              actual share{fee > 0 ? " plus fee" : ""}.
             </p>
           ) : null;
         })()}
@@ -256,7 +275,7 @@ export function MandatePanel(props: MandatePanelProps) {
       ) : (
         <>
           {progress}
-          <FeeNote currency={currency} amount={individualAmount} isEur={isEur} />
+          <FeeNote currency={currency} amount={individualAmount + fee} isEur={isEur} />
           <button
             type="button"
             disabled={pending || !stripeJs}

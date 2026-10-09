@@ -75,6 +75,7 @@ type FundingRow = {
   refund_all_requested_at: string | null;
   previous_individual_amount: number | null;
   price_changed_at: string | null;
+  platform_fee_percent: number | null;
 };
 
 type MandateRow = {
@@ -92,6 +93,7 @@ type ContributionRow = {
   contributor_id: string;
   source: "manual" | "stripe";
   amount: number;
+  platform_fee: number | null;
   payment_method_type: string | null;
   refunded_at: string | null;
   stripe_refund_id: string | null;
@@ -219,7 +221,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, platform_fee_percent, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -295,6 +297,7 @@ export default async function ElementDetailPage({
         id: fundingRow.id,
         requiredAmount: fundingRow.required_amount,
         individualAmount: fundingRow.individual_amount ?? fundingRow.required_amount,
+        platformFeePercent: Number(fundingRow.platform_fee_percent ?? 0),
         collected: (collected as number) ?? 0,
         status: fundingRow.status,
         deadline: fundingRow.funding_deadline,
@@ -324,7 +327,7 @@ export default async function ElementDetailPage({
           supabase.rpc("get_funding_mandate_summary", { p_funding_request_id: fundingRow.id }),
           supabase
             .from("funding_contributions")
-            .select("contributor_id, source, amount, payment_method_type, refunded_at, stripe_refund_id, created_at")
+            .select("contributor_id, source, amount, platform_fee, payment_method_type, refunded_at, stripe_refund_id, created_at")
             .eq("funding_request_id", fundingRow.id)
             .order("created_at", { ascending: false })
             .returns<ContributionRow[]>(),
@@ -435,7 +438,8 @@ export default async function ElementDetailPage({
           },
           roster: paymentRoster,
           isOrganizerView,
-          heldAmount: held.reduce((sum, c) => sum + Number(c.amount), 0),
+          // Refunds return the whole charge, Catoco fee included.
+          heldAmount: held.reduce((sum, c) => sum + Number(c.amount) + Number(c.platform_fee ?? 0), 0),
           heldCount: held.length,
           refundRequestedAt: fundingRow.refund_all_requested_at,
         };

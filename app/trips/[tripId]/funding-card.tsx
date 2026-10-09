@@ -27,6 +27,8 @@ export type FundingRequestInfo = {
   // union), never redistributed. Every contribution is locked to exactly
   // this, bundled or not.
   individualAmount: number;
+  /** Catoco fee on top of the share (snapshot on the request; 0 = none). */
+  platformFeePercent: number;
   collected: number;
   status: "collecting" | "ready_to_purchase" | "booked";
   deadline: string | null;
@@ -47,7 +49,7 @@ export type FundingRequestInfo = {
 export type FundingPayments = {
   panel: Omit<
     MandatePanelProps,
-    "tripId" | "elementId" | "fundingRequestId" | "currency" | "individualAmount" | "deadline" | "chargeStatus"
+    "tripId" | "elementId" | "fundingRequestId" | "currency" | "individualAmount" | "platformFeePercent" | "deadline" | "chargeStatus"
   >;
   /** Everyone's payment state for the organizer; just the viewer's own row otherwise. */
   roster: PaymentRosterEntry[];
@@ -327,6 +329,7 @@ export function FundingCard({
               fundingRequestId={funding.id}
               currency={currency}
               individualAmount={funding.individualAmount}
+              platformFeePercent={funding.platformFeePercent}
               deadline={funding.deadline}
               chargeStatus={funding.chargeStatus}
               {...payments.panel}

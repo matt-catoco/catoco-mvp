@@ -50,7 +50,23 @@ type BatchMandate = {
   updated_at: string;
   retry_reason: string | null;
   hold_attempt: number;
+  /** Catoco's platform fee on top of the share (funding_requests.platform_fee_percent). */
+  platform_fee: number;
 };
+
+/** Share + platform fee, in minor units — what a hold/debit is for. */
+function chargeAmount(m: BatchMandate): number {
+  return toMinorUnits(Number(m.individual_amount) + Number(m.platform_fee ?? 0), m.currency);
+}
+
+function chargeMetadata(fundingRequestId: string, m: BatchMandate) {
+  return {
+    funding_request_id: fundingRequestId,
+    mandate_id: m.mandate_id,
+    participant_id: m.participant_id,
+    platform_fee: String(Number(m.platform_fee ?? 0)),
+  };
+}
 
 // A PaymentIntent with no recorded outcome this long gets looked up
 // directly — covers a missed webhook without racing the normal path.
@@ -229,7 +245,7 @@ async function placeHold(
   try {
     const pi = await getStripe().paymentIntents.create(
       {
-        amount: toMinorUnits(Number(m.individual_amount), m.currency),
+        amount: chargeAmount(m),
         currency: m.currency.toLowerCase(),
         customer: m.stripe_customer_id,
         payment_method: m.stripe_payment_method_id,
@@ -237,8 +253,8 @@ async function placeHold(
         capture_method: "manual",
         off_session: true,
         confirm: true,
-        description: "Catoco trip funding — your share (hold)",
-        metadata: { funding_request_id: fundingRequestId, mandate_id: m.mandate_id, participant_id: m.participant_id },
+        description: "Catoco trip funding — your share + Catoco fee (hold)",
+        metadata: chargeMetadata(fundingRequestId, m),
       },
       { idempotencyKey: `catoco-mandate-hold-${m.mandate_id}-${m.hold_attempt}` },
     );
@@ -345,15 +361,15 @@ async function captureBatch(supabase: ServiceClient, fundingRequestId: string): 
     try {
       const pi = await stripe.paymentIntents.create(
         {
-          amount: toMinorUnits(Number(m.individual_amount), m.currency),
+          amount: chargeAmount(m),
           currency: m.currency.toLowerCase(),
           customer: m.stripe_customer_id!,
           payment_method: m.stripe_payment_method_id!,
           payment_method_types: ["sepa_debit"],
           off_session: true,
           confirm: true,
-          description: "Catoco trip funding — your share",
-          metadata: { funding_request_id: fundingRequestId, mandate_id: m.mandate_id, participant_id: m.participant_id },
+          description: "Catoco trip funding — your share + Catoco fee",
+          metadata: chargeMetadata(fundingRequestId, m),
         },
         { idempotencyKey: `catoco-mandate-sepa-${m.mandate_id}-${m.hold_attempt}` },
       );
@@ -447,6 +463,8 @@ export async function handlePaymentIntentSucceeded(supabase: ServiceClient, pi: 
     p_amount: fromMinorUnits(full.amount_received, full.currency),
     p_fee: bt ? fromMinorUnits(bt.fee, bt.currency) : null,
     p_fee_currency: bt?.currency ?? null,
+    // Holds placed before the fee existed carry no platform_fee → 0.
+    p_platform_fee: Number(full.metadata?.platform_fee ?? 0) || 0,
   });
   if (error) throw new Error(`record_stripe_contribution: ${error.message}`);
 
