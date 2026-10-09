@@ -36,6 +36,9 @@ import { ElementScopePanel, type ScopeMember } from "../../participation-control
 import { BookingConfirmation } from "../../booking-confirmation";
 import { getTripContext } from "../../trip-context";
 import { NudgeButton } from "../../nudge-button";
+import { ChangePhoto } from "../../change-photo";
+import { ensureElementEnrichment, type StoredEnrichment } from "@/lib/element-enrichment";
+import { readDetails } from "@/lib/option-details";
 
 type ElementRow = {
   id: string;
@@ -58,6 +61,7 @@ type ElementRow = {
   spots: number | null;
   cushion_kind: string | null;
   cushion_value: number | null;
+  enriched_details: StoredEnrichment | null;
 };
 
 type FundingRow = {
@@ -185,7 +189,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all, spots, cushion_kind, cushion_value",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all, spots, cushion_kind, cushion_value, enriched_details",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -217,6 +221,19 @@ export default async function ElementDetailPage({
           .eq("id", element.locked_option_id)
           .maybeSingle()
       : { data: null };
+
+    // B3 lock-time enrichment: first view after lock snapshots the winner's
+    // details + element photo (lib/element-enrichment.ts); later views read it.
+    const enrichment =
+      option && element.locked_option_id
+        ? await ensureElementEnrichment({
+            elementId: element.id,
+            type: element.type,
+            lockedOptionId: element.locked_option_id,
+            value: option.value as Record<string, unknown>,
+            current: element.enriched_details,
+          })
+        : null;
 
     const { data: fundingRow } = await supabase
       .from("funding_requests")
@@ -551,6 +568,24 @@ export default async function ElementDetailPage({
               value={option.value}
               participants={scopedParticipants}
               pricing={snapshotPricing}
+              image={enrichment?.image}
+              details={enrichment?.details ?? readDetails(option.value as Record<string, unknown>)}
+              photoControl={
+                canEdit && element.type !== "dates" ? (
+                  <ChangePhoto
+                    tripId={tripId}
+                    elementId={element.id}
+                    candidates={enrichment?.details?.images ?? []}
+                    defaultQuery={
+                      String(
+                        (option.value as Record<string, unknown>).name ??
+                          (option.value as Record<string, unknown>).title ??
+                          element.label,
+                      ).split(",")[0]
+                    }
+                  />
+                ) : undefined
+              }
             />
           ) : (
             "?"

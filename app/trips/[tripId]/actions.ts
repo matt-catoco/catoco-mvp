@@ -11,11 +11,13 @@ import {
   normalizeOptionValue,
   validateOptionValue,
   type ElementType,
+  PRICE_BEARING_TYPES,
 } from "@/lib/trip-elements";
 import { fetchLinkPreview } from "@/lib/link-preview";
 import { verifyDuffelOffer } from "@/lib/vendor-search/duffel";
 import { verifyLiteapiHotel } from "@/lib/vendor-search/liteapi";
-import { fetchUnsplashPhoto } from "@/lib/unsplash";
+import { pickUnsplashPhoto, placeQueries, type UnsplashPick } from "@/lib/unsplash";
+import { fetchOptionDetails } from "@/lib/option-details-fetch";
 import { sendCoreLoopEmail } from "@/lib/notifications";
 import { toUserFacingError } from "@/lib/action-errors";
 import type { IconAttribution } from "@/lib/trip-icons";
@@ -38,24 +40,37 @@ async function applyLinkPreview(
   type: ElementType,
   value: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  if (MICRO_TYPES_WITH_LINK.includes(type) && typeof value.booking_link === "string") {
-    const preview = await fetchLinkPreview(value.booking_link);
-    Object.assign(value, preview);
+  // B3: the details pass runs alongside the OG scrape (both hit the same
+  // booking link / vendor), so it costs no extra wall-clock time.
+  const [preview, details] = await Promise.all([
+    MICRO_TYPES_WITH_LINK.includes(type) && typeof value.booking_link === "string"
+      ? fetchLinkPreview(value.booking_link)
+      : Promise.resolve({}),
+    PRICE_BEARING_TYPES.includes(type) ? fetchOptionDetails(type, value) : Promise.resolve(null),
+  ]);
+  Object.assign(value, preview);
+  if (details) {
+    value.details = details;
+    if (!value.thumbnail_url && details.images?.[0]) value.thumbnail_url = details.images[0];
   }
+  const credit = (photo: UnsplashPick) => {
+    value.thumbnail_url = photo.url;
+    value.thumbnail_credit = { name: photo.photographerName, url: photo.photographerProfileUrl };
+  };
   // §10 auto-photo: Destination has no booking_link to scrape an OG image
   // from at all, so Unsplash is its only photo source. Experience/Dining
   // fall back to Unsplash only when the OG scrape above didn't turn up an
   // image — a real listing's own photo still wins when there is one.
   if (type === "destination" && typeof value.name === "string" && !value.thumbnail_url) {
-    const photo = await fetchUnsplashPhoto(value.name);
-    if (photo) value.thumbnail_url = photo;
+    const photo = await pickUnsplashPhoto(placeQueries(value.name));
+    if (photo) credit(photo);
   } else if ((type === "experience" || type === "dining") && !value.thumbnail_url) {
     const query = [value.name, value.location_name]
       .filter((v): v is string => typeof v === "string" && v.trim() !== "")
       .join(" ");
     if (query) {
-      const photo = await fetchUnsplashPhoto(query);
-      if (photo) value.thumbnail_url = photo;
+      const photo = await pickUnsplashPhoto(query);
+      if (photo) credit(photo);
     }
   }
   return value;

@@ -11,27 +11,67 @@ import "server-only";
  */
 const UNSPLASH_BASE = "https://api.unsplash.com";
 
-export async function fetchUnsplashPhoto(query: string): Promise<string | undefined> {
+/** A photo picked automatically, with the credit Unsplash's terms require. */
+export type UnsplashPick = {
+  url: string;
+  photographerName: string;
+  photographerProfileUrl: string;
+};
+
+async function firstPhoto(query: string, accessKey: string): Promise<UnsplashApiPhoto | null> {
+  const url = new URL(`${UNSPLASH_BASE}/search/photos`);
+  url.searchParams.set("query", query);
+  url.searchParams.set("per_page", "1");
+  url.searchParams.set("orientation", "landscape");
+  const res = await fetch(url.toString(), { headers: { Authorization: `Client-ID ${accessKey}` } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data?.results?.[0] as UnsplashApiPhoto | undefined) ?? null;
+}
+
+/**
+ * Place-name cascade (staging review B3): a geocoded name like "Bodrum,
+ * Muğla, Türkiye" often matches nothing as one query — which is how a
+ * Destination ended up with a map-only card. Try the full name, then the
+ * place alone, then place + country, then region, then country. Stops at
+ * the first hit; at most a handful of calls (the Demo tier is 50/hour).
+ */
+export function placeQueries(name: string): string[] {
+  const parts = name.split(",").map((s) => s.trim()).filter(Boolean);
+  const qs = [parts.join(" "), parts[0], parts.length > 2 ? `${parts[0]} ${parts[parts.length - 1]}` : null, parts[1], parts[parts.length - 1]];
+  return [...new Set(qs.filter((q): q is string => Boolean(q && q.trim())))];
+}
+
+/**
+ * The silent auto-photo, now terms-compliant: returns the photographer
+ * credit to show beside the photo, and registers the download with
+ * Unsplash (it's being used, not just shown in a list). Best-effort —
+ * never throws, never blocks submission.
+ */
+export async function pickUnsplashPhoto(queries: string | string[]): Promise<UnsplashPick | undefined> {
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;
-  if (!accessKey || !query.trim()) return undefined;
-
-  try {
-    const url = new URL(`${UNSPLASH_BASE}/search/photos`);
-    url.searchParams.set("query", query);
-    url.searchParams.set("per_page", "1");
-    url.searchParams.set("orientation", "landscape");
-
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Client-ID ${accessKey}` },
-    });
-    if (!res.ok) return undefined;
-
-    const data = await res.json();
-    const photo = data?.results?.[0];
-    return photo?.urls?.regular ?? photo?.urls?.small ?? undefined;
-  } catch {
-    return undefined;
+  if (!accessKey) return undefined;
+  for (const q of ([] as string[]).concat(queries).filter((x) => x.trim())) {
+    try {
+      const photo = await firstPhoto(q, accessKey);
+      const url = photo?.urls?.regular ?? photo?.urls?.small;
+      if (!photo || !url) continue;
+      if (photo.links?.download_location) await trackUnsplashDownload(photo.links.download_location);
+      return {
+        url,
+        photographerName: photo.user?.name ?? "Unknown photographer",
+        photographerProfileUrl: photo.user?.links?.html ?? "https://unsplash.com",
+      };
+    } catch {
+      // try the next, broader query
+    }
   }
+  return undefined;
+}
+
+/** Back-compat wrapper (URL only) — prefer pickUnsplashPhoto for the credit. */
+export async function fetchUnsplashPhoto(query: string): Promise<string | undefined> {
+  return (await pickUnsplashPhoto(query))?.url;
 }
 
 // ---- "Add an image": user-facing Unsplash search ---------------------------

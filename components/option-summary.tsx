@@ -13,8 +13,9 @@ import {
   type TravelMode,
   type TravelersBreakdown,
 } from "@/lib/trip-elements";
+import { UNSPLASH_UTM_SOURCE } from "@/lib/trip-icons";
 
-function priceLine(value: Record<string, unknown>): string | null {
+export function priceLine(value: Record<string, unknown>): string | null {
   const raw = value.price;
   if (raw === undefined || raw === null || String(raw).trim() === "") return null;
   const currency = typeof value.currency === "string" && value.currency ? value.currency : "USD";
@@ -38,7 +39,7 @@ function formatTravelersShort(t: TravelersBreakdown): string {
  * so comparing candidates doesn't require leaving the voting grid. Display-
  * only: reads straight off `value`, nothing new collected or stored.
  */
-function keyFactsLine(type: ElementType, value: Record<string, unknown>): string | null {
+export function keyFactsLine(type: ElementType, value: Record<string, unknown>): string | null {
   const str = (k: string) => (typeof value[k] === "string" ? (value[k] as string).trim() : "");
   const parts: string[] = [];
 
@@ -141,6 +142,7 @@ export function OptionSummary({
   const fallback = summarizeOptionValue(type, value);
   const facts = PRICE_BEARING_TYPES.includes(type) ? keyFactsLine(type, value) : null;
   const map = mapPoint(type, value);
+  const credit = value.thumbnail_credit as { name?: string; url?: string } | undefined;
 
   // B1: Dates get their own card — the range and night count, big; never
   // a photo or "No image" placeholder (there's nothing to picture).
@@ -197,6 +199,29 @@ export function OptionSummary({
             alt=""
             className="h-32 w-full rounded-md bg-black/[.06] object-cover dark:bg-white/[.08]"
           />
+          {credit?.name && (
+            <span className="absolute bottom-1.5 left-1.5 max-w-[70%] truncate rounded bg-black/55 px-1.5 py-0.5 text-[9px] text-white">
+              <a
+                href={`${credit.url ?? "https://unsplash.com"}?utm_source=${UNSPLASH_UTM_SOURCE}&utm_medium=referral`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="underline"
+              >
+                {credit.name}
+              </a>{" "}
+              /{" "}
+              <a
+                href={`https://unsplash.com/?utm_source=${UNSPLASH_UTM_SOURCE}&utm_medium=referral`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="underline"
+              >
+                Unsplash
+              </a>
+            </span>
+          )}
           {/* Map as a second, smaller element — the photo and the pin say
               different things, so neither replaces the other. */}
           {map && (

@@ -37,7 +37,7 @@ const PRIVATE_HOSTNAME_PATTERNS = [
 ];
 
 /** Rejects non-http(s) schemes and obvious private/internal hosts before any fetch happens (basic SSRF guard). */
-function safeUrl(raw: string): URL | null {
+export function safeUrl(raw: string): URL | null {
   let url: URL;
   try {
     url = new URL(raw);
@@ -50,7 +50,7 @@ function safeUrl(raw: string): URL | null {
   return url;
 }
 
-function decodeEntities(s: string): string {
+export function decodeEntities(s: string): string {
   return s
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
@@ -77,7 +77,7 @@ function extractMeta(html: string, property: string): string | undefined {
   return undefined;
 }
 
-async function readCapped(response: Response, maxBytes: number): Promise<string> {
+export async function readCapped(response: Response, maxBytes: number): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) return response.text();
 

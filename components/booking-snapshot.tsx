@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import { detailRows, mapsLink, type ElementImage, type OptionDetails } from "@/lib/option-details";
+import { UNSPLASH_UTM_SOURCE } from "@/lib/trip-icons";
 import {
   formatCurrency,
   formatDate,
@@ -100,11 +103,21 @@ export function BookingSnapshot({
   value,
   participants,
   pricing,
+  image,
+  details: refDetails,
+  photoControl,
 }: {
   type: ElementType;
   value: Record<string, unknown>;
   participants: SnapshotParticipant[];
   pricing?: SnapshotPricing;
+  /** B3: the element-level photo from the lock-time snapshot. When absent
+   * the option's own thumbnail is used. */
+  image?: ElementImage | null;
+  /** B3: the reference details (address, contact, policies, …). */
+  details?: OptionDetails | null;
+  /** "Change photo" control, overlaid on the photo (organizer/creator). */
+  photoControl?: ReactNode;
 }) {
   const str = (k: string) => {
     const v = value[k];
@@ -112,7 +125,16 @@ export function BookingSnapshot({
   };
   const title = str("title") || str("name") || "?";
   const description = str("description");
-  const thumbnail = str("thumbnail_url");
+  const optionCredit = value.thumbnail_credit as { name?: string; url?: string } | undefined;
+  const photo: ElementImage | null =
+    type === "dates"
+      ? null
+      : (image ??
+        (str("thumbnail_url")
+          ? { url: str("thumbnail_url"), source: "option", credit_name: optionCredit?.name, credit_url: optionCredit?.url }
+          : null));
+  const rows = detailRows(refDetails ?? null);
+  const mapUrl = mapsLink(refDetails ?? null);
   const bookingLink = str("booking_link");
   const dates = value.dates as { start_date?: string; end_date?: string } | undefined;
   const departDate = str("depart_date");
@@ -145,12 +167,39 @@ export function BookingSnapshot({
 
   return (
     <div className="overflow-hidden rounded-xl border border-brand-line">
-      {thumbnail ? (
-        // eslint-disable-next-line @next/next/no-img-element -- arbitrary external host
-        <img src={thumbnail} alt="" className="h-48 w-full object-cover" />
-      ) : (
-        <div className="flex h-32 w-full items-center justify-center bg-black/[.06] text-[11px] uppercase tracking-wide text-zinc-400 dark:bg-white/[.08]">
-          No image
+      {type !== "dates" && (
+        <div className="relative">
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary external host
+            <img src={photo.url} alt="" className="h-48 w-full object-cover" />
+          ) : (
+            <div className="flex h-32 w-full items-center justify-center bg-black/[.06] text-[11px] uppercase tracking-wide text-zinc-400 dark:bg-white/[.08]">
+              No image
+            </div>
+          )}
+          {photo?.credit_name && (
+            <span className="absolute bottom-1.5 left-2 rounded bg-black/55 px-1.5 py-0.5 text-[10px] text-white">
+              Photo by{" "}
+              <a
+                href={`${photo.credit_url ?? "https://unsplash.com"}?utm_source=${UNSPLASH_UTM_SOURCE}&utm_medium=referral`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                {photo.credit_name}
+              </a>{" "}
+              on{" "}
+              <a
+                href={`https://unsplash.com/?utm_source=${UNSPLASH_UTM_SOURCE}&utm_medium=referral`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Unsplash
+              </a>
+            </span>
+          )}
+          {photoControl}
         </div>
       )}
       <div className="flex flex-col gap-3 p-4">
@@ -235,6 +284,41 @@ export function BookingSnapshot({
             </div>
           ) : null}
         </dl>
+
+        {(rows.length > 0 || refDetails?.summary) && (
+          <div className="flex flex-col gap-2 border-t border-brand-line pt-3">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-brand-muted">Details</p>
+            {refDetails?.summary && <p className="whitespace-pre-line text-xs text-brand-muted">{refDetails.summary}</p>}
+            <dl className="flex flex-col gap-1.5 text-xs">
+              {rows.map((r) => (
+                <div key={r.key} className="grid grid-cols-[7.5rem_1fr] gap-x-3">
+                  <dt className="text-brand-muted">{r.label}</dt>
+                  <dd className="whitespace-pre-line break-words font-medium">
+                    {r.key === "phone" ? (
+                      <a href={`tel:${r.value.replace(/[^+\d]/g, "")}`} className="underline">
+                        {r.value}
+                      </a>
+                    ) : r.key === "email" ? (
+                      <a href={`mailto:${r.value}`} className="underline">
+                        {r.value}
+                      </a>
+                    ) : r.key === "website" ? (
+                      <a href={r.value} target="_blank" rel="noopener noreferrer" className="underline">
+                        {r.value.replace(/^https?:\/\//, "")}
+                      </a>
+                    ) : r.key === "address" && mapUrl ? (
+                      <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                        {r.value}
+                      </a>
+                    ) : (
+                      r.value
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
 
         {bookingLink && (
           <a

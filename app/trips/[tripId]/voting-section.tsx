@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ElementValueFields } from "@/components/element-value-fields";
 import { OptionSummary } from "@/components/option-summary";
+import { OptionCompare } from "@/components/option-compare";
 import { summarizeOptionValue, type ElementType } from "@/lib/trip-elements";
 import { castVotes, lockElement, updateOption } from "./actions";
 
@@ -53,6 +54,9 @@ export function VotingSection({
   const [dirty, setDirty] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [comparing, setComparing] = useState(false);
+  // The comparison table belongs to the vote (founder, 2026-10-09).
+  const canCompare = !readOnly && options.length >= 2;
 
   // §10: tiles are ordered by current standing (group score) by default, but
   // your own picks jump to the top in rank order the moment you tap them —
@@ -141,6 +145,23 @@ export function VotingSection({
               ? `Top choice locks in automatically on ${deadlineLabel} — no confirmation needed.`
               : "Top choice locks in automatically once a voting deadline is set — no confirmation needed."}
       </p>
+
+      {canCompare && (
+        <button
+          type="button"
+          onClick={() => setComparing((v) => !v)}
+          aria-expanded={comparing}
+          className="self-start rounded-lg border border-brand-line px-3 py-1.5 text-xs font-medium transition-colors hover:border-foreground"
+        >
+          {comparing ? "Hide comparison" : `Compare all ${options.length} side by side`}
+        </button>
+      )}
+      {canCompare && comparing && (
+        <OptionCompare
+          type={elementType}
+          options={scoreSorted.map((o) => ({ id: o.id, value: o.value, groupRank: groupRankById.get(o.id) ?? 0 }))}
+        />
+      )}
 
       <ul className="flex flex-col gap-3">
         {sorted.map((opt) => {
