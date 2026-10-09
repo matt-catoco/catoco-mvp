@@ -23,6 +23,7 @@ export function ViewTable({ elements }: { elements: OverviewElement[] }) {
           statusLabel: el.statusLabel,
           detail: el.detail,
           href: el.href,
+          alerts: el.alerts,
         }))}
       />
       <StatusLegend />

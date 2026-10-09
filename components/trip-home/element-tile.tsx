@@ -2,6 +2,23 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ElementTier } from "@/lib/trip-elements";
 
+/**
+ * Element card alerts (staging review Part C, 2026-10-09):
+ *  - clock: the element's current deadline (submission/voting/funding) is
+ *    inside the trip's alert threshold — a property of the ELEMENT, shown
+ *    to everyone regardless of what they've done.
+ *  - notCommitted: funding is open and THIS viewer hasn't committed.
+ *  - footer: the phase deadline + the viewer's own status, and capacity.
+ */
+export type TileAlerts = {
+  clock?: string;
+  clockAria?: string;
+  notCommitted?: boolean;
+  deadlineText?: string;
+  myStatus?: { text: string; done: boolean };
+  capacity?: string;
+};
+
 export type ElementTileProps = {
   symbol: string;
   label: string;
@@ -20,6 +37,7 @@ export type ElementTileProps = {
    * directly.
    */
   onDark?: boolean;
+  alerts?: TileAlerts;
 };
 
 // Four-tier visual language (2026-09-xx "Trip overview — view options"
@@ -72,9 +90,10 @@ export function ElementTile({
   detail,
   href,
   onDark = false,
+  alerts,
 }: ElementTileProps) {
   const tileClassNames = [
-    "flex min-h-[128px] flex-col justify-between overflow-hidden rounded-2xl border-2 p-5 text-left transition-colors",
+    "relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-2xl border-2 p-5 text-left transition-colors",
     tileClasses(tier, onDark),
     href ? "hover:border-brand-teal-deep cursor-pointer" : "",
   ]
@@ -92,6 +111,46 @@ export function ElementTile({
         {statusLabel}
         {detail ? ` — ${detail}` : ""}
       </span>
+      {alerts && (alerts.deadlineText || alerts.myStatus || alerts.capacity) && (
+        <span className="mt-2 flex flex-col gap-0.5 border-t border-current/15 pt-2 text-[10.5px]">
+          {(alerts.deadlineText || alerts.myStatus) && (
+            <span className="flex flex-wrap justify-between gap-x-2">
+              {alerts.deadlineText && <span className="opacity-70">{alerts.deadlineText}</span>}
+              {alerts.myStatus && (
+                <span className={alerts.myStatus.done ? "font-semibold" : "font-semibold text-amber-700 dark:text-amber-400"}>
+                  {alerts.myStatus.done ? "✓ " : ""}
+                  {alerts.myStatus.text}
+                </span>
+              )}
+            </span>
+          )}
+          {alerts.capacity && <span className="opacity-70">{alerts.capacity}</span>}
+        </span>
+      )}
+      {alerts && (alerts.clock || alerts.notCommitted) && (
+        <span className="absolute right-3 top-3 flex items-center gap-1.5">
+          {alerts.clock && (
+            <span
+              role="img"
+              aria-label={alerts.clockAria ?? `Deadline in ${alerts.clock}`}
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              {alerts.clock}
+            </span>
+          )}
+          {alerts.notCommitted && (
+            <svg role="img" aria-label="You haven't committed yet" width="22" height="22" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="12" fill="#D4402F" />
+              <path d="M12 6.4v7.2" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
+              <circle cx="12" cy="17.6" r="1.6" fill="#fff" />
+            </svg>
+          )}
+        </span>
+      )}
     </>
   );
 

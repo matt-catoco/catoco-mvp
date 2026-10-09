@@ -12,7 +12,8 @@ export type NotificationKind =
   | "vote_needed"
   | "funding_needed"
   | "funding_deadline_set"
-  | "payment_retry_needed";
+  | "payment_retry_needed"
+  | "nudge";
 
 /**
  * The one send path for all four core-loop triggers. Checks eligibility

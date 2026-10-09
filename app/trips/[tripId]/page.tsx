@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   ELEMENT_SYMBOLS,
   describeElementStatus,
+  formatCurrency,
   formatDate,
   type ElementType,
   type FundingStatus,
@@ -15,6 +16,67 @@ import { resolveAndNotify } from "./resolve-elements";
 import { notifyInvited } from "@/lib/notifications";
 import { AddElementModal } from "./add-element-modal";
 import { getTripContext } from "./trip-context";
+import Link from "next/link";
+import type { TileAlerts } from "@/components/trip-home/element-tile";
+
+type AlertRow = {
+  element_id: string;
+  phase: "submission" | "voting" | "funding" | "done";
+  deadline: string | null;
+  alert_hours: number;
+  in_scope: boolean;
+  i_acted: boolean;
+  my_amount: number | null;
+  currency: string | null;
+  in_count: number;
+  spots: number | null;
+};
+
+type FailedFundingRow = { element_id: string; label: string; reason: string | null; refunds_pending: boolean };
+
+/** "5h", "45m", "3d" — compact time-left for the card clock/footer. */
+function timeLeft(ms: number): string {
+  if (ms <= 0) return "now";
+  const h = ms / 3_600_000;
+  if (h < 1) return `${Math.max(1, Math.round(ms / 60_000))}m`;
+  if (h < 48) return `${Math.round(h)}h`;
+  return `${Math.round(h / 24)}d`;
+}
+
+const PHASE_DEADLINE = { submission: "Submissions close", voting: "Voting closes", funding: "Funding closes" } as const;
+// Nobody HAS to submit or vote — only funding needs everyone in.
+const PHASE_TODO = { submission: "Yet to submit", voting: "Yet to vote", funding: "Waiting on you" } as const;
+const PHASE_DONE = { submission: "Submitted", voting: "Voted", funding: "Committed" } as const;
+
+function tileAlerts(a: AlertRow | undefined): TileAlerts | undefined {
+  if (!a) return undefined;
+  const now = Date.now();
+  const capacity =
+    a.phase !== "done" && a.in_count > 0
+      ? `${a.in_count} in${a.spots != null ? ` · ${a.spots} spot${a.spots === 1 ? "" : "s"}` : ""}`
+      : undefined;
+  if (a.phase === "done") return capacity ? { capacity } : undefined;
+  const ms = a.deadline ? new Date(a.deadline).getTime() - now : null;
+  const clockDue = ms !== null && ms > 0 && ms <= a.alert_hours * 3_600_000;
+  return {
+    clock: clockDue ? timeLeft(ms!) : undefined,
+    clockAria: clockDue ? `${PHASE_DEADLINE[a.phase]} in ${timeLeft(ms!)}` : undefined,
+    notCommitted: a.phase === "funding" && a.in_scope && !a.i_acted,
+    deadlineText: ms !== null && ms > 0 ? `${PHASE_DEADLINE[a.phase]} in ${timeLeft(ms)}` : undefined,
+    myStatus: a.in_scope
+      ? a.i_acted
+        ? {
+            text:
+              a.phase === "funding" && a.my_amount != null
+                ? `You committed ${formatCurrency(Number(a.my_amount), a.currency ?? "USD")}`
+                : PHASE_DONE[a.phase],
+            done: true,
+          }
+        : { text: PHASE_TODO[a.phase], done: false }
+      : undefined,
+    capacity,
+  };
+}
 
 type RosterRow = { user_id: string; display_name: string | null; is_organizer: boolean };
 
@@ -140,7 +202,7 @@ export default async function TripLandingPage({
     });
   }
 
-  const [{ data: elements }, { data: rosterData }, { data: canManage }, tripContext] =
+  const [{ data: elements }, { data: rosterData }, { data: canManage }, tripContext, { data: alertRows }, { data: failedRows }] =
     await Promise.all([
       supabase
         .from("trip_elements")
@@ -157,7 +219,12 @@ export default async function TripLandingPage({
       // falls back to a locked Accommodations option's own location/dates
       // (a hotel-only-split trip). See getTripContext's own comment.
       getTripContext(supabase, tripId, { fallbackToLockedAccommodation: true }),
+      supabase.rpc("get_trip_element_alerts", { p_trip_id: tripId }),
+      // Organizer-only (the RPC returns nothing for anyone else).
+      supabase.rpc("get_trip_failed_funding", { p_trip_id: tripId }),
     ]);
+  const alertsByElement = new Map(((alertRows ?? []) as AlertRow[]).map((a) => [a.element_id, a]));
+  const failedFunding = (failedRows ?? []) as FailedFundingRow[];
   const addElementRoster = ((rosterData ?? []) as RosterRow[]).map((r) => ({
     userId: r.user_id,
     displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
@@ -235,6 +302,7 @@ export default async function TripLandingPage({
       detail: info.detail,
       href: `/trips/${tripId}/elements/${row.id}`,
       schedule: getElementSchedule(row.type, row.state, row.metadata, lockedValue),
+      alerts: tileAlerts(alertsByElement.get(row.id)),
     };
   });
 
@@ -266,6 +334,31 @@ export default async function TripLandingPage({
             {totalActual > 0 ? `${totalActual.toFixed(2)} actual · ` : ""}
             {totalRequired.toFixed(2)} required
           </span>
+        </div>
+      )}
+
+      {failedFunding.length > 0 && (
+        <div className="flex w-full max-w-2xl flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+          <span className="font-semibold">Funding didn&apos;t complete — set a new deadline to reopen it</span>
+          <ul className="flex flex-col gap-1">
+            {failedFunding.map((f) => (
+              <li key={f.element_id} className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  {f.label}
+                  <span className="opacity-70">
+                    {" — "}
+                    {f.reason === "retry_expired"
+                      ? "a payment couldn't be fixed in time; nobody was charged"
+                      : "a payment failed at the last step"}
+                    {f.refunds_pending ? " (refunds still settling)" : ""}
+                  </span>
+                </span>
+                <Link href={`/trips/${tripId}/elements/${f.element_id}`} className="font-semibold underline">
+                  Set a new deadline
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

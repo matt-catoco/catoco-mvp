@@ -1,5 +1,6 @@
 import type { ElementTier, ElementType } from "@/lib/trip-elements";
 import type { ElementSchedule } from "@/lib/element-schedule";
+import type { TileAlerts } from "./element-tile";
 
 /** One element, fully pre-computed server-side — every Trip overview view
  * (Table/Itinerary/Calendar/Kanban) renders from this same shape so the
@@ -16,6 +17,8 @@ export type OverviewElement = {
   detail?: string;
   href: string;
   schedule: ElementSchedule | null;
+  /** Card alerts for the signed-in viewer (deadline clock, not-committed mark, footer). */
+  alerts?: TileAlerts;
 };
 
 export const TIER_ORDER = { ready: 0, funded: 1, locked: 2, open: 3 } as const;

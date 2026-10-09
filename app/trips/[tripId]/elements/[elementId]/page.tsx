@@ -35,6 +35,7 @@ import { ConfirmationDetails } from "@/components/confirmation-details";
 import { ElementScopePanel, type ScopeMember } from "../../participation-controls";
 import { BookingConfirmation } from "../../booking-confirmation";
 import { getTripContext } from "../../trip-context";
+import { NudgeButton } from "../../nudge-button";
 
 type ElementRow = {
   id: string;
@@ -195,6 +196,14 @@ export default async function ElementDetailPage({
 
   const { data: canManage } = await supabase.rpc("is_trip_organizer", { p_trip_id: tripId });
   const canEdit = Boolean(canManage) || element.created_by === user.id;
+  // Nudge: organizer-only, whoever hasn't acted in the current phase.
+  const nudgeTargets = canManage
+    ? (((await supabase.rpc("get_element_nudge_targets", { p_element_id: elementId })).data ?? []) as {
+        participant_id: string;
+        display_name: string | null;
+        phase: string;
+      }[])
+    : [];
 
   let body: ReactNode;
 
@@ -783,6 +792,14 @@ export default async function ElementDetailPage({
         </Link>
       </div>
       {body}
+      {nudgeTargets.length > 0 && (
+        <NudgeButton
+          tripId={tripId}
+          elementId={element.id}
+          names={nudgeTargets.map((t) => t.display_name?.trim() || "Unnamed traveller")}
+          phaseLabel={{ submission: "submit", voting: "vote", funding: "commit" }[nudgeTargets[0].phase] ?? "act"}
+        />
+      )}
     </div>
   );
 }
