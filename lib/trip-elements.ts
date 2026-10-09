@@ -186,9 +186,10 @@ export function describeElementStatus(row: {
     tier: "open",
     statusLabel: stillSubmitting ? "Open — Submitting" : "Open — Voting",
     detail:
-      row.optionCount > 0
+      (row.type === "dates" ? "Dates to be decided · " : "") +
+      (row.optionCount > 0
         ? `${row.optionCount} idea${row.optionCount === 1 ? "" : "s"}`
-        : "No ideas yet",
+        : "No ideas yet"),
   };
 }
 
@@ -1105,6 +1106,48 @@ export function formatDate(iso: string): string {
   });
 }
 
+/** Night count between two YYYY-MM-DD dates (UTC, so DST can't shift it). */
+export function nightsBetween(start: string, end: string): number | null {
+  const a = Date.parse(`${start}T00:00:00Z`);
+  const b = Date.parse(`${end}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * Staging review B1: a Dates value as the card shows it — a formatted range
+ * plus its night count, or "Dates to be decided" when only a length (or
+ * nothing) has been settled.
+ */
+export function describeDates(value: Record<string, unknown>): {
+  range: string;
+  nightsText: string | null;
+  flex: string | null;
+  decided: boolean;
+} {
+  const str = (k: string) => String(value[k] ?? "").trim();
+  const flex = str("flexibility_days") && str("flexibility_days") !== "0" ? str("flexibility_days") : null;
+  const plural = (n: number) => `${n} night${n === 1 ? "" : "s"}`;
+  const start = str("start_date");
+  const end = str("end_date");
+  if (start) {
+    const n = end ? nightsBetween(start, end) : null;
+    return {
+      range: end && end !== start ? `${formatDate(start)} → ${formatDate(end)}` : formatDate(start),
+      nightsText: n ? plural(n) : null,
+      flex,
+      decided: true,
+    };
+  }
+  const nights = Number(str("nights"));
+  return {
+    range: "Dates to be decided",
+    nightsText: Number.isInteger(nights) && nights > 0 ? plural(nights) : null,
+    flex,
+    decided: false,
+  };
+}
+
 export function summarizeOptionValue(
   type: ElementType,
   value: Record<string, unknown>,
@@ -1112,15 +1155,9 @@ export function summarizeOptionValue(
   const str = (k: string) => String(value[k] ?? "").trim();
   switch (type) {
     case "dates": {
-      const flex = str("flexibility_days");
-      let base: string;
-      if (str("nights")) {
-        base = `${str("nights")} nights`;
-      } else {
-        base = str("start_date") ? formatDate(str("start_date")) : "?";
-        if (str("end_date")) base += ` → ${formatDate(str("end_date"))}`;
-      }
-      return flex ? `${base} · ±${flex}d` : base;
+      const d = describeDates(value);
+      const base = d.nightsText ? `${d.range} · ${d.nightsText}` : d.range;
+      return d.flex ? `${base} · ±${d.flex}d` : base;
     }
     case "destination":
       return str("name") || "?";

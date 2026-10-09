@@ -7,8 +7,6 @@ import {
   TRAVEL_MODE_LABELS,
   ACCOMMODATION_SEARCH_SUBTYPES,
   ACCOMMODATION_SEARCH_SUBTYPE_LABELS,
-  EXPERIENCE_SEARCH_SUBTYPES,
-  EXPERIENCE_SEARCH_SUBTYPE_LABELS,
   priceLabel,
   type ElementType,
   type TravelMode,
@@ -181,10 +179,13 @@ export function VendorSearchPanel({
   const [subtype, setSubtype] = useState<SearchSubtype>(() => {
     if (elementType === "travel") return "flight";
     if (elementType === "accommodation") return "hotel";
-    if (elementType === "experience") return "tours";
     return "";
   });
-  const [location, setLocation] = useState("");
+  const [keyword, setKeyword] = useState("");
+  // Experiences start from the trip's locked destination — overridable.
+  const [location, setLocation] = useState(() =>
+    elementType === "experience" ? (tripContext?.destination?.name ?? "") : "",
+  );
   const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -206,6 +207,7 @@ export function VendorSearchPanel({
     return {
       elementType,
       searchSubtype: subtype,
+      keyword: elementType === "experience" ? keyword.trim() || undefined : undefined,
       location: location || undefined,
       destination: destination || undefined,
       startDate: startDate || undefined,
@@ -235,6 +237,9 @@ export function VendorSearchPanel({
         if (!startDate) return "Pick a travel date";
         if (roundTrip && !endDate) return "Pick a return date";
       }
+    }
+    if (elementType === "experience" && !keyword.trim() && !location.trim()) {
+      return "Enter what you're looking for or where";
     }
     if (elementType === "accommodation") {
       if (!startDate) return "Pick a check-in date";
@@ -280,13 +285,6 @@ export function VendorSearchPanel({
         value={subtype as AccommodationSearchSubtype}
         options={ACCOMMODATION_SEARCH_SUBTYPES}
         labels={ACCOMMODATION_SEARCH_SUBTYPE_LABELS}
-        onChange={(v) => setSubtype(v)}
-      />
-    ) : elementType === "experience" ? (
-      <PillRow
-        value={subtype as ExperienceSearchSubtype}
-        options={EXPERIENCE_SEARCH_SUBTYPES}
-        labels={EXPERIENCE_SEARCH_SUBTYPE_LABELS}
         onChange={(v) => setSubtype(v)}
       />
     ) : null;
@@ -379,7 +377,19 @@ export function VendorSearchPanel({
     if (elementType === "experience") {
       return (
         <>
-          <input className={field} placeholder="Destination" value={location} onChange={(e) => setLocation(e.target.value)} />
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>What</span>
+            <input
+              className={field}
+              placeholder="e.g. ghost tour, cooking class, concert"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className={labelClass}>Where</span>
+            <input className={field} placeholder="City or area" value={location} onChange={(e) => setLocation(e.target.value)} />
+          </label>
           <label className="flex flex-col gap-1">
             <span className={labelClass}>Date</span>
             <input type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />

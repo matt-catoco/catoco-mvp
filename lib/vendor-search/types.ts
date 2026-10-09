@@ -8,6 +8,8 @@ import type { ElementType, PricingBasis, TravelersBreakdown } from "@/lib/trip-e
 export type VendorSearchParams = {
   elementType: ElementType;
   searchSubtype: string; // TravelMode | AccommodationSearchSubtype | ExperienceSearchSubtype | "" (Dining has none)
+  /** Experiences: what to look for ("ghost tour", "cooking class"), searched with `location`. */
+  keyword?: string;
   location?: string; // free-text place name (From/To, pickup location, destination, dining location)
   destination?: string; // Travel's "To" leg specifically, kept distinct from `location` (the "From" leg)
   startDate?: string;

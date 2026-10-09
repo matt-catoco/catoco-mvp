@@ -3,6 +3,7 @@ import {
   EXPERIENCE_SUBTYPE_LABELS,
   PRICE_BEARING_TYPES,
   TRAVEL_MODE_LABELS,
+  describeDates,
   formatCurrency,
   formatDate,
   summarizeOptionValue,
@@ -140,6 +141,22 @@ export function OptionSummary({
   const fallback = summarizeOptionValue(type, value);
   const facts = PRICE_BEARING_TYPES.includes(type) ? keyFactsLine(type, value) : null;
   const map = mapPoint(type, value);
+
+  // B1: Dates get their own card — the range and night count, big; never
+  // a photo or "No image" placeholder (there's nothing to picture).
+  if (type === "dates") {
+    const d = describeDates(value);
+    return (
+      <span className="flex flex-col gap-0.5">
+        <span className={d.decided ? "block font-medium" : "block font-medium opacity-70"}>{d.range}</span>
+        {(d.nightsText || d.flex) && (
+          <span className="block text-[11px] opacity-70">
+            {[d.nightsText, d.flex ? `±${d.flex} day${d.flex === "1" ? "" : "s"} flexible` : null].filter(Boolean).join(" · ")}
+          </span>
+        )}
+      </span>
+    );
+  }
 
   const linkLine = bookingLink && (
     <a

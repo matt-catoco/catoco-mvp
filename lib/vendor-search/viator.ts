@@ -60,7 +60,15 @@ export async function viatorSearch(params: VendorSearchParams): Promise<VendorSe
     return { status: "mock", vendorLabel: "Mock data — Viator key not configured", results: [] };
   }
 
-  const searchTerm = (params.location || params.destination || "").trim();
+  // Staging review B2: "what" + "where" as one free-text query — Viator's
+  // /search/freetext matches across product titles/descriptions AND place
+  // names (confirmed live 2026-10-09: "ghost tour Edinburgh" returns ghost
+  // tours in Edinburgh), so no tag mapping is needed. Either half alone
+  // still works.
+  const searchTerm = [params.keyword, params.location || params.destination]
+    .map((s) => (s ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
   if (!searchTerm) {
     return { status: "live", vendorLabel: "Viator", results: [] };
   }
