@@ -88,13 +88,27 @@ function bodyLines(text: string): string[] {
   return out;
 }
 
-function lineAfter(text: string, label: RegExp): string | undefined {
-  for (const line of bodyLines(text)) {
-    const m = line.match(label);
-    if (m) {
-      const rest = line.slice((m.index ?? 0) + m[0].length).replace(/^[\s:–—-]+/, "").trim();
-      if (rest) return rest.slice(0, 300);
+const isLinkLine = (l: string) => /^<?https?:\/\/\S+>?$/i.test(l.trim());
+
+/**
+ * The value after a label: on the same line ("Check-in: 13 Nov"), or —
+ * common in rental/airline emails — on the following line(s) when the label
+ * stands alone ("Pickup Date & Time" / "Mon, Feb 15 2027 10:30 AM").
+ * `lines` > 1 joins that many value lines (addresses), skipping map links.
+ */
+function lineAfter(text: string, label: RegExp, lines = 1): string | undefined {
+  const all = bodyLines(text).map((l) => l.trim());
+  for (let i = 0; i < all.length; i++) {
+    const m = all[i].match(label);
+    if (!m) continue;
+    const rest = all[i].slice((m.index ?? 0) + m[0].length).replace(/^[\s:–—&a-z-]*?(?:date|time|location)?[\s:–—&-]*/i, "").trim();
+    if (rest && !/^(date|time|&)/i.test(rest)) return rest.slice(0, 300);
+    const next: string[] = [];
+    for (let j = i + 1; j < all.length && next.length < lines; j++) {
+      if (!all[j] || isLinkLine(all[j])) continue;
+      next.push(all[j]);
     }
+    if (next.length) return next.join(", ").slice(0, 300);
   }
   return undefined;
 }
@@ -106,6 +120,8 @@ function vendorFrom(text: string, subject: string): string | undefined {
   const subj = subject.replace(/^(fwd?|fw)\s*:\s*/i, "");
   const m =
     subj.match(/(?:from|at|with)\s+([A-Z][\w&'.\- ]{2,60})/) ??
+    // "Alamo Car Rental Confirmation: 2137…", "Hotel X Booking Receipt"
+    subj.match(/^([A-Z][\w&'.\-]*(?:\s+[A-Z][\w&'.\-]*){0,4})\s+(?:[Cc]onfirmation|[Rr]eservation|[Bb]ooking|[Rr]eceipt|[Ii]tinerary)\b/) ??
     text.match(/(?:booking|booked|reservation|staying)\s+(?:with|at)\s+([A-Z][\w&'.\-]*(?:\s+[A-Z][\w&'.\-]*){0,4})/);
   if (m) return m[1].trim().replace(/[!.,]+$/, "");
   return undefined;
@@ -138,20 +154,33 @@ export function extractBooking(input: { subject: string; text?: string | null; h
   // Most specific labels first; a bare "Date:" only as a last resort.
   const start =
     lineAfter(text, /\b(check[- ]?in|arrival|arrive|departure date|depart(?:s|ing)?|date of (?:visit|activity|tour)|start(?:s| date)?|reservation date)\b\s*(?:date)?/i) ??
+    // car rentals; may be glued to the previous word ("DetailsPickup Date & Time")
+    lineAfter(text, /pick[- ]?up\s*date/i) ??
     lineAfter(text, /\bdate\b/i);
-  const end = lineAfter(text, /\b(check[- ]?out|departure|end(?:s| date)?|return)\b\s*(?:date)?/i);
+  const end =
+    lineAfter(text, /\b(check[- ]?out|departure|end(?:s| date)?)\b\s*(?:date)?/i) ??
+    lineAfter(text, /\b(return|drop[- ]?off)\s*date/i) ??
+    lineAfter(text, /\breturn\b\s*(?:date)?/i);
   const s = start ? parseDate(start) : undefined;
   const e = end ? parseDate(end) : undefined;
   if (s) out.starts_at = s;
   if (e && (!s || e >= s)) out.ends_at = e;
 
-  const address = lineAfter(text, /\b(address|meeting point|location|where)\b/i);
-  if (address && /\d|street|st\.|road|rd\.|via |rue |avenue|ave\.|plaza|square/i.test(address)) out.address = address;
+  const address =
+    lineAfter(text, /pick[- ]?up\s*location/i, 3) ??
+    lineAfter(text, /\b(address|meeting point|location|where)\b/i, 3);
+  if (address && /\d|street|st\.|road|rd\.|via |rue |avenue|ave\.|plaza|square|airport|station/i.test(address)) out.address = address;
 
   const checkin = lineAfter(text, /\b(check[- ]?in (?:time|instructions|from)|how to check in|meeting instructions)\b/i);
   if (checkin) out.checkin_instructions = checkin;
 
-  const cancelLine = bodyLines(text).find((l) => /\b(free cancellation|cancellation|cancel)\b/i.test(l));
+  // A real policy line, not a "cancel your reservation here" link label.
+  const cancelLine = bodyLines(text).find(
+    (l) =>
+      /\b(free cancellation|cancellation|cancel)\b/i.test(l) &&
+      /\b(free|until|before|policy|refund|fee|non-refundable|hours|days)\b/i.test(l) &&
+      !/\bhere\.?\s*$/i.test(l.trim()),
+  );
   if (cancelLine) {
     out.cancellation_policy = cancelLine.trim().slice(0, 300);
     const dl = parseDate(cancelLine);
