@@ -77,6 +77,19 @@ function segmentLine(s: FlightSegment): string {
   return `${s.from} ${time(s.depart)} → ${s.to} ${time(s.arrive)}${flight ? ` · ${flight}` : ""}`;
 }
 
+/**
+ * One duration format everywhere (search cards and saved details):
+ * "45 min", "2 hours", "2h 30m", "60–75 min", "3–4 hours".
+ */
+export function formatDurationMinutes(from: number, to?: number): string {
+  const one = (m: number) =>
+    m < 60 ? `${m} min` : m % 60 === 0 ? `${m / 60} hour${m === 60 ? "" : "s"}` : `${Math.floor(m / 60)}h ${m % 60}m`;
+  if (!to || to === from) return one(from);
+  if (to < 180) return `${from}–${to} min`;
+  if (from % 60 === 0 && to % 60 === 0) return `${from / 60}–${to / 60} hours`;
+  return `${one(from)}–${one(to)}`;
+}
+
 /** Display order of detail rows — shared by the locked view and the vote's comparison table. */
 export const DETAIL_ORDER = [
   "rating", "duration", "segments", "baggage", "checkin", "checkout", "address", "meeting_point",

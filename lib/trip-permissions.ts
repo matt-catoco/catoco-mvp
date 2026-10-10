@@ -18,7 +18,8 @@ export type TripPermissions = {
   cushionValue: number;
   /** Hours a participant gets to fix a failed card hold before the group's holds are released. */
   retryHours: number;
-  /** Pre-fills a new element's voting deadline (days after added); null = no default. */
+  /** Pre-fills a new element's voting deadline: days AFTER its submission deadline
+   * (2026-10-10; was "days after added" — no trip had a value yet). null = 7. */
   votingDeadlineDays: number | null;
   /** Participants see each other's names (off: only their own + the organizer's). */
   viewAllParticipants: boolean;
@@ -37,9 +38,9 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   cushionKind: "percent",
   cushionValue: 10,
   retryHours: 24,
-  // A real default like the other two (bug round 2026-10-10): a week of
-  // submissions, then a week of voting.
-  votingDeadlineDays: 14,
+  // A 7-day window like the other two (founder, 2026-10-10) — counted from
+  // when submissions close, so voting always gets its own week.
+  votingDeadlineDays: 7,
   viewAllParticipants: true,
   deadlineAlertHours: 24,
 };
@@ -57,9 +58,6 @@ export function tripPermissionsError(v: TripPermissions): string | null {
   }
   if (v.votingDeadlineDays !== null && (!Number.isInteger(v.votingDeadlineDays) || v.votingDeadlineDays < 1 || v.votingDeadlineDays > 90)) {
     return "Voting deadline default must be 1–90 days.";
-  }
-  if (v.votingDeadlineDays !== null && v.votingDeadlineDays < v.submissionDeadlineDays) {
-    return "The voting deadline default can't come before the submission deadline default.";
   }
   if (![12, 24, 48].includes(v.deadlineAlertHours)) return "Deadline alert must be 12, 24 or 48 hours.";
   if (!Number.isInteger(v.retryHours) || v.retryHours < 1 || v.retryHours > 144) {

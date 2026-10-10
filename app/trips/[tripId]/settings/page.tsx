@@ -69,8 +69,8 @@ export default async function TripSettingsPage({
             cushionKind: trip.price_cushion_kind === "amount" ? "amount" : "percent",
             cushionValue: Number(trip.price_cushion_value),
             retryHours: trip.payment_retry_hours,
-            // Trips made before the voting default existed: a week after submission.
-            votingDeadlineDays: trip.voting_deadline_days ?? trip.submission_deadline_days + 7,
+            // Trips made before the voting default existed: a week of voting.
+            votingDeadlineDays: trip.voting_deadline_days ?? 7,
             viewAllParticipants: trip.view_all_participants,
             deadlineAlertHours: trip.deadline_alert_hours,
           }}

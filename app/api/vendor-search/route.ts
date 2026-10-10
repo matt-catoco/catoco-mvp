@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchVendor } from "@/lib/vendor-search/dispatch";
+import { createClient } from "@/lib/supabase/server";
 import type { VendorSearchParams, VendorSearchResponse } from "@/lib/vendor-search/types";
 
 /**
@@ -10,6 +11,13 @@ import type { VendorSearchParams, VendorSearchResponse } from "@/lib/vendor-sear
  * this build.
  */
 export async function POST(request: NextRequest) {
+  // Signed-in users only — every search spends our vendor API quota.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Sign in to search." }, { status: 401 });
+
   let params: VendorSearchParams;
   try {
     params = (await request.json()) as VendorSearchParams;

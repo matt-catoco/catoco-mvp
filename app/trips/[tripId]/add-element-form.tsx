@@ -150,9 +150,9 @@ export function AddElementForm({
   const [votingDeadline, setVotingDeadline] = useState(
     () => {
       if (bundleContext?.votingDeadline) return bundleContext.votingDeadline;
-      // Older trips have no voting default saved — a week after submission.
-      const days = votingDeadlineDays ?? (submissionDeadlineDays ? submissionDeadlineDays + 7 : null);
-      return days ? localDatePlusDays(days) : "";
+      // Voting default counts from when submissions close (7 if the trip has none saved).
+      if (!submissionDeadlineDays) return "";
+      return localDatePlusDays(submissionDeadlineDays + (votingDeadlineDays ?? 7));
     },
   );
   const [spots, setSpots] = useState("");

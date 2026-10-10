@@ -1,6 +1,6 @@
 import "server-only";
 import type { ElementType } from "@/lib/trip-elements";
-import type { FlightSegment, OptionDetails } from "@/lib/option-details";
+import { formatDurationMinutes, type FlightSegment, type OptionDetails } from "@/lib/option-details";
 import { decodeEntities, readCapped, safeUrl } from "@/lib/link-preview";
 
 /**
@@ -114,17 +114,15 @@ async function viatorDetails(code: string): Promise<OptionDetails | null> {
   const text = (i: { otherDescription?: string; description?: string; typeDescription?: string }) =>
     i.otherDescription || i.description || i.typeDescription || "";
   const dur = p.itinerary?.duration ?? {};
-  const hours = (m: number) => (m % 60 === 0 ? `${m / 60}h` : m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`);
-  const range = (a: number, b: number) => (b < 180 ? `${a}–${b} min` : `${hours(a)}–${hours(b)}`);
   const reviews = p.reviews;
   return prune({
     source: "viator",
     fetched_at: new Date().toISOString(),
     summary: clip(p.description),
     duration: dur.fixedDurationInMinutes
-      ? hours(dur.fixedDurationInMinutes)
+      ? formatDurationMinutes(dur.fixedDurationInMinutes)
       : dur.variableDurationFromMinutes && dur.variableDurationToMinutes
-        ? range(dur.variableDurationFromMinutes, dur.variableDurationToMinutes)
+        ? formatDurationMinutes(dur.variableDurationFromMinutes, dur.variableDurationToMinutes)
         : undefined,
     // Viator's meeting location itself is a Google place ref we can't
     // resolve; its text often says "the location above" — point at the listing.

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export type GeocodeResult = {
   name: string;
@@ -27,6 +28,13 @@ type MapboxFeature = {
  * a client-side change.
  */
 export async function GET(request: NextRequest) {
+  // Signed-in users only — every lookup spends Mapbox quota.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ results: [] as GeocodeResult[] }, { status: 401 });
+
   const q = request.nextUrl.searchParams.get("q")?.trim();
   if (!q) {
     return NextResponse.json({ results: [] as GeocodeResult[] });

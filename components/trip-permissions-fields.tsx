@@ -152,10 +152,10 @@ export function TripPermissionsFields({
                 min={1}
                 max={90}
                 className={`h-9 w-20 ${fieldClass}`}
-                value={v.votingDeadlineDays ?? v.submissionDeadlineDays + 7}
+                value={v.votingDeadlineDays ?? 7}
                 onValueChange={(n) => onChange({ ...v, votingDeadlineDays: n })}
               />
-              <span className="text-xs text-brand-muted">days after added</span>
+              <span className="text-xs text-brand-muted">days after submissions close</span>
             </span>
           </label>
           <label className="flex min-w-[9rem] flex-1 flex-col gap-1">

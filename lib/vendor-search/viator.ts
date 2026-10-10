@@ -1,5 +1,6 @@
 import "server-only";
 import type { VendorSearchParams, VendorSearchResponse, VendorSearchResult } from "./types";
+import { formatDurationMinutes } from "@/lib/option-details";
 
 // Viator Partner API — the one vendor confirmed live this pass (Experiences).
 // Uses the free-text search endpoint (searches by place/activity name
@@ -36,19 +37,14 @@ type ViatorProduct = {
  * duration RANGE reads more honestly than a specific start time would.
  */
 function formatDuration(d: ViatorProduct["duration"]): string | undefined {
+  // Same formatter as the saved option details, so the search card and the
+  // locked view say the same thing ("60–75 min", not "~1–1.3 hours").
   if (!d) return undefined;
-  const toHours = (min: number) => {
-    const hours = min / 60;
-    return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
-  };
   if (d.variableDurationFromMinutes && d.variableDurationToMinutes) {
-    return `~${toHours(d.variableDurationFromMinutes)}–${toHours(d.variableDurationToMinutes)} hours`;
+    return formatDurationMinutes(d.variableDurationFromMinutes, d.variableDurationToMinutes);
   }
-  if (d.fixedDurationInMinutes) {
-    const hours = toHours(d.fixedDurationInMinutes);
-    return `~${hours} ${hours === "1" ? "hour" : "hours"}`;
-  }
-  if (d.variableDurationFromMinutes) return `~${toHours(d.variableDurationFromMinutes)}+ hours`;
+  if (d.fixedDurationInMinutes) return formatDurationMinutes(d.fixedDurationInMinutes);
+  if (d.variableDurationFromMinutes) return `${formatDurationMinutes(d.variableDurationFromMinutes)}+`;
   return undefined;
 }
 
