@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Inter } from "next/font/google";
 import "./globals.css";
+import { PostHogProvider } from "@/components/posthog-provider";
+import { CookieBanner } from "@/components/cookie-banner";
 
 // Brand type system (design-handoff/catoco-brand-toolkit.md), applied
 // platform-wide: Bricolage Grotesque for display/headings, Inter for
@@ -28,7 +30,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${bricolage.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
+        <PostHogProvider>
+          {children}
+          <CookieBanner />
+        </PostHogProvider>
       </body>
     </html>
   );
