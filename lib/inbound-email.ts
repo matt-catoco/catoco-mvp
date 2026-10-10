@@ -46,6 +46,12 @@ function bareAddress(from: string): string {
   return (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase();
 }
 
+/** name+tag@domain and name@domain are the same mailbox — compare without the tag. */
+function mailbox(addr: string): string {
+  const [local, domain] = addr.toLowerCase().split("@");
+  return `${(local ?? "").split("+")[0]}@${domain ?? ""}`;
+}
+
 async function resendGet<T>(path: string): Promise<T | null> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return null;
@@ -131,7 +137,7 @@ export async function processInboundEmail(
   }
 
   const allowed = await allowedSenders(service, el.id);
-  const verified = allowed.includes(from) && !authFailed(email?.authentication);
+  const verified = allowed.some((a) => mailbox(a) === mailbox(from)) && !authFailed(email?.authentication);
   const prefix = `${el.trip_id}/${el.id}`;
 
   // Original message → private storage (both verified and quarantined).
