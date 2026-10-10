@@ -31,9 +31,9 @@ import type { PriceInfo } from "../../price-check";
 import { cushionLabel } from "@/lib/trip-permissions";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
-import { ConfirmationDetails } from "@/components/confirmation-details";
+import { BookingRecord, type BookingRecordView } from "@/components/booking-record";
+import { BookingRecordForm, type BookingDraft } from "../../booking-record-form";
 import { ElementScopePanel, type ScopeMember } from "../../participation-controls";
-import { BookingConfirmation } from "../../booking-confirmation";
 import { getTripContext } from "../../trip-context";
 import { NudgeButton } from "../../nudge-button";
 import { ChangePhoto } from "../../change-photo";
@@ -54,8 +54,6 @@ type ElementRow = {
   locked_via: "organizer" | "vote" | "creator" | null;
   booked_at: string | null;
   created_by: string | null;
-  confirmation_details: string | null;
-  confirmation_attachment_path: string | null;
   bundle_group_id: string | null;
   scope_all: boolean;
   spots: number | null;
@@ -189,7 +187,7 @@ export default async function ElementDetailPage({
   const { data: element } = await supabase
     .from("trip_elements")
     .select(
-      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, confirmation_details, confirmation_attachment_path, bundle_group_id, scope_all, spots, cushion_kind, cushion_value, enriched_details",
+      "id, type, label, metadata, state, options_deadline, voting_deadline, tie_notified, empty_notified, locked_option_id, locked_via, booked_at, created_by, bundle_group_id, scope_all, spots, cushion_kind, cushion_value, enriched_details",
     )
     .eq("id", elementId)
     .eq("trip_id", tripId)
@@ -518,18 +516,60 @@ export default async function ElementDetailPage({
     // members only), so reaching here is the access check; the private
     // bucket itself has no policies, so the service role mints a short-lived
     // read URL rather than any stored/permanent link.
-    let confirmationAttachment: { url: string; isPdf: boolean } | null = null;
-    if (element.confirmation_attachment_path) {
+    // Booking record (RLS: element participants + organizers + purchaser).
+    const [{ data: bookingRow }, { data: canEditBookingData }, { data: inboundRows }] = await Promise.all([
+      supabase.from("element_bookings").select("*").eq("element_id", element.id).maybeSingle(),
+      supabase.rpc("can_edit_element_booking", { p_element_id: element.id }),
+      supabase
+        .from("inbound_booking_emails")
+        .select("from_address, subject, received_at, status")
+        .eq("element_id", element.id)
+        .eq("status", "parsed")
+        .order("received_at", { ascending: false })
+        .limit(1),
+    ]);
+    const canEditBooking = Boolean(canEditBookingData);
+    const booking = bookingRow as (BookingRecordView & { document_path: string | null; lead_booker_id: string | null }) | null;
+    let bookingDocument: { url: string; isPdf: boolean } | null = null;
+    if (booking?.document_path) {
       const { data: signed } = await createServiceClient()
         .storage.from(CONFIRMATION_BUCKET)
-        .createSignedUrl(element.confirmation_attachment_path, 600);
+        .createSignedUrl(booking.document_path, 600);
       if (signed?.signedUrl) {
-        confirmationAttachment = {
-          url: signed.signedUrl,
-          isPdf: element.confirmation_attachment_path.toLowerCase().endsWith(".pdf"),
-        };
+        bookingDocument = { url: signed.signedUrl, isPdf: booking.document_path.toLowerCase().endsWith(".pdf") };
       }
     }
+    const leadRow = booking?.lead_booker_id ? rosterById.get(booking.lead_booker_id) : undefined;
+    // get_trip_roster already blanks other names when "View all participants" is off.
+    const bookingLeadName = leadRow?.display_name?.trim() || null;
+    const toLocal = (iso: string | null | undefined) => (iso ? new Date(iso).toISOString().slice(0, 16) : "");
+    const optionValue = (option?.value ?? {}) as Record<string, unknown>;
+    const pendingEmail = (inboundRows ?? [])[0] as { from_address: string; subject: string; received_at: string } | undefined;
+    const bookingDraft: BookingDraft = {
+      vendor: booking?.vendor ?? String(optionValue.title ?? optionValue.name ?? ""),
+      confirmation_ref: booking?.confirmation_ref ?? "",
+      starts_at: toLocal(booking?.starts_at),
+      ends_at: toLocal(booking?.ends_at),
+      address: booking?.address ?? "",
+      checkin_instructions: booking?.checkin_instructions ?? "",
+      cancellation_deadline: toLocal(booking?.cancellation_deadline),
+      cancellation_policy: booking?.cancellation_policy ?? "",
+      notes: booking?.notes ?? "",
+      lead_booker_id: booking?.lead_booker_id ?? fundingRow?.purchaser_id ?? user.id,
+      amount_charged: booking?.amount_charged != null ? String(booking.amount_charged) : "",
+      currency: booking?.currency ?? fundingRow?.currency ?? String(optionValue.currency ?? ""),
+      documentName: booking?.document_path ? booking.document_path.split("/").pop() ?? null : null,
+      field_provenance: booking?.field_provenance ?? {},
+      pendingEmail: pendingEmail && !booking?.confirmed_at
+        ? { from: pendingEmail.from_address, subject: pendingEmail.subject, receivedAt: pendingEmail.received_at }
+        : null,
+      source: (booking?.source as BookingDraft["source"]) ?? "manual",
+    };
+    const bookingRoster = roster.map((r) => ({
+      userId: r.user_id,
+      displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
+    }));
+    const showIncidentals = element.type === "accommodation";
 
     const snapshotCurrency =
       (option?.value as Record<string, unknown> | undefined)?.currency as string | undefined;
@@ -590,7 +630,30 @@ export default async function ElementDetailPage({
           ) : (
             "?"
           )}
-          <ConfirmationDetails details={element.confirmation_details} attachment={confirmationAttachment} />
+          {booking?.confirmed_at && (
+            <BookingRecord
+              record={booking}
+              document={bookingDocument}
+              leadName={bookingLeadName}
+              showIncidentals={showIncidentals}
+            />
+          )}
+          {booking?.confirmed_at && canEditBooking && (
+            <details className="mt-2 text-xs">
+              <summary className="cursor-pointer text-brand-muted">Edit the booking record</summary>
+              <div className="mt-2">
+                <BookingRecordForm
+                  tripId={tripId}
+                  elementId={element.id}
+                  draft={bookingDraft}
+                  roster={bookingRoster}
+                  mode="edit"
+                  amountFromCard={null}
+                  showIncidentals={false}
+                />
+              </div>
+            </details>
+          )}
         </div>
         {canEdit && !element.booked_at && (
           <div className="mt-3">
@@ -635,15 +698,41 @@ export default async function ElementDetailPage({
               members={bundleMembers}
               payments={payments}
               priceInfo={priceInfo}
+              booking={
+                canEditBooking
+                  ? {
+                      draft: bookingDraft,
+                      roster: bookingRoster,
+                      showIncidentals,
+                      amountFromCard: null,
+                      alreadyBooked: Boolean(booking?.confirmed_at && element.booked_at),
+                      optionValue,
+                    }
+                  : null
+              }
             />
           ) : (
             // Dates/Destination are never price-bearing, so `funding` is
             // always null for them too — that's not "locked but missing a
             // funding request," there's nothing to book at all for these
             // two types.
-            canEdit &&
-            PRICE_BEARING_TYPES.includes(element.type) && (
-              <BookingConfirmation tripId={tripId} elementId={element.id} />
+            canEditBooking &&
+            PRICE_BEARING_TYPES.includes(element.type) &&
+            !element.booked_at && (
+              <div className="mt-3 rounded-lg border border-brand-line p-3">
+                <span className="text-xs font-medium text-black dark:text-zinc-50">Record the booking</span>
+                <div className="mt-2">
+                  <BookingRecordForm
+                    tripId={tripId}
+                    elementId={element.id}
+                    draft={bookingDraft}
+                    roster={bookingRoster}
+                    mode="purchase"
+                    amountFromCard={null}
+                    showIncidentals={showIncidentals}
+                  />
+                </div>
+              </div>
             )
           ))}
       </div>

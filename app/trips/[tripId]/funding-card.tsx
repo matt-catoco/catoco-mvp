@@ -6,7 +6,6 @@ import {
   addFundingContribution,
   markFundingRequestRefunded,
   reassignPurchaser,
-  reportElementBooked,
   resolveFundingOutcome,
   setFundingDeadline,
 } from "./actions";
@@ -16,7 +15,9 @@ import { MandatePanel, type MandatePanelProps } from "./mandate-panel";
 import { ShareBreakdown } from "@/components/share-breakdown";
 import { PriceCheck, type PriceInfo } from "./price-check";
 import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
-import { ConfirmationFields, useConfirmationFields } from "./confirmation-fields";
+import { ReadyToBook } from "./ready-to-book";
+import { BookingRecordForm, type BookingDraft } from "./booking-record-form";
+import type { ReactNode } from "react";
 
 const field = `h-9 ${fieldClass}`;
 
@@ -94,6 +95,7 @@ export function FundingCard({
   members = [],
   payments,
   priceInfo,
+  booking = null,
 }: {
   tripId: string;
   elementId: string;
@@ -110,6 +112,16 @@ export function FundingCard({
   payments?: FundingPayments;
   /** Price cushion: current price, cushion, recheck/update (locked elements). */
   priceInfo?: PriceInfo;
+  /** Booking record pieces — present only for people who can record the booking. */
+  booking?: {
+    draft: BookingDraft;
+    roster: { userId: string; displayName: string }[];
+    showIncidentals: boolean;
+    amountFromCard: number | null;
+    alreadyBooked: boolean;
+    optionValue: Record<string, unknown>;
+    travelers?: ReactNode;
+  } | null;
 }) {
   const router = useRouter();
   // Functional purchaser access stays a separate, user-ID-based check —
@@ -148,10 +160,6 @@ export function FundingCard({
   const [refundPending, startRefund] = useTransition();
   const [refundError, setRefundError] = useState<string | null>(null);
 
-  const [actualPaid, setActualPaid] = useState("");
-  const confirmation = useConfirmationFields();
-  const [reportPending, startReport] = useTransition();
-  const [reportError, setReportError] = useState<string | null>(null);
 
   const deadlinePassed = funding.deadline ? new Date(funding.deadline) <= new Date() : false;
   const isFullyFunded = funding.collected >= funding.requiredAmount;
@@ -289,7 +297,7 @@ export function FundingCard({
           isBlocking && (
             <div className="mt-3 border-t border-brand-line pt-3">
               <p className="text-xs text-brand-muted">
-                Money is on the line here — this blocks the trip from being deleted until it's
+                Money is on the line here — this blocks the trip from being deleted until it&apos;s
                 settled up and marked refunded.
               </p>
               <button
@@ -518,80 +526,38 @@ export function FundingCard({
         </>
       )}
 
-      {funding.status === "ready_to_purchase" && canAct && !funding.refundedAt && !payments?.refundRequestedAt && (
-        <div className="rounded-lg border border-brand-line p-3">
-          <p className="text-xs text-brand-muted">Funded — go ahead and purchase it.</p>
-          <div className="mt-1.5 flex items-end gap-2">
-            <label className="flex flex-col gap-1">
-              <span className={labelClass}>Actual amount paid *</span>
-              <input
-                type="number"
-                min={0}
-                step="any"
-                className={`${field} w-32`}
-                placeholder={funding.requiredAmount.toFixed(2)}
-                value={actualPaid}
-                onChange={(e) => setActualPaid(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              disabled={reportPending}
-              onClick={() => {
-                setReportError(null);
-                const amount = Number(actualPaid);
-                if (!actualPaid.trim() || !Number.isFinite(amount) || amount < 0) {
-                  setReportError("Enter the actual amount paid before marking this booked");
-                  return;
-                }
-                startReport(async () => {
-                  const collected = await confirmation.collect(tripId, elementId);
-                  if (collected.error) {
-                    setReportError(collected.error);
-                    return;
-                  }
-                  const res = await reportElementBooked(
-                    tripId,
-                    elementId,
-                    "booked",
-                    amount,
-                    collected.confirmation,
-                  );
-                  if (res.error) {
-                    setReportError(res.error);
-                    return;
-                  }
-                  router.refresh();
-                });
-              }}
-              className={`h-9 px-3 text-xs ${btnPrimary}`}
-            >
-              {reportPending ? "Saving…" : "Mark booked"}
-            </button>
-          </div>
+      {funding.status === "ready_to_purchase" && canAct && booking && !booking.alreadyBooked && !funding.refundedAt && !payments?.refundRequestedAt && (
+        <ReadyToBook
+          tripId={tripId}
+          elementId={elementId}
+          optionValue={booking.optionValue}
+          draft={booking.draft}
+          roster={booking.roster}
+          showIncidentals={booking.showIncidentals}
+          amountFromCard={booking.amountFromCard}
+          travelers={booking.travelers}
+        />
+      )}
+
+      {/* Pay later / pay at property: book while still collecting, when the
+          rate can be cancelled for free until after funding. */}
+      {funding.status === "collecting" && !funding.chargeStatus && booking && !booking.alreadyBooked && payments && (
+        <details className="rounded-lg border border-brand-line p-3 text-xs">
+          <summary className="cursor-pointer font-medium text-black dark:text-zinc-50">
+            Booked it already with pay later or pay at the property?
+          </summary>
           <div className="mt-2">
-            <ConfirmationFields {...confirmation} disabled={reportPending} />
+            <BookingRecordForm
+              tripId={tripId}
+              elementId={elementId}
+              draft={booking.draft}
+              roster={booking.roster}
+              mode="deferred"
+              amountFromCard={null}
+              showIncidentals={booking.showIncidentals}
+            />
           </div>
-          <button
-            type="button"
-            disabled={reportPending}
-            onClick={() => {
-              setReportError(null);
-              startReport(async () => {
-                const res = await reportElementBooked(tripId, elementId, "unavailable");
-                if (res.error) {
-                  setReportError(res.error);
-                  return;
-                }
-                router.refresh();
-              });
-            }}
-            className="mt-2 text-xs text-red-600 underline hover:text-red-700 disabled:opacity-40 dark:text-red-400"
-          >
-            Report unavailable
-          </button>
-          {reportError && <p className="mt-1 text-xs text-red-500">{reportError}</p>}
-        </div>
+        </details>
       )}
 
       {funding.status === "booked" && (

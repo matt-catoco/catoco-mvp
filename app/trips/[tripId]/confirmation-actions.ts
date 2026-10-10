@@ -42,7 +42,7 @@ export async function prepareConfirmationUpload(
   }
 
   const supabase = await createClient();
-  const { data: allowed, error } = await supabase.rpc("can_report_element_booked", {
+  const { data: allowed, error } = await supabase.rpc("can_edit_element_booking", {
     p_element_id: elementId,
   });
   if (error) return { error: toUserFacingError(error) };
