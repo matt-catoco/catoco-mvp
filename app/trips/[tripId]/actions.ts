@@ -19,6 +19,8 @@ import { verifyLiteapiHotel } from "@/lib/vendor-search/liteapi";
 import { pickUnsplashPhoto, placeQueries, type UnsplashPick } from "@/lib/unsplash";
 import { fetchOptionDetails } from "@/lib/option-details-fetch";
 import { sendCoreLoopEmail } from "@/lib/notifications";
+import { createServiceClient } from "@/lib/supabase/service";
+import { travelerDetailsOwed } from "@/lib/traveler-details";
 import { toUserFacingError } from "@/lib/action-errors";
 import type { IconAttribution } from "@/lib/trip-icons";
 
@@ -580,6 +582,13 @@ export async function addFundingContribution(
   amount: number,
 ): Promise<AddFundingContributionResult> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Please sign in again." };
+  // Traveler details are collected at the commit step (only what the element needs).
+  const owed = await travelerDetailsOwed(createServiceClient(), fundingRequestId, user.id);
+  if (owed.length) return { error: `Add your traveler details for ${owed.join(", ")} first.` };
   const { error } = await supabase.rpc("add_funding_contribution", {
     p_funding_request_id: fundingRequestId,
     p_amount: amount,

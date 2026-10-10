@@ -33,6 +33,10 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
 import { BookingRecord, type BookingRecordView } from "@/components/booking-record";
 import { BookingRecordForm, type BookingDraft } from "../../booking-record-form";
+import { TravelerDetailsForm, TravelerDetailsReveal, TravelerRequirementEditor } from "../../traveler-details";
+import { elementRequirement, hasCompleteDetails, requirementAppliesTo } from "@/lib/traveler-details";
+import { decryptJson, travelerCryptoConfigured } from "@/lib/traveler-crypto";
+import type { TravelerDetails } from "@/lib/traveler-fields";
 import { ElementScopePanel, type ScopeMember } from "../../participation-controls";
 import { getTripContext } from "../../trip-context";
 import { NudgeButton } from "../../nudge-button";
@@ -571,6 +575,29 @@ export default async function ElementDetailPage({
     }));
     const showIncidentals = element.type === "accommodation";
 
+    // Traveler details (commit step): what this element's vendor needs, and
+    // whether the viewer still owes them. Read with the service role — the
+    // table is ciphertext with no RLS policies; the viewer only ever gets
+    // their OWN details back here.
+    const travelerService = createServiceClient();
+    const travelerInfo = fundingRow ? await elementRequirement(travelerService, element.id) : null;
+    const travelerReq = travelerCryptoConfigured() ? (travelerInfo?.req ?? null) : null;
+    let myTraveler: { initial: TravelerDetails; complete: boolean } | null = null;
+    if (travelerReq && travelerInfo && (await requirementAppliesTo(travelerService, element.id, travelerInfo.tripId, travelerReq, user.id))) {
+      const { data: mine } = await travelerService
+        .from("element_traveler_details")
+        .select("data_enc")
+        .eq("element_id", element.id)
+        .eq("participant_id", user.id)
+        .maybeSingle();
+      myTraveler = {
+        initial: mine?.data_enc ? decryptJson<TravelerDetails>(mine.data_enc) : {},
+        complete: await hasCompleteDetails(travelerService, element.id, user.id, travelerReq),
+      };
+    }
+    const bookerRow = fundingRow?.purchaser_id ? rosterById.get(fundingRow.purchaser_id) : undefined;
+    const bookerName = bookerRow?.display_name?.trim() || "the organizer";
+
     const snapshotCurrency =
       (option?.value as Record<string, unknown> | undefined)?.currency as string | undefined;
     // Funding-flow audit: while collecting, everyone cares about their own
@@ -679,6 +706,24 @@ export default async function ElementDetailPage({
             real Stripe payments back it: everyone's "used for booking"
             status and the Refund everyone path (a cancelled booking) have
             to stay reachable. */}
+        {funding?.status === "collecting" && canEditBooking && travelerCryptoConfigured() && (
+          <div className="mt-3">
+            <TravelerRequirementEditor tripId={tripId} elementId={element.id} requirement={travelerInfo?.req ?? null} />
+          </div>
+        )}
+        {funding?.status === "collecting" && travelerReq && myTraveler && (
+          <div className="mt-3">
+            <TravelerDetailsForm
+              tripId={tripId}
+              elementId={element.id}
+              requirement={travelerReq}
+              initial={myTraveler.initial}
+              complete={myTraveler.complete}
+              bookerName={bookerName}
+            />
+          </div>
+        )}
+
         {(!element.booked_at || (funding && payments)) &&
           (funding ? (
             <FundingCard
@@ -707,6 +752,7 @@ export default async function ElementDetailPage({
                       amountFromCard: null,
                       alreadyBooked: Boolean(booking?.confirmed_at && element.booked_at),
                       optionValue,
+                      travelers: travelerReq ? <TravelerDetailsReveal elementId={element.id} /> : undefined,
                     }
                   : null
               }

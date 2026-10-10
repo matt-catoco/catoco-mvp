@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { travelerDetailsOwed } from "@/lib/traveler-details";
 import { toUserFacingError } from "@/lib/action-errors";
 import { getStripe, stripeConfigured } from "@/lib/stripe/server";
 import { activateFromSetupIntent, getOrCreateStripeCustomer } from "@/lib/stripe/mandates";
@@ -48,6 +49,10 @@ export async function startFundingMandate(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Please sign in again." };
+
+  // Traveler details are collected at the commit step (only what the element needs).
+  const owed = await travelerDetailsOwed(createServiceClient(), fundingRequestId, user.id);
+  if (owed.length) return { error: `Add your traveler details for ${owed.join(", ")} first.` };
 
   const { data: mandateId, error } = await supabase.rpc("create_funding_mandate", {
     p_funding_request_id: fundingRequestId,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { TRAVELER_DETAILS_RETENTION_DAYS } from "@/lib/traveler-fields";
 import { sendCoreLoopEmail } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
@@ -289,9 +290,17 @@ export async function GET(request: NextRequest) {
     sent++;
   }
 
+  // Traveler details retention: delete them TRAVELER_DETAILS_RETENTION_DAYS
+  // after the trip ends (founder, 2026-10-10). Best-effort, daily.
+  const { data: purged, error: purgeError } = await supabase.rpc("purge_expired_traveler_details", {
+    p_days: TRAVELER_DETAILS_RETENTION_DAYS,
+  });
+  if (purgeError) console.error("[cron] purge_expired_traveler_details:", purgeError.message);
+
   return NextResponse.json({
     candidates: pending.length,
     attempted: sent,
     windowEnd: windowEndIso,
+    travelerDetailsPurged: purged ?? 0,
   });
 }
