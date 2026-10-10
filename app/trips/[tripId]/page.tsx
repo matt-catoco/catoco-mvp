@@ -48,12 +48,13 @@ const PHASE_DEADLINE = { submission: "Submissions close", voting: "Voting closes
 const PHASE_TODO = { submission: "Yet to submit", voting: "Yet to vote", funding: "Waiting on you" } as const;
 const PHASE_DONE = { submission: "Submitted", voting: "Voted", funding: "Committed" } as const;
 
-function tileAlerts(a: AlertRow | undefined): TileAlerts | undefined {
+function tileAlerts(a: AlertRow | undefined, showSpots: boolean): TileAlerts | undefined {
   if (!a) return undefined;
   const now = Date.now();
   const capacity =
     a.phase !== "done" && a.in_count > 0
-      ? `${a.in_count} in${a.spots != null ? ` · ${a.spots} spot${a.spots === 1 ? "" : "s"}` : ""}`
+      ? // "5 ✓" — how many are in (founder wording, 2026-10-10; was "5 in")
+        `${a.in_count} ✓${showSpots && a.spots != null ? ` · ${a.spots} spot${a.spots === 1 ? "" : "s"}` : ""}`
       : undefined;
   if (a.phase === "done") return capacity ? { capacity } : undefined;
   const ms = a.deadline ? new Date(a.deadline).getTime() - now : null;
@@ -136,7 +137,7 @@ export default async function TripLandingPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, voting_deadline_days")
+    .select("id, name, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, voting_deadline_days, allow_over_max")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -302,7 +303,7 @@ export default async function TripLandingPage({
       detail: info.detail,
       href: `/trips/${tripId}/elements/${row.id}`,
       schedule: getElementSchedule(row.type, row.state, row.metadata, lockedValue),
-      alerts: tileAlerts(alertsByElement.get(row.id)),
+      alerts: tileAlerts(alertsByElement.get(row.id), Boolean(trip.allow_over_max)),
     };
   });
 

@@ -14,6 +14,7 @@ export function ViewTable({ elements }: { elements: OverviewElement[] }) {
   return (
     <div className="flex flex-col gap-5">
       <ElementGrid
+        cards
         tiles={sorted.map((el) => ({
           key: el.id,
           symbol: el.symbol,

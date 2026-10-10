@@ -38,6 +38,16 @@ export type ElementTileProps = {
    */
   onDark?: boolean;
   alerts?: TileAlerts;
+  /**
+   * "square" (default): the compact tile — the homepage showcase uses it.
+   * "card": Trip Home's near-square card (founder pick "A", 2026-10-10):
+   * header (type badge + alerts, or the number when there are none), name,
+   * a status line clamped to two lines, and a two-line footer (deadline ·
+   * capacity, then your own status). ~11:10 from 640px up; on phones it
+   * grows with its content instead of squeezing it. Fixed set of rows — new
+   * fields truncate into an existing line, never add one.
+   */
+  variant?: "square" | "card";
 };
 
 // Four-tier visual language (2026-09-xx "Trip overview — view options"
@@ -91,16 +101,79 @@ export function ElementTile({
   href,
   onDark = false,
   alerts,
+  variant = "square",
 }: ElementTileProps) {
+  const card = variant === "card";
   const tileClassNames = [
-    "relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-2xl border-2 p-5 text-left transition-colors",
+    card
+      ? "flex min-h-[176px] min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border-2 p-3.5 text-left transition-colors sm:aspect-[11/10] sm:min-h-0 sm:p-4"
+      : "relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-2xl border-2 p-5 text-left transition-colors",
     tileClasses(tier, onDark),
     href ? "hover:border-brand-teal-deep cursor-pointer" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
-  const inner: ReactNode = (
+  const alertIcons = alerts && (alerts.clock || alerts.notCommitted) && (
+    <>
+      {alerts.clock && (
+        <span
+          role="img"
+          aria-label={alerts.clockAria ?? `Deadline in ${alerts.clock}`}
+          className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          {alerts.clock}
+        </span>
+      )}
+      {alerts.notCommitted && (
+        <svg role="img" aria-label="You haven't committed yet" width="22" height="22" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="12" fill="#D4402F" />
+          <path d="M12 6.4v7.2" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
+          <circle cx="12" cy="17.6" r="1.6" fill="#fff" />
+        </svg>
+      )}
+    </>
+  );
+
+  const myStatus = alerts?.myStatus && (
+    <span className={alerts.myStatus.done ? "font-semibold" : "font-semibold text-amber-700 dark:text-amber-400"}>
+      {alerts.myStatus.done ? "✓ " : ""}
+      {alerts.myStatus.text}
+    </span>
+  );
+
+  const footerLeft = alerts ? [alerts.deadlineText, alerts.capacity].filter(Boolean).join(" · ") : "";
+
+  const inner: ReactNode = card ? (
+    <>
+      <span className="flex items-start justify-between gap-2">
+        {/* badge border/fill follow the tier's text color via currentColor */}
+        <span className="grid size-9 flex-none place-items-center rounded-lg border border-current/25 bg-current/[.06] font-[family-name:var(--font-display)] text-base font-bold">
+          {symbol}
+        </span>
+        {alertIcons ? (
+          <span className="flex flex-none items-center gap-1.5">{alertIcons}</span>
+        ) : (
+          <span className="text-[11px] font-semibold opacity-50">{num}</span>
+        )}
+      </span>
+      <span className="truncate font-[family-name:var(--font-display)] text-[15px] font-bold leading-tight">{label}</span>
+      <span className="line-clamp-2 text-[11.5px] leading-snug opacity-85">
+        <span className="font-semibold">{statusLabel}</span>
+        {detail ? ` — ${detail}` : ""}
+      </span>
+      {(footerLeft || myStatus) && (
+        <span className="mt-auto flex flex-col gap-0.5 border-t border-current/15 pt-1.5 text-[10.5px]">
+          {footerLeft && <span className="truncate opacity-70">{footerLeft}</span>}
+          {myStatus && <span className="truncate">{myStatus}</span>}
+        </span>
+      )}
+    </>
+  ) : (
     <>
       <span className="text-[11px] font-semibold opacity-55">{num}</span>
       <span className="my-1.5 font-[family-name:var(--font-display)] text-2xl font-bold">
@@ -116,41 +189,13 @@ export function ElementTile({
           {(alerts.deadlineText || alerts.myStatus) && (
             <span className="flex flex-wrap justify-between gap-x-2">
               {alerts.deadlineText && <span className="opacity-70">{alerts.deadlineText}</span>}
-              {alerts.myStatus && (
-                <span className={alerts.myStatus.done ? "font-semibold" : "font-semibold text-amber-700 dark:text-amber-400"}>
-                  {alerts.myStatus.done ? "✓ " : ""}
-                  {alerts.myStatus.text}
-                </span>
-              )}
+              {myStatus}
             </span>
           )}
           {alerts.capacity && <span className="opacity-70">{alerts.capacity}</span>}
         </span>
       )}
-      {alerts && (alerts.clock || alerts.notCommitted) && (
-        <span className="absolute right-3 top-3 flex items-center gap-1.5">
-          {alerts.clock && (
-            <span
-              role="img"
-              aria-label={alerts.clockAria ?? `Deadline in ${alerts.clock}`}
-              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
-              </svg>
-              {alerts.clock}
-            </span>
-          )}
-          {alerts.notCommitted && (
-            <svg role="img" aria-label="You haven't committed yet" width="22" height="22" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="12" fill="#D4402F" />
-              <path d="M12 6.4v7.2" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
-              <circle cx="12" cy="17.6" r="1.6" fill="#fff" />
-            </svg>
-          )}
-        </span>
-      )}
+      {alertIcons && <span className="absolute right-3 top-3 flex items-center gap-1.5">{alertIcons}</span>}
     </>
   );
 
