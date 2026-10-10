@@ -91,7 +91,7 @@ export function EditElementForm({
     const parsedSpots = canSetSpots ? parseSpots(spots) : null;
     if (parsedSpots === undefined) return setError("Spots must be a whole number of at least 1.");
     const parsedCushion = canSetSpots ? parseCushion(cushion) : undefined;
-    if (canSetSpots && parsedCushion === undefined) return setError("Price cushion must be 0–100% or a non-negative amount.");
+    if (canSetSpots && parsedCushion === undefined) return setError("Price cushion must be a non-negative number.");
     const cushionChanged = JSON.stringify(cushion) !== JSON.stringify(initialCushion);
     startTransition(async () => {
       const res = await updateElement({

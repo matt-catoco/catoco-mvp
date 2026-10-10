@@ -475,6 +475,27 @@ export const EXPERIENCE_SEARCH_SUBTYPE_LABELS: Record<ExperienceSearchSubtype, s
   activities: "Activities",
   shows_events: "Shows & Events",
 };
+/**
+ * Best-guess category for a searched Experience (staging bug round
+ * 2026-10-10): search is free-text now, with no category picker, but every
+ * Experience option still needs one. Read from what was searched plus the
+ * result's own title/description; most Viator products are tours, so that's
+ * the fallback. Editable afterwards like any option.
+ */
+export function inferExperienceSubtype(...texts: (string | undefined)[]): ExperienceSubtype {
+  const t = texts.filter(Boolean).join(" ").toLowerCase();
+  const rules: [RegExp, ExperienceSubtype][] = [
+    [/\b(cooking|class|workshop|lesson|masterclass|course)\b/, "class_workshop"],
+    [/\b(concert|show|theatre|theater|musical|opera|comedy|ballet|cabaret|festival)\b/, "concert_show"],
+    [/\b(match|stadium|football|soccer|baseball|basketball|nba|nfl|tennis|rugby|cricket|grand prix)\b/, "sporting_event"],
+    [/\b(museum|gallery|admission|entry ticket|skip[- ]the[- ]line|aquarium|zoo|theme park|palace|castle tickets?)\b/, "museum_attraction"],
+    [/\b(hike|hiking|kayak|bike|cycling|dive|diving|snorkel|surf|climb|ski|rafting|zipline|paraglid|sail|safari|outdoor|adventure)/, "outdoor_adventure"],
+    [/\b(pub crawl|bar crawl|nightlife|night ?club|cocktail)\b/, "nightlife"],
+  ];
+  for (const [re, subtype] of rules) if (re.test(t)) return subtype;
+  return "tour_sightseeing";
+}
+
 export const EXPERIENCE_SEARCH_SUBTYPE_TO_DETAILED: Record<ExperienceSearchSubtype, ExperienceSubtype> = {
   tours: "tour_sightseeing",
   activities: "outdoor_adventure",

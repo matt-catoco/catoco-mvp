@@ -1,6 +1,7 @@
 import {
   ACCOMMODATION_SEARCH_SUBTYPE_TO_DETAILED,
   EXPERIENCE_SEARCH_SUBTYPE_TO_DETAILED,
+  inferExperienceSubtype,
   type AccommodationSearchSubtype,
   type ExperienceSearchSubtype,
   type ElementType,
@@ -58,7 +59,9 @@ export function vendorResultToOptionValue(
     case "experience":
       return {
         name: result.title,
-        experience_subtype: EXPERIENCE_SEARCH_SUBTYPE_TO_DETAILED[params.searchSubtype as ExperienceSearchSubtype],
+        experience_subtype:
+          EXPERIENCE_SEARCH_SUBTYPE_TO_DETAILED[params.searchSubtype as ExperienceSearchSubtype] ??
+          inferExperienceSubtype(params.keyword, result.title, result.description),
         location_name: params.location ?? "",
         booking_link: result.booking_link ?? "",
         price: result.price ?? "",

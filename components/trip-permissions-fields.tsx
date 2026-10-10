@@ -145,21 +145,15 @@ export function TripPermissionsFields({
             </span>
           </label>
           <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
-            <span className={labelClass}>Voting deadline (optional)</span>
+            <span className={labelClass}>Voting deadline</span>
             <span className="flex flex-wrap items-center gap-2">
-              <input
-                type="number"
-                inputMode="numeric"
+              <NumberInput
+                integer
                 min={1}
                 max={90}
-                placeholder="—"
                 className={`h-9 w-20 ${fieldClass}`}
-                value={v.votingDeadlineDays ?? ""}
-                onChange={(e) => {
-                  const raw = e.target.value.trim();
-                  const n = Number(raw);
-                  onChange({ ...v, votingDeadlineDays: raw === "" || !Number.isFinite(n) ? null : n });
-                }}
+                value={v.votingDeadlineDays ?? v.submissionDeadlineDays + 7}
+                onValueChange={(n) => onChange({ ...v, votingDeadlineDays: n })}
               />
               <span className="text-xs text-brand-muted">days after added</span>
             </span>
@@ -232,23 +226,25 @@ export function TripPermissionsFields({
         <span className="text-xs font-medium text-black dark:text-zinc-50">Money</span>
         <label className="flex flex-col gap-1">
           <span className={labelClass}>Price cushion</span>
-          <span className="flex flex-wrap items-center gap-2">
-            <NumberInput
-              min={0}
-              step="any"
-              className={`h-9 w-24 ${fieldClass}`}
-              value={v.cushionValue}
-              onValueChange={(n) => onChange({ ...v, cushionValue: Math.max(0, n) })}
-            />
+          {/* Same layout as the element-level CushionField: type, then amount, one row. */}
+          <span className="flex items-center gap-2">
             <select
-              className={`h-9 w-auto max-w-full ${fieldClass}`}
+              className={`h-10 w-auto ${fieldClass}`}
               value={v.cushionKind}
               onChange={(e) => onChange({ ...v, cushionKind: e.target.value as "percent" | "amount" })}
               aria-label="Cushion type"
             >
               <option value="percent">% of each share</option>
-              <option value="amount">per person (trip currency)</option>
+              <option value="amount">per person</option>
             </select>
+            <NumberInput
+              min={0}
+              step="any"
+              className={`h-10 w-24 ${fieldClass}`}
+              value={v.cushionValue}
+              onValueChange={(n) => onChange({ ...v, cushionValue: Math.max(0, n) })}
+              aria-label="Cushion amount"
+            />
           </span>
           {v.cushionKind === "percent" && v.cushionValue >= CUSHION_PERCENT_WARNING && (
             <span className="text-xs text-amber-700 dark:text-amber-400">

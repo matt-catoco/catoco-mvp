@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { detailRows, mapsLink, type ElementImage, type OptionDetails } from "@/lib/option-details";
 import { UNSPLASH_UTM_SOURCE } from "@/lib/trip-icons";
 import {
+  describeDates,
   formatCurrency,
   formatDate,
   TRAVEL_MODE_LABELS,
@@ -123,8 +124,15 @@ export function BookingSnapshot({
     const v = value[k];
     return typeof v === "string" ? v.trim() : "";
   };
-  const title = str("title") || str("name") || "?";
-  const description = str("description");
+  // Dates options have no title/name — their headline is the range itself
+  // (same helper as the Trip Home tiles), with nights/flexibility under it.
+  const datesInfo = type === "dates" ? describeDates(value) : null;
+  const title = datesInfo ? datesInfo.range : str("title") || str("name") || "?";
+  const description = datesInfo
+    ? [datesInfo.nightsText, datesInfo.flex ? `±${datesInfo.flex} day${datesInfo.flex === "1" ? "" : "s"} flexible` : null]
+        .filter(Boolean)
+        .join(" · ")
+    : str("description");
   const optionCredit = value.thumbnail_credit as { name?: string; url?: string } | undefined;
   const photo: ElementImage | null =
     type === "dates"
@@ -155,7 +163,10 @@ export function BookingSnapshot({
   const typeLabel = subtypeLabel(type, value);
   const details = subDetails(type, value);
 
-  const dateRange = dates?.start_date
+  // (Dates' range is already the headline above — no duplicate row.)
+  const dateRange = datesInfo
+    ? null
+    : dates?.start_date
     ? `${formatDate(dates.start_date)}${dates.end_date ? ` → ${formatDate(dates.end_date)}` : ""}`
     : departDate
       ? `${formatDate(departDate)}${returnDate ? ` → ${formatDate(returnDate)}` : ""}`

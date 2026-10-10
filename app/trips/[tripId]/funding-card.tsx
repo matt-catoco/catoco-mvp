@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addFundingContribution,
@@ -11,7 +11,7 @@ import {
   setFundingDeadline,
 } from "./actions";
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
-import { formatCurrency } from "@/lib/trip-elements";
+import { formatCurrency, formatDate } from "@/lib/trip-elements";
 import { MandatePanel, type MandatePanelProps } from "./mandate-panel";
 import { ShareBreakdown } from "@/components/share-breakdown";
 import { PriceCheck, type PriceInfo } from "./price-check";
@@ -134,16 +134,11 @@ export function FundingCard({
   // caught server-side regardless.
   const [justContributed, setJustContributed] = useState(false);
 
-  const [deadline, setDeadline] = useState(funding.deadline?.slice(0, 10) ?? "");
-  // funding is a fresh prop after every router.refresh() (e.g. post-resolve,
-  // which clears funding_deadline server-side), but useState's initializer
-  // only runs on first mount — without this, the date input silently kept
-  // showing the pre-resolve deadline even though the real value had already
-  // cleared (the resolve buttons disappearing correctly proved the data was
-  // right; this input just never re-synced to it).
-  useEffect(() => {
-    setDeadline(funding.deadline?.slice(0, 10) ?? "");
-  }, [funding.deadline]);
+  // The displayed deadline always reads the saved prop; `deadline` is only
+  // the editor's draft, re-seeded from the saved value each time it opens.
+  const savedDeadline = funding.deadline?.slice(0, 10) ?? "";
+  const [deadline, setDeadline] = useState(savedDeadline);
+  const [editingDeadline, setEditingDeadline] = useState(false);
   const [deadlinePending, startDeadline] = useTransition();
   const [deadlineError, setDeadlineError] = useState<string | null>(null);
 
@@ -383,52 +378,87 @@ export function FundingCard({
               </>
           )}
 
-          {canManage && (
+          {/* The one funding deadline (bug round 2026-10-10): everyone sees the
+              saved value here, organizers change it here — MandatePanel no
+              longer prints its own copy, so the two can't disagree. */}
+          {(canManage || funding.deadline) && (
             <div className="rounded-lg border border-brand-line p-3">
-              <div className="flex items-end gap-2">
-                <label className="flex flex-col gap-1">
-                  <span className={labelClass}>Funding deadline</span>
-                  <input
-                    type="date"
-                    className={`${field} w-40`}
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  disabled={deadlinePending || !deadline}
-                  onClick={() => {
-                    setDeadlineError(null);
-                    startDeadline(async () => {
-                      const res = await setFundingDeadline(
-                        tripId,
-                        elementId,
-                        funding.id,
-                        new Date(deadline).toISOString(),
-                      );
-                      if (res.error) {
-                        setDeadlineError(res.error);
-                        return;
-                      }
-                      router.refresh();
-                    });
-                  }}
-                  className={`h-9 px-3 text-xs ${btnSecondary}`}
-                >
-                  {deadlinePending ? "Saving…" : "Set"}
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs">
+                  <span className="text-brand-muted">Funding deadline: </span>
+                  <span className="font-medium">{savedDeadline ? formatDate(savedDeadline) : "Not set yet"}</span>
+                </span>
+                {canManage && !editingDeadline && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeadline(savedDeadline);
+                      setEditingDeadline(true);
+                    }}
+                    className={`h-8 px-3 text-xs ${btnSecondary}`}
+                  >
+                    {savedDeadline ? "Change" : "Set"}
+                  </button>
+                )}
               </div>
+              {canManage && editingDeadline && (
+                <div className="mt-2 flex flex-wrap items-end gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className={labelClass}>New deadline</span>
+                    <input
+                      type="date"
+                      className={`${field} w-40`}
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={deadlinePending || !deadline}
+                    onClick={() => {
+                      setDeadlineError(null);
+                      startDeadline(async () => {
+                        const res = await setFundingDeadline(
+                          tripId,
+                          elementId,
+                          funding.id,
+                          new Date(deadline).toISOString(),
+                        );
+                        if (res.error) {
+                          setDeadlineError(res.error);
+                          return;
+                        }
+                        setEditingDeadline(false);
+                        router.refresh();
+                      });
+                    }}
+                    className={`h-9 px-3 text-xs ${btnPrimary}`}
+                  >
+                    {deadlinePending ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deadlinePending}
+                    onClick={() => {
+                      setEditingDeadline(false);
+                      setDeadlineError(null);
+                    }}
+                    className={`h-9 px-3 text-xs ${btnSecondary}`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
               {deadlineError && <p className="mt-1 text-xs text-red-500">{deadlineError}</p>}
 
-              {funding.deadline && deadlinePassed && payments && funding.chargeStatus === null && (
+              {canManage && funding.deadline && deadlinePassed && payments && funding.chargeStatus === null && (
                 <p className="mt-3 text-xs text-brand-muted">
                   Deadline passed — charges run on the next scheduled pass. If not everyone
                   authorized in time, you&apos;ll be able to resolve it here after that.
                 </p>
               )}
 
-              {funding.deadline && deadlinePassed && (!payments || funding.chargeStatus === "failed") && (
+              {canManage && funding.deadline && deadlinePassed && (!payments || funding.chargeStatus === "failed") && (
                 <div className="mt-3">
                   <p className="text-xs text-brand-muted">
                     {isFullyFunded

@@ -148,7 +148,12 @@ export function AddElementForm({
     () => bundleContext?.optionsDeadline ?? (submissionDeadlineDays ? localDatePlusDays(submissionDeadlineDays) : ""),
   );
   const [votingDeadline, setVotingDeadline] = useState(
-    () => bundleContext?.votingDeadline ?? (votingDeadlineDays ? localDatePlusDays(votingDeadlineDays) : ""),
+    () => {
+      if (bundleContext?.votingDeadline) return bundleContext.votingDeadline;
+      // Older trips have no voting default saved — a week after submission.
+      const days = votingDeadlineDays ?? (submissionDeadlineDays ? submissionDeadlineDays + 7 : null);
+      return days ? localDatePlusDays(days) : "";
+    },
   );
   const [spots, setSpots] = useState("");
   const [cushion, setCushion] = useState<CushionChoice>({ kind: "", value: "" });
@@ -195,7 +200,7 @@ export function AddElementForm({
 
   function validate(): string | null {
     if (showSpots && parseSpots(spots) === undefined) return "Spots must be a whole number of at least 1.";
-    if (showSpots && parseCushion(cushion) === undefined) return "Price cushion must be 0–100% or a non-negative amount.";
+    if (showSpots && parseCushion(cushion) === undefined) return "Price cushion must be a non-negative number.";
     if (state === "locked") {
       return validateOptionValue(type, lockedValue, { requireDates: false });
     }
@@ -452,6 +457,9 @@ export function AddElementForm({
           </div>
           {isSearchable && !manualEntry ? (
             <VendorSearchPanel
+              // remount per type so its own drafts (keyword, place, dates,
+              // travelers) don't carry over from the previous type
+              key={type}
               elementType={type}
               tripContext={tripContext}
               onSelect={handleSearchSelect}

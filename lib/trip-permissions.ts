@@ -37,7 +37,9 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   cushionKind: "percent",
   cushionValue: 10,
   retryHours: 24,
-  votingDeadlineDays: null,
+  // A real default like the other two (bug round 2026-10-10): a week of
+  // submissions, then a week of voting.
+  votingDeadlineDays: 14,
   viewAllParticipants: true,
   deadlineAlertHours: 24,
 };
@@ -54,7 +56,7 @@ export function tripPermissionsError(v: TripPermissions): string | null {
     return "Price cushion can't be negative.";
   }
   if (v.votingDeadlineDays !== null && (!Number.isInteger(v.votingDeadlineDays) || v.votingDeadlineDays < 1 || v.votingDeadlineDays > 90)) {
-    return "Voting deadline default must be 1–90 days, or left empty.";
+    return "Voting deadline default must be 1–90 days.";
   }
   if (v.votingDeadlineDays !== null && v.votingDeadlineDays < v.submissionDeadlineDays) {
     return "The voting deadline default can't come before the submission deadline default.";

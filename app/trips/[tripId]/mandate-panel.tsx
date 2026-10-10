@@ -98,7 +98,6 @@ export function MandatePanel(props: MandatePanelProps) {
   const [pending, startTransition] = useTransition();
   const stripeJs = useMemo(() => getStripeJs(), []);
 
-  const deadlineLabel = deadline ? new Date(deadline).toLocaleDateString() : null;
   const active = myMandate?.status === "active";
   const inFlight = myMandate?.status === "charging" || myMandate?.status === "charge_succeeded";
 
@@ -114,7 +113,8 @@ export function MandatePanel(props: MandatePanelProps) {
   const progress = (
     <p className="mt-2 text-xs text-brand-muted">
       {covered} of {population} authorized
-      {deadlineLabel ? ` · charges run ${deadlineLabel}, only if everyone's in` : ""}
+      {/* the date itself is the funding card's single "Funding deadline" line */}
+      {deadline ? " · charged at the funding deadline, only if everyone's in" : ""}
     </p>
   );
 
