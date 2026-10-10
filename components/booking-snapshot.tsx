@@ -285,7 +285,7 @@ export function BookingSnapshot({
             </div>
           ) : price !== undefined && price !== null && String(price).trim() !== "" ? (
             <div>
-              <dt className="text-brand-muted">Price</dt>
+              <dt className="text-brand-muted">{value.deposit_required === true ? "Deposit" : "Price"}</dt>
               <dd className="font-medium">{formatCurrency(Number(price), currency)}</dd>
             </div>
           ) : priceTier ? (

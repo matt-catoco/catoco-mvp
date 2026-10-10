@@ -20,7 +20,9 @@ export function priceLine(value: Record<string, unknown>): string | null {
   if (raw === undefined || raw === null || String(raw).trim() === "") return null;
   const currency = typeof value.currency === "string" && value.currency ? value.currency : "USD";
   const amount = Number(raw);
-  return Number.isFinite(amount) ? formatCurrency(amount, currency) : `${currency} ${raw}`;
+  const money = Number.isFinite(amount) ? formatCurrency(amount, currency) : `${currency} ${raw}`;
+  // Dining: a price is only ever a required deposit (the rest is paid at the venue).
+  return value.deposit_required === true ? `Deposit ${money}` : money;
 }
 
 function formatTravelersShort(t: TravelersBreakdown): string {

@@ -293,6 +293,9 @@ export type TravelValue = LinkPreview & {
   price?: number;
   currency?: string;
   pricing_basis?: string;
+  /** Dining: the restaurant needs a deposit — `price` is that deposit and is
+   * collected up front like any other share. No deposit = paid at the venue. */
+  deposit_required?: boolean;
 };
 
 // ---- §6 Accommodations: Subtype + conditional fields. Practical starting
@@ -554,6 +557,9 @@ export type PlaceValue = LinkPreview & {
   price?: number;
   currency?: string;
   pricing_basis?: string;
+  /** Dining: the restaurant needs a deposit — `price` is that deposit and is
+   * collected up front like any other share. No deposit = paid at the venue. */
+  deposit_required?: boolean;
   // §6 Accommodations
   subtype?: AccommodationSubtype | "";
   accommodation_fields?: Partial<Record<AccommodationFieldKey, string>>;
@@ -900,6 +906,11 @@ export function validateOptionValue(
       if (!str("name")) return "Enter a name";
       if (!(PRICING_TIERS as readonly string[]).includes(str("price_tier")))
         return "Pick a price range";
+      if (value.deposit_required === true || value.deposit_required === "true") {
+        const dep = priceError(value);
+        if (dep) return dep.replace("price", "deposit").replace("Price", "Deposit");
+        if (!(Number(value.price) > 0)) return "Enter the deposit amount";
+      }
       return bookingLinkError(value);
     }
   }
@@ -1081,6 +1092,14 @@ export function normalizeOptionValue(
       if (str("guests")) out.guests = Number(value.guests);
       if (str("cuisine")) out.cuisine = str("cuisine");
       if (str("price_tier")) out.price_tier = str("price_tier") as PricingTier;
+      // Founder rule (2026-10-10): dining is paid at the venue, EXCEPT a
+      // required deposit, which is collected up front like everything else.
+      if ((value.deposit_required === true || value.deposit_required === "true") && str("price")) {
+        out.deposit_required = true;
+        out.price = Number(value.price);
+        out.currency = str("currency") || "USD";
+        out.pricing_basis = str("pricing_basis") || "per_person";
+      }
       return out;
     }
   }

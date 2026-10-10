@@ -500,6 +500,44 @@ export function ElementValueFields({
             value={str("booking_link")}
             onChange={(e) => set("booking_link", e.target.value)}
           />
+          {/* Dining is paid at the venue — unless the restaurant takes a
+              deposit, which is collected up front like any other share. */}
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={value.deposit_required === true}
+              onChange={(e) =>
+                onChange({
+                  ...value,
+                  deposit_required: e.target.checked,
+                  ...(e.target.checked
+                    ? { pricing_basis: str("pricing_basis") || "per_person", currency: str("currency") || "USD" }
+                    : { price: "", pricing_basis: "" }),
+                })
+              }
+            />
+            The restaurant requires a deposit
+          </label>
+          {value.deposit_required === true ? (
+            <>
+              <PriceField
+                price={str("price")}
+                currency={str("currency")}
+                pricingBasis={str("pricing_basis")}
+                locked={lockedPricing}
+                labelText="Deposit"
+                hideCushionNote
+                onChangePrice={(v) => set("price", v)}
+                onChangeCurrency={(v) => set("currency", v)}
+                onChangePricingBasis={(v) => set("pricing_basis", v)}
+              />
+              <p className="text-[11px] text-brand-muted">
+                The deposit is collected from everyone up front. The rest of the bill is paid at the restaurant.
+              </p>
+            </>
+          ) : (
+            <p className="text-[11px] text-brand-muted">No deposit: everyone pays at the restaurant — nothing is collected here.</p>
+          )}
         </div>
       );
     }
@@ -740,6 +778,8 @@ function PriceField({
   pricingBasis,
   optional = false,
   locked = false,
+  labelText = "Price",
+  hideCushionNote = false,
   onChangePrice,
   onChangeCurrency,
   onChangePricingBasis,
@@ -748,6 +788,8 @@ function PriceField({
   currency: string;
   pricingBasis: string;
   optional?: boolean;
+  labelText?: string;
+  hideCushionNote?: boolean;
   // Currency and pricing basis are inherited/read-only for a chained bundle
   // element (see ElementValueFields' lockedPricing) — the price amount
   // itself stays editable regardless.
@@ -763,7 +805,7 @@ function PriceField({
           <span className={label}>
             {optional ? "Estimated price (optional)" : (
               <>
-                Price <span className="text-red-500">*</span>
+                {labelText} <span className="text-red-500">*</span>
               </>
             )}
           </span>
@@ -795,14 +837,14 @@ function PriceField({
       {locked && (
         <p className="text-xs text-brand-muted">Currency and pricing basis are shared across the bundle.</p>
       )}
-      {price.trim() && (
+      {price.trim() && !hideCushionNote && (
         <p className="text-[11px] text-brand-muted">
           Prices aren&apos;t guaranteed until booked — the trip&apos;s price cushion covers small changes.
         </p>
       )}
       {price.trim() && (
         <label className="flex flex-col gap-1">
-          <span className={label}>Price is per</span>
+          <span className={label}>{labelText} is per</span>
           <select
             className={`${field} w-44 disabled:cursor-not-allowed disabled:opacity-60`}
             value={pricingBasis}
