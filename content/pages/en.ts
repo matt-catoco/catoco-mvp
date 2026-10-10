@@ -412,7 +412,7 @@ export const privacy = {
         "Your email address, used to sign you in.",
         "The Trips you create or join, including the options, votes and funding details you add.",
         "Payment information needed to collect your share. [[Confirm: card details are handled by the payment provider and not stored by Catoco.]]",
-        "Basic technical data such as device and usage information. [[Confirm what analytics, if any, are used.]]",
+        "Basic technical and usage data from analytics (PostHog, hosted in the EU), but only if you accept analytics cookies when asked — see Cookies below.",
       ],
     },
     {
@@ -439,7 +439,12 @@ export const privacy = {
     },
     {
       heading: "7. Cookies",
-      body: ["[[Which cookies are used (sign-in session, language) and whether a consent banner is needed.]]"],
+      body: [
+        "A sign-in session cookie that keeps you logged in. This is required for Catoco to work and is not optional.",
+        "Analytics cookies from PostHog (hosted in the EU), used to understand how Catoco is used — for example, which pages people visit. These are only set if you accept them when asked; if you decline, no analytics cookies are set and no analytics data is collected from your visit.",
+        "If you pay through Catoco, Stripe may set a small number of its own cookies to help prevent fraud. These are set by Stripe as part of processing your payment, not for advertising.",
+        "[[Confirm how long analytics data is kept once collected.]]",
+      ],
     },
     {
       heading: "8. Changes",
