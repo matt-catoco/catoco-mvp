@@ -14,8 +14,6 @@ export type BookingRecordView = {
   currency: string | null;
   source: string;
   field_provenance: Record<string, "extracted" | "entered">;
-  payment_timing: "pay_now" | "pay_later" | "pay_at_property";
-  funding_due_at: string | null;
   paid_at_property_note: string | null;
   confirmed_at: string | null;
 };
@@ -57,23 +55,10 @@ export function BookingRecord({
     },
     { key: "notes", label: "Notes", value: record.notes },
   ];
-  const deferred = record.payment_timing !== "pay_now";
 
   return (
     <section className="mt-3 flex flex-col gap-2 rounded-lg border border-brand-line p-3 text-xs">
-      <span className="flex items-center justify-between gap-2">
-        <span className="font-medium text-black dark:text-zinc-50">Booking record</span>
-        {deferred && (
-          <span className="rounded-full border border-amber-400 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-            {record.payment_timing === "pay_at_property" ? "Pay at property" : "Pay later"}
-          </span>
-        )}
-      </span>
-      {deferred && record.funding_due_at && (
-        <p className="text-brand-muted">
-          Booked now, paid later — everyone&apos;s share is collected on {fmt(record.funding_due_at)}.
-        </p>
-      )}
+      <span className="font-medium text-black dark:text-zinc-50">Booking record</span>
       <dl className="flex flex-col gap-1.5">
         {rows
           .filter((r) => r.value)

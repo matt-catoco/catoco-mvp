@@ -41,8 +41,9 @@ function toIso(v: string | undefined): string | undefined {
 
 /**
  * Save the record; with `confirm`, also lock in that the organizer checked
- * the fields (required before Booked) and, unless it's a pay-later booking,
- * mark the element Booked in the same step.
+ * the fields (required before Booked) and, with `markBooked`, mark the
+ * element Booked in the same step. Booking only ever happens after every
+ * participant's money is collected (founder rule).
  */
 export async function saveBookingRecord(
   tripId: string,
@@ -84,29 +85,6 @@ export async function reportElementUnavailable(tripId: string, elementId: string
   if (error) return { error: toUserFacingError(error) };
   revalidate(tripId, elementId);
   return {};
-}
-
-/**
- * Pay-later / pay-at-property: the booking is made first; funding moves to
- * 7 days before the earlier of the supplier's first charge date and the
- * free-cancellation deadline. Returns that funding date.
- */
-export async function recordDeferredBooking(
-  tripId: string,
-  elementId: string,
-  input: { paymentTiming: "pay_later" | "pay_at_property"; freeCancelUntil: string; chargeWindowStart: string; chargeWindowEnd?: string },
-): Promise<{ error?: string; fundingDueAt?: string }> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("record_deferred_booking", {
-    p_element_id: elementId,
-    p_payment_timing: input.paymentTiming,
-    p_free_cancel_until: toIso(input.freeCancelUntil) || null,
-    p_charge_window_start: toIso(input.chargeWindowStart) || null,
-    p_charge_window_end: toIso(input.chargeWindowEnd) || null,
-  });
-  if (error) return { error: toUserFacingError(error) };
-  revalidate(tripId, elementId);
-  return { fundingDueAt: data as string };
 }
 
 /** The element's forward-to address, or null when inbound email isn't set up here. */

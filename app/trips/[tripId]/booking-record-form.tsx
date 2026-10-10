@@ -8,7 +8,6 @@ import { CONFIRMATION_BUCKET, CONFIRMATION_MAX_BYTES, CONFIRMATION_MIME_TYPES } 
 import { prepareConfirmationUpload } from "./confirmation-actions";
 import {
   getForwardingAddress,
-  recordDeferredBooking,
   reportElementUnavailable,
   saveBookingRecord,
   type BookingRecordInput,
@@ -65,8 +64,8 @@ export function BookingRecordForm({
   elementId: string;
   draft: BookingDraft;
   roster: { userId: string; displayName: string }[];
-  /** purchase: confirm + mark Booked now. deferred: book now, pay later (funding still collecting). */
-  mode: "purchase" | "deferred" | "edit";
+  /** purchase: confirm + mark Booked (funding already collected). edit: fix a saved record. */
+  mode: "purchase" | "edit";
   /** the Issuing card's captured amount — when known we never ask for it */
   amountFromCard: number | null;
   showIncidentals: boolean;
@@ -79,7 +78,6 @@ export function BookingRecordForm({
   const [pending, startTransition] = useTransition();
   const [address, setAddress] = useState<string | null | undefined>(undefined);
   const [copied, setCopied] = useState(false);
-  const [deferred, setDeferred] = useState({ timing: "pay_at_property" as "pay_later" | "pay_at_property", chargeStart: "", chargeEnd: "" });
 
   const set = (key: keyof BookingDraft, v: string) => {
     setF((p) => ({ ...p, [key]: v }));
@@ -143,22 +141,10 @@ export function BookingRecordForm({
         fulfillment_mode: amountFromCard !== null ? "issuing_manual" : "affiliate_redirect",
         seller_of_record: "supplier",
         ...(documentPath ? { document_path: documentPath } : {}),
-        ...(amountFromCard === null && mode !== "deferred" ? { amount_charged: f.amount_charged } : {}),
+        ...(amountFromCard === null ? { amount_charged: f.amount_charged } : {}),
       };
-      if (mode === "purchase" || mode === "edit") {
-        const res = await saveBookingRecord(tripId, elementId, input, { confirm: true, markBooked: mode === "purchase" });
-        if (res.error) return setError(res.error);
-      } else {
-        const res = await saveBookingRecord(tripId, elementId, input, { confirm: true, markBooked: false });
-        if (res.error) return setError(res.error);
-        const d = await recordDeferredBooking(tripId, elementId, {
-          paymentTiming: deferred.timing,
-          freeCancelUntil: f.cancellation_deadline,
-          chargeWindowStart: deferred.chargeStart,
-          chargeWindowEnd: deferred.chargeEnd,
-        });
-        if (d.error) return setError(d.error);
-      }
+      const res = await saveBookingRecord(tripId, elementId, input, { confirm: true, markBooked: mode === "purchase" });
+      if (res.error) return setError(res.error);
       router.refresh();
     });
   }
@@ -224,7 +210,6 @@ export function BookingRecordForm({
           <label key={d.key} className="flex flex-col gap-1">
             <span className={labelClass}>
               {d.label}
-              {d.key === "cancellation_deadline" && mode === "deferred" ? " *" : ""}
               <Badge k={d.key} />
             </span>
             <input type="datetime-local" className={input} value={f[d.key]} onChange={(e) => set(d.key, e.target.value)} />
@@ -241,8 +226,7 @@ export function BookingRecordForm({
             ))}
           </select>
         </label>
-        {mode !== "deferred" &&
-          (amountFromCard !== null ? (
+        {(amountFromCard !== null ? (
             <span className="flex flex-col gap-1 text-xs">
               <span className={labelClass}>Amount charged</span>
               <span className="font-medium">From the Catoco card</span>
@@ -282,34 +266,6 @@ export function BookingRecordForm({
         </label>
       </div>
 
-      {mode === "deferred" && (
-        <div className="grid gap-2 rounded-lg border border-brand-line p-3 sm:grid-cols-2">
-          <span className="text-xs text-brand-muted sm:col-span-2">
-            Pay later only works when the booking can be cancelled for free until after we collect everyone&apos;s share. We
-            collect 7 days before the earlier of the free-cancellation deadline and the first date the supplier can charge.
-          </span>
-          <label className="flex flex-col gap-1">
-            <span className={labelClass}>How it&apos;s paid</span>
-            <select
-              className={input}
-              value={deferred.timing}
-              onChange={(e) => setDeferred((d) => ({ ...d, timing: e.target.value as "pay_later" | "pay_at_property" }))}
-            >
-              <option value="pay_at_property">Pay at the property</option>
-              <option value="pay_later">Pay later (charged before the stay)</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className={labelClass}>Earliest date they can charge *</span>
-            <input type="datetime-local" className={input} value={deferred.chargeStart} onChange={(e) => setDeferred((d) => ({ ...d, chargeStart: e.target.value }))} />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className={labelClass}>Latest date they can charge</span>
-            <input type="datetime-local" className={input} value={deferred.chargeEnd} onChange={(e) => setDeferred((d) => ({ ...d, chargeEnd: e.target.value }))} />
-          </label>
-        </div>
-      )}
-
       {showIncidentals && (
         <p className="text-[11px] text-brand-muted">
           The Catoco card covers the room and taxes only. Each guest puts their own card down at check-in for incidentals and
@@ -319,7 +275,7 @@ export function BookingRecordForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={pending} onClick={submit} className={`h-9 px-3 text-xs ${btnPrimary}`}>
-          {pending ? "Saving…" : mode === "purchase" ? "Confirm & mark booked" : mode === "edit" ? "Save changes" : "Confirm pay-later booking"}
+          {pending ? "Saving…" : mode === "purchase" ? "Confirm & mark booked" : "Save changes"}
         </button>
         {mode === "purchase" && (
           <button

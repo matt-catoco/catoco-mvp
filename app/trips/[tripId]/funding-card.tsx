@@ -16,7 +16,7 @@ import { ShareBreakdown } from "@/components/share-breakdown";
 import { PriceCheck, type PriceInfo } from "./price-check";
 import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
 import { ReadyToBook } from "./ready-to-book";
-import { BookingRecordForm, type BookingDraft } from "./booking-record-form";
+import type { BookingDraft } from "./booking-record-form";
 import type { ReactNode } from "react";
 
 const field = `h-9 ${fieldClass}`;
@@ -537,27 +537,6 @@ export function FundingCard({
           amountFromCard={booking.amountFromCard}
           travelers={booking.travelers}
         />
-      )}
-
-      {/* Pay later / pay at property: book while still collecting, when the
-          rate can be cancelled for free until after funding. */}
-      {funding.status === "collecting" && !funding.chargeStatus && booking && !booking.alreadyBooked && payments && (
-        <details className="rounded-lg border border-brand-line p-3 text-xs">
-          <summary className="cursor-pointer font-medium text-black dark:text-zinc-50">
-            Booked it already with pay later or pay at the property?
-          </summary>
-          <div className="mt-2">
-            <BookingRecordForm
-              tripId={tripId}
-              elementId={elementId}
-              draft={booking.draft}
-              roster={booking.roster}
-              mode="deferred"
-              amountFromCard={null}
-              showIncidentals={booking.showIncidentals}
-            />
-          </div>
-        </details>
       )}
 
       {funding.status === "booked" && (
