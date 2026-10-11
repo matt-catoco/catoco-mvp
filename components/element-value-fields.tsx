@@ -62,12 +62,23 @@ function ModeToggle<T extends string>({
   );
 }
 
+/** Dining/Experience: a date outside the trip's confirmed Dates (founder, 2026-10-11). */
+function OutsideTripDatesNotice({ date, range }: { date: string; range?: { start_date: string; end_date: string } }) {
+  if (!date || !range || (date >= range.start_date && date <= range.end_date)) return null;
+  return (
+    <span className="text-[11px] text-amber-700 dark:text-amber-400">
+      Outside the trip dates ({formatDate(range.start_date)} – {formatDate(range.end_date)}). Double-check this is right.
+    </span>
+  );
+}
+
 export function ElementValueFields({
   type,
   value,
   onChange,
   requireDates = true,
   lockedPricing = false,
+  confirmedDates,
 }: {
   type: ElementType;
   value: Record<string, unknown>;
@@ -85,6 +96,8 @@ export function ElementValueFields({
   // basis could quietly diverge per member. Only disables those two
   // PriceField selects; the price amount itself stays per-element/editable.
   lockedPricing?: boolean;
+  /** the trip's locked Dates element range, when there is one */
+  confirmedDates?: { start_date: string; end_date: string };
 }) {
   const set = (key: string, v: unknown) => onChange({ ...value, [key]: v });
   const str = (key: string) => String(value[key] ?? "");
@@ -344,6 +357,7 @@ export function ElementValueFields({
                 value={str("date")}
                 onChange={(e) => set("date", e.target.value)}
               />
+              <OutsideTripDatesNotice date={str("date")} range={confirmedDates} />
             </label>
             <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Time (optional)</span>
@@ -418,6 +432,7 @@ export function ElementValueFields({
                 value={str("date")}
                 onChange={(e) => set("date", e.target.value)}
               />
+              <OutsideTripDatesNotice date={str("date")} range={confirmedDates} />
             </label>
             <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className={label}>Time (optional)</span>

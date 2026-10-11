@@ -82,7 +82,7 @@ export function SubmitOptionForm({
 
   return (
     <div className="rounded-lg border border-brand-line p-3">
-      <ElementValueFields type={type} value={value} onChange={setValue} />
+      <ElementValueFields type={type} value={value} onChange={setValue} confirmedDates={tripContext?.confirmedDates} />
       {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
       <div className="mt-3 flex items-center gap-2">
         <button

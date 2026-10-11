@@ -474,6 +474,7 @@ export function AddElementForm({
               // Only lock what the bundle has actually established — a chain
               // whose anchor had no pricing must let this element pick one.
               lockedPricing={isChained && Boolean(bundleContext?.pricingBasis)}
+              confirmedDates={tripContext?.confirmedDates}
             />
           )}
         </div>

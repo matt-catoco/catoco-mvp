@@ -656,6 +656,10 @@ export type TripContext = {
   // reusing it as plain pre-filled text stays fine.
   destination?: { name: string };
   dates?: { start_date?: string; end_date?: string; nights?: number };
+  /** Only from an explicitly locked Dates element with a full range — never
+   * the Accommodations fallback. Dining/Experience dates outside it get a
+   * notice (founder, 2026-10-11). */
+  confirmedDates?: { start_date: string; end_date: string };
   // Vendor search: a starting traveler count so it doesn't need re-entering
   // per search — derived from the trip's participant count (see
   // trip-context.ts), always overridable per search like everything else here.

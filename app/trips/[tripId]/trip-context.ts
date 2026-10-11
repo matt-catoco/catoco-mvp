@@ -77,6 +77,7 @@ export async function getTripContext(
         if (v.start_date || v.nights) {
           ctx.dates = { start_date: v.start_date, end_date: v.end_date, nights: v.nights };
         }
+        if (v.start_date && v.end_date) ctx.confirmedDates = { start_date: v.start_date, end_date: v.end_date };
       }
     }
   }
