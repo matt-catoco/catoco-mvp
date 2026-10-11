@@ -33,10 +33,10 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
 import { BookingRecord, type BookingRecordView } from "@/components/booking-record";
 import { BookingRecordForm, type BookingDraft } from "../../booking-record-form";
-import { TravelerDetailsForm, TravelerDetailsReveal, TravelerRequirementEditor } from "../../traveler-details";
+import { TravelerDetailsReveal, TravelerDetailsStatus, TravelerGate, TravelerRequirementEditor } from "../../traveler-details";
 import { elementRequirement, hasCompleteDetails, requirementAppliesTo } from "@/lib/traveler-details";
 import { decryptJson, travelerCryptoConfigured } from "@/lib/traveler-crypto";
-import type { TravelerDetails } from "@/lib/traveler-fields";
+import type { TravelerDetails, TravelerRequirement } from "@/lib/traveler-fields";
 import { ElementScopePanel, type ScopeMember } from "../../participation-controls";
 import { getTripContext } from "../../trip-context";
 import { NudgeButton } from "../../nudge-button";
@@ -138,6 +138,32 @@ function MetadataLine({ type, metadata }: { type: ElementType; metadata: Record<
  * doesn't need its own membership check beyond what the queries already
  * rely on.
  */
+/** Commit-step traveler details: an overlay opened by the commit buttons
+ * (see TravelerGate) plus a one-line "saved · Edit" note once they're in. */
+function MaybeTravelerGate({
+  gate,
+  tripId,
+  elementId,
+  bookerName,
+  children,
+}: {
+  gate: { requirement: TravelerRequirement; initial: TravelerDetails; complete: boolean } | null;
+  tripId: string;
+  elementId: string;
+  bookerName: string;
+  children: ReactNode;
+}) {
+  if (!gate) return <>{children}</>;
+  return (
+    <TravelerGate tripId={tripId} elementId={elementId} bookerName={bookerName} {...gate}>
+      <div className="mt-3">
+        <TravelerDetailsStatus />
+      </div>
+      {children}
+    </TravelerGate>
+  );
+}
+
 export default async function ElementDetailPage({
   params,
 }: {
@@ -711,21 +737,18 @@ export default async function ElementDetailPage({
             <TravelerRequirementEditor tripId={tripId} elementId={element.id} requirement={travelerInfo?.req ?? null} />
           </div>
         )}
-        {funding?.status === "collecting" && travelerReq && myTraveler && (
-          <div className="mt-3">
-            <TravelerDetailsForm
-              tripId={tripId}
-              elementId={element.id}
-              requirement={travelerReq}
-              initial={myTraveler.initial}
-              complete={myTraveler.complete}
-              bookerName={bookerName}
-            />
-          </div>
-        )}
-
         {(!element.booked_at || (funding && payments)) &&
           (funding ? (
+            <MaybeTravelerGate
+              gate={
+                funding.status === "collecting" && travelerReq && myTraveler
+                  ? { requirement: travelerReq, initial: myTraveler.initial, complete: myTraveler.complete }
+                  : null
+              }
+              tripId={tripId}
+              elementId={element.id}
+              bookerName={bookerName}
+            >
             <FundingCard
               tripId={tripId}
               elementId={element.id}
@@ -757,6 +780,7 @@ export default async function ElementDetailPage({
                   : null
               }
             />
+            </MaybeTravelerGate>
           ) : (
             // Dates/Destination are never price-bearing, so `funding` is
             // always null for them too — that's not "locked but missing a

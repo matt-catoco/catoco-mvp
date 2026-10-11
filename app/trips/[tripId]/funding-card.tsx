@@ -16,6 +16,7 @@ import { ShareBreakdown } from "@/components/share-breakdown";
 import { PriceCheck, type PriceInfo } from "./price-check";
 import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
 import { ReadyToBook } from "./ready-to-book";
+import { useTravelerGate } from "./traveler-details";
 import type { BookingDraft } from "./booking-record-form";
 import type { ReactNode } from "react";
 
@@ -137,6 +138,7 @@ export function FundingCard({
 
   const [contribError, setContribError] = useState<string | null>(null);
   const [contribPending, startContrib] = useTransition();
+  const travelerGate = useTravelerGate();
   // Whether the caller has already recorded their contribution — a second
   // Commit click would just hit add_funding_contribution's "already
   // contributed" rejection, so this disables the button instead of letting
@@ -357,7 +359,8 @@ export function FundingCard({
                   disabled={contribPending || justContributed}
                   onClick={() => {
                     setContribError(null);
-                    startContrib(async () => {
+                    // Traveler details first (overlay), then straight on to committing.
+                    travelerGate.gate(() => startContrib(async () => {
                       const res = await addFundingContribution(
                         tripId,
                         elementId,
@@ -374,7 +377,7 @@ export function FundingCard({
                       }
                       setJustContributed(true);
                       router.refresh();
-                    });
+                    }));
                   }}
                   className={`h-9 px-3 text-xs ${btnPrimary}`}
                 >

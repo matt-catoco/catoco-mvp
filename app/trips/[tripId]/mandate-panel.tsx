@@ -10,6 +10,7 @@ import { platformFee } from "@/lib/platform-fee";
 import { formatCurrency } from "@/lib/trip-elements";
 import { ShareBreakdown } from "@/components/share-breakdown";
 import { HoldPhasePanel, type RetryStatus } from "./retry-panel";
+import { useTravelerGate } from "./traveler-details";
 
 // Loaded once per page, lazily, only when this panel actually renders.
 let stripePromise: Promise<StripeJs | null> | null = null;
@@ -96,6 +97,7 @@ export function MandatePanel(props: MandatePanelProps) {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const travelerGate = useTravelerGate();
   const stripeJs = useMemo(() => getStripeJs(), []);
 
   const active = myMandate?.status === "active";
@@ -264,7 +266,8 @@ export function MandatePanel(props: MandatePanelProps) {
             disabled={pending || !stripeJs}
             onClick={() => {
               setError(null);
-              startTransition(async () => {
+              // Traveler details first (overlay), then straight on to authorizing.
+              travelerGate.gate(() => startTransition(async () => {
                 const res = await startFundingMandate(props.tripId, props.elementId, props.fundingRequestId);
                 if (res.error || !res.clientSecret || !res.mandateId) {
                   setError(res.error ?? "Couldn't start the authorization. Try again.");
@@ -276,7 +279,7 @@ export function MandatePanel(props: MandatePanelProps) {
                   methods: res.paymentMethodTypes ?? ["card"],
                   sepaUnavailable: Boolean(res.sepaUnavailable),
                 });
-              });
+              }));
             }}
             className={`mt-2 h-9 px-3 text-xs ${btnPrimary}`}
           >
