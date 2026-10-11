@@ -20,47 +20,54 @@ import {
 } from "./traveler-actions";
 
 /**
- * Commit-step gate (founder, 2026-10-11): the traveler-details form opens as
- * an overlay when someone clicks "Authorize my share" / "Commit" without
- * their details saved, and the checkout carries on once they're in —
- * instead of the form sitting on the element page. The server still refuses
- * to commit without them (travelerDetailsOwed); this is the UX, not the guard.
+ * Commit-step traveler details (founder, 2026-10-11): collected in a
+ * lightbox at the commit click instead of sitting on the element page. The
+ * Stripe authorization runs in the same lightbox right after (MandatePanel);
+ * the manual "Commit" path uses the gate's own dialog. The server still
+ * refuses to commit without details (travelerDetailsOwed) — this is the UX,
+ * not the guard.
  */
-type Gate = {
-  /** run `proceed` now if details are complete, else after they're saved */
-  gate: (proceed: () => void) => void;
-  /** open the form to edit saved details (no checkout afterwards) */
-  edit: () => void;
-  complete: boolean;
-};
-
-const GateContext = createContext<Gate | null>(null);
-
-/** Commit buttons call this; outside a TravelerGate it just proceeds. */
-export function useTravelerGate(): Gate {
-  return useContext(GateContext) ?? { gate: (proceed) => proceed(), edit: () => {}, complete: true };
-}
-
-export function TravelerGate({
-  tripId,
-  elementId,
-  requirement,
-  initial,
-  complete,
-  bookerName,
-  children,
-}: {
+type GateConfig = {
   tripId: string;
   elementId: string;
   requirement: TravelerRequirement;
   initial: TravelerDetails;
-  complete: boolean;
   bookerName: string;
-  children: ReactNode;
-}) {
+};
+
+type Gate = {
+  /** null outside a TravelerGate (element needs no details) */
+  config: GateConfig | null;
+  complete: boolean;
+  markSaved: () => void;
+  /** run `proceed` now if details are complete, else after they're saved (own dialog) */
+  gate: (proceed: () => void) => void;
+  /** open the form to edit saved details */
+  edit: () => void;
+};
+
+const GateContext = createContext<Gate | null>(null);
+
+export function useTravelerGate(): Gate {
+  return (
+    useContext(GateContext) ?? {
+      config: null,
+      complete: true,
+      markSaved: () => {},
+      gate: (proceed) => proceed(),
+      edit: () => {},
+    }
+  );
+}
+
+export function TravelerGate({
+  complete,
+  children,
+  ...config
+}: GateConfig & { complete: boolean; children: ReactNode }) {
   const [saved, setSaved] = useState(complete);
   const [open, setOpen] = useState<null | { then?: () => void }>(null);
-
+  const markSaved = useCallback(() => setSaved(true), []);
   const gate = useCallback(
     (proceed: () => void) => {
       if (saved) proceed();
@@ -69,27 +76,23 @@ export function TravelerGate({
     [saved],
   );
   const close = useCallback(() => setOpen(null), []);
+  const value: Gate = { config, complete: saved, markSaved, gate, edit: () => setOpen({}) };
 
   return (
-    <GateContext.Provider value={{ gate, edit: () => setOpen({}), complete: saved }}>
+    <GateContext.Provider value={value}>
       {children}
       {open && (
-        <TravelerDetailsDialog
-          tripId={tripId}
-          elementId={elementId}
-          requirement={requirement}
-          initial={initial}
-          alreadySaved={saved}
-          bookerName={bookerName}
-          continueLabel={open.then ? "Save and continue" : "Save details"}
-          onClose={close}
-          onSaved={() => {
-            setSaved(true);
-            const then = open.then;
-            setOpen(null);
-            then?.();
-          }}
-        />
+        <Lightbox title={config.requirement.scope === "lead" ? "Lead guest details" : "Your traveler details"} onClose={close}>
+          <TravelerDetailsFields
+            submitLabel={open.then ? "Save and continue" : "Save details"}
+            onCancel={close}
+            onSaved={() => {
+              const then = open.then;
+              setOpen(null);
+              then?.();
+            }}
+          />
+        </Lightbox>
       )}
     </GateContext.Provider>
   );
@@ -109,36 +112,20 @@ export function TravelerDetailsStatus() {
   );
 }
 
-function TravelerDetailsDialog({
-  tripId,
-  elementId,
-  requirement,
-  initial,
-  alreadySaved,
-  bookerName,
-  continueLabel,
+/** Centered overlay box used for the commit/checkout steps. */
+export function Lightbox({
+  title,
   onClose,
-  onSaved,
+  children,
 }: {
-  tripId: string;
-  elementId: string;
-  requirement: TravelerRequirement;
-  initial: TravelerDetails;
-  alreadySaved: boolean;
-  bookerName: string;
-  continueLabel: string;
-  onClose: () => void;
-  onSaved: () => void;
+  title: string;
+  /** omit to make it non-dismissable (e.g. mid-payment) */
+  onClose?: () => void;
+  children: ReactNode;
 }) {
-  const router = useRouter();
-  const [d, setD] = useState<TravelerDetails>(initial);
-  const [match, setMatch] = useState(alreadySaved);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onClose?.();
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -150,86 +137,114 @@ function TravelerDetailsDialog({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={() => onClose?.()}>
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="traveler-dialog-title"
+        aria-labelledby="lightbox-title"
         className="mx-auto my-[8vh] flex w-full max-w-md flex-col gap-3 rounded-2xl border border-brand-line bg-background p-5 text-left text-xs shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 id="traveler-dialog-title" className="font-[family-name:var(--font-display)] text-lg font-bold text-foreground">
-            {requirement.scope === "lead" ? "Lead guest details" : "Your traveler details"}
+          <h2 id="lightbox-title" className="font-[family-name:var(--font-display)] text-lg font-bold text-foreground">
+            {title}
           </h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-lg leading-none text-brand-muted hover:text-foreground">
-            ×
-          </button>
+          {onClose && (
+            <button type="button" aria-label="Close" onClick={onClose} className="text-lg leading-none text-brand-muted hover:text-foreground">
+              ×
+            </button>
+          )}
         </div>
-        <p className="text-brand-muted">
-          The vendor needs these to book. Only {bookerName}, the person booking, can see them — and only once everyone&apos;s
-          money is in. Deleted {TRAVELER_DETAILS_RETENTION_DAYS} days after the trip.
-        </p>
-        <div className="grid gap-2.5 sm:grid-cols-2">
-          {requirement.fields.map((f) => (
-            <label key={f} className="flex flex-col gap-1">
-              <span className={labelClass}>{TRAVELER_FIELD_LABEL[f]}</span>
-              {f === "gender" ? (
-                <select
-                  className={`h-9 ${fieldClass}`}
-                  value={d.gender ?? ""}
-                  onChange={(e) => setD((p) => ({ ...p, gender: e.target.value }))}
-                >
-                  <option value="" disabled>
-                    Choose…
-                  </option>
-                  {GENDER_OPTIONS.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type={f === "date_of_birth" ? "date" : f === "email" ? "email" : f === "phone" ? "tel" : "text"}
-                  autoComplete={f === "phone" ? "tel" : f === "email" ? "email" : undefined}
-                  placeholder={f === "phone" ? "+44 7700 900123" : undefined}
-                  className={`h-9 ${fieldClass}`}
-                  value={d[f] ?? ""}
-                  onChange={(e) => setD((p) => ({ ...p, [f]: e.target.value }))}
-                />
-              )}
-            </label>
-          ))}
-        </div>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={match} onChange={(e) => setMatch(e.target.checked)} />
-          These match my passport / ID exactly
-        </label>
-        {error && <p className="text-red-500">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button type="button" className={`h-9 px-3 text-xs ${btnSecondary}`} onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            className={`h-9 px-3 text-xs ${btnPrimary}`}
-            onClick={() =>
-              start(async () => {
-                setError(null);
-                const res = await saveMyTravelerDetails(tripId, elementId, d, match);
-                if (res.error) return setError(res.error);
-                router.refresh();
-                onSaved();
-              })
-            }
-          >
-            {pending ? "Saving…" : continueLabel}
-          </button>
-        </div>
+        {children}
       </div>
     </div>
+  );
+}
+
+/** The details form itself (no frame) — reads the element's config from the gate. */
+export function TravelerDetailsFields({
+  submitLabel,
+  onSaved,
+  onCancel,
+}: {
+  submitLabel: string;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const router = useRouter();
+  const { config, complete, markSaved } = useTravelerGate();
+  const [d, setD] = useState<TravelerDetails>(config?.initial ?? {});
+  const [match, setMatch] = useState(complete);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  if (!config) return null;
+
+  return (
+    <>
+      <p className="text-brand-muted">
+        The vendor needs these to book. Only {config.bookerName}, the person booking, can see them — and only once
+        everyone&apos;s money is in. Deleted {TRAVELER_DETAILS_RETENTION_DAYS} days after the trip.
+      </p>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        {config.requirement.fields.map((f) => (
+          <label key={f} className="flex flex-col gap-1">
+            <span className={labelClass}>{TRAVELER_FIELD_LABEL[f]}</span>
+            {f === "gender" ? (
+              <select
+                className={`h-9 ${fieldClass}`}
+                value={d.gender ?? ""}
+                onChange={(e) => setD((p) => ({ ...p, gender: e.target.value }))}
+              >
+                <option value="" disabled>
+                  Choose…
+                </option>
+                {GENDER_OPTIONS.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={f === "date_of_birth" ? "date" : f === "email" ? "email" : f === "phone" ? "tel" : "text"}
+                autoComplete={f === "phone" ? "tel" : f === "email" ? "email" : undefined}
+                placeholder={f === "phone" ? "+44 7700 900123" : undefined}
+                className={`h-9 ${fieldClass}`}
+                value={d[f] ?? ""}
+                onChange={(e) => setD((p) => ({ ...p, [f]: e.target.value }))}
+              />
+            )}
+          </label>
+        ))}
+      </div>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={match} onChange={(e) => setMatch(e.target.checked)} />
+        These match my passport / ID exactly
+      </label>
+      {error && <p className="text-red-500">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <button type="button" className={`h-9 px-3 text-xs ${btnSecondary}`} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          className={`h-9 px-3 text-xs ${btnPrimary}`}
+          onClick={() =>
+            start(async () => {
+              setError(null);
+              const res = await saveMyTravelerDetails(config.tripId, config.elementId, d, match);
+              if (res.error) return setError(res.error);
+              markSaved();
+              router.refresh();
+              onSaved();
+            })
+          }
+        >
+          {pending ? "Saving…" : submitLabel}
+        </button>
+      </div>
+    </>
   );
 }
 

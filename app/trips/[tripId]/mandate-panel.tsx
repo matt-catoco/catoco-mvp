@@ -10,7 +10,7 @@ import { platformFee } from "@/lib/platform-fee";
 import { formatCurrency } from "@/lib/trip-elements";
 import { ShareBreakdown } from "@/components/share-breakdown";
 import { HoldPhasePanel, type RetryStatus } from "./retry-panel";
-import { useTravelerGate } from "./traveler-details";
+import { Lightbox, TravelerDetailsFields, useTravelerGate } from "./traveler-details";
 
 // Loaded once per page, lazily, only when this panel actually renders.
 let stripePromise: Promise<StripeJs | null> | null = null;
@@ -99,6 +99,34 @@ export function MandatePanel(props: MandatePanelProps) {
   const [pending, startTransition] = useTransition();
   const travelerGate = useTravelerGate();
   const stripeJs = useMemo(() => getStripeJs(), []);
+  const [checkout, setCheckout] = useState<{ step: "details" | "starting" | "pay" | "paying" | "done" } | null>(null);
+
+  function begin() {
+    setError(null);
+    setCheckout({ step: "starting" });
+    startTransition(async () => {
+      const res = await startFundingMandate(props.tripId, props.elementId, props.fundingRequestId);
+      if (res.error || !res.clientSecret || !res.mandateId) {
+        setError(res.error ?? "Couldn't start the authorization. Try again.");
+        return;
+      }
+      setSetup({
+        mandateId: res.mandateId,
+        clientSecret: res.clientSecret,
+        methods: res.paymentMethodTypes ?? ["card"],
+        sepaUnavailable: Boolean(res.sepaUnavailable),
+      });
+      setCheckout({ step: "pay" });
+    });
+  }
+
+  function closeCheckout() {
+    const finished = checkout?.step === "done";
+    setCheckout(null);
+    setSetup(null);
+    setError(null);
+    if (finished || checkout?.step === "pay") router.refresh();
+  }
 
   const active = myMandate?.status === "active";
   const inFlight = myMandate?.status === "charging" || myMandate?.status === "charge_succeeded";
@@ -229,35 +257,6 @@ export function MandatePanel(props: MandatePanelProps) {
             </button>
           )}
         </>
-      ) : setup && stripeJs ? (
-        <Elements
-          stripe={stripeJs}
-          options={{
-            clientSecret: setup.clientSecret,
-            appearance: {
-              theme:
-                typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
-                  ? "night"
-                  : "stripe",
-              variables: { colorPrimary: "#0f766e", borderRadius: "8px" },
-            },
-          }}
-        >
-          {setup.sepaUnavailable && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-              SEPA Direct Debit isn&apos;t enabled on this Stripe account yet — card only for now.
-            </p>
-          )}
-          <SetupForm
-            {...props}
-            mandateId={setup.mandateId}
-            methods={setup.methods}
-            onDone={() => {
-              setSetup(null);
-              router.refresh();
-            }}
-          />
-        </Elements>
       ) : (
         <>
           {progress}
@@ -266,20 +265,11 @@ export function MandatePanel(props: MandatePanelProps) {
             disabled={pending || !stripeJs}
             onClick={() => {
               setError(null);
-              // Traveler details first (overlay), then straight on to authorizing.
-              travelerGate.gate(() => startTransition(async () => {
-                const res = await startFundingMandate(props.tripId, props.elementId, props.fundingRequestId);
-                if (res.error || !res.clientSecret || !res.mandateId) {
-                  setError(res.error ?? "Couldn't start the authorization. Try again.");
-                  return;
-                }
-                setSetup({
-                  mandateId: res.mandateId,
-                  clientSecret: res.clientSecret,
-                  methods: res.paymentMethodTypes ?? ["card"],
-                  sepaUnavailable: Boolean(res.sepaUnavailable),
-                });
-              }));
+              // The whole checkout runs in one lightbox: traveler details (if
+              // the element needs them and they're not saved yet), then the
+              // Stripe authorization, then a done step.
+              if (travelerGate.config && !travelerGate.complete) setCheckout({ step: "details" });
+              else begin();
             }}
             className={`mt-2 h-9 px-3 text-xs ${btnPrimary}`}
           >
@@ -293,7 +283,75 @@ export function MandatePanel(props: MandatePanelProps) {
           )}
         </>
       )}
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {checkout && (
+        <Lightbox
+          title={checkout.step === "details" && travelerGate.config?.requirement.scope === "lead" ? "Lead guest details" : checkout.step === "details" ? "Your traveler details" : checkout.step === "done" ? "You're in" : "Authorize your share"}
+          onClose={checkout.step === "paying" ? undefined : closeCheckout}
+        >
+          {checkout.step === "details" && (
+            <TravelerDetailsFields submitLabel="Save and continue" onCancel={closeCheckout} onSaved={begin} />
+          )}
+          {checkout.step === "starting" &&
+            (error ? (
+              <>
+                <p className="text-red-500">{error}</p>
+                <button type="button" className={`h-9 w-fit self-end px-3 text-xs ${btnSecondary}`} onClick={closeCheckout}>
+                  Close
+                </button>
+              </>
+            ) : (
+              <p className="text-brand-muted">Preparing secure payment…</p>
+            ))}
+          {(checkout.step === "pay" || checkout.step === "paying") && setup && stripeJs && (
+            <>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-brand-muted">Your share</span>
+                <ShareBreakdown share={individualAmount} percent={props.platformFeePercent} currency={currency} />
+              </div>
+              <Elements
+                stripe={stripeJs}
+                options={{
+                  clientSecret: setup.clientSecret,
+                  appearance: {
+                    theme:
+                      typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches
+                        ? "night"
+                        : "stripe",
+                    variables: { colorPrimary: "#0f766e", borderRadius: "8px" },
+                  },
+                }}
+              >
+                {setup.sepaUnavailable && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    SEPA Direct Debit isn&apos;t enabled on this Stripe account yet — card only for now.
+                  </p>
+                )}
+                <SetupForm
+                  {...props}
+                  mandateId={setup.mandateId}
+                  methods={setup.methods}
+                  onSubmitting={(busy) => setCheckout({ step: busy ? "paying" : "pay" })}
+                  onDone={() => setCheckout({ step: "done" })}
+                  onCancel={closeCheckout}
+                />
+              </Elements>
+            </>
+          )}
+          {checkout.step === "done" && (
+            <>
+              <p className="text-sm text-foreground">✓ Your share is authorized.</p>
+              <p className="text-brand-muted">
+                Nothing&apos;s been charged. You&apos;ll only be charged at the funding deadline, and only if the whole
+                group authorizes.
+              </p>
+              <button type="button" className={`h-9 w-fit self-end px-4 text-xs ${btnPrimary}`} onClick={closeCheckout}>
+                Done
+              </button>
+            </>
+          )}
+        </Lightbox>
+      )}
+      {error && !checkout && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   );
 }
@@ -304,7 +362,16 @@ function SetupForm({
   mandateId,
   methods,
   onDone,
-}: MandatePanelProps & { mandateId: string; methods: string[]; onDone: () => void }) {
+  onCancel,
+  onSubmitting,
+}: MandatePanelProps & {
+  mandateId: string;
+  methods: string[];
+  onDone: () => void;
+  onCancel: () => void;
+  /** lets the lightbox lock itself while Stripe is confirming */
+  onSubmitting: (busy: boolean) => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -312,11 +379,12 @@ function SetupForm({
 
   return (
     <form
-      className="mt-3 flex flex-col gap-2"
+      className="flex flex-col gap-2"
       onSubmit={async (e) => {
         e.preventDefault();
         if (!stripe || !elements) return;
         setSubmitting(true);
+        onSubmitting(true);
         setError(null);
         const { error: confirmError } = await stripe.confirmSetup({
           elements,
@@ -329,11 +397,13 @@ function SetupForm({
         if (confirmError) {
           setError(confirmError.message ?? "That didn't go through. Check the details and try again.");
           setSubmitting(false);
+          onSubmitting(false);
           return;
         }
         const res = await syncFundingMandate(tripId, elementId, mandateId);
         setSubmitting(false);
         if (res.error) {
+          onSubmitting(false);
           setError(res.error);
           return;
         }
@@ -347,7 +417,7 @@ function SetupForm({
       <button
         type="button"
         disabled={submitting}
-        onClick={onDone}
+        onClick={onCancel}
         className={`h-8 px-3 text-xs ${btnSecondary}`}
       >
         Not now
