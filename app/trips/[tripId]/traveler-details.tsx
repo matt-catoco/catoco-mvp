@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 import {
+  ALL_TRAVELER_FIELDS,
+  GENDER_OPTIONS,
   TRAVELER_DETAILS_RETENTION_DAYS,
   TRAVELER_FIELD_LABEL,
   type TravelerDetails,
@@ -63,12 +65,31 @@ export function TravelerDetailsForm({
         {requirement.fields.map((f) => (
           <label key={f} className="flex flex-col gap-1">
             <span className={labelClass}>{TRAVELER_FIELD_LABEL[f]}</span>
-            <input
-              type={f === "date_of_birth" ? "date" : f === "email" ? "email" : "text"}
-              className={`h-9 ${fieldClass}`}
-              value={d[f] ?? ""}
-              onChange={(e) => setD((p) => ({ ...p, [f]: e.target.value }))}
-            />
+            {f === "gender" ? (
+              <select
+                className={`h-9 ${fieldClass}`}
+                value={d.gender ?? ""}
+                onChange={(e) => setD((p) => ({ ...p, gender: e.target.value }))}
+              >
+                <option value="" disabled>
+                  Choose…
+                </option>
+                {GENDER_OPTIONS.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={f === "date_of_birth" ? "date" : f === "email" ? "email" : f === "phone" ? "tel" : "text"}
+                autoComplete={f === "phone" ? "tel" : f === "email" ? "email" : undefined}
+                placeholder={f === "phone" ? "+44 7700 900123" : undefined}
+                className={`h-9 ${fieldClass}`}
+                value={d[f] ?? ""}
+                onChange={(e) => setD((p) => ({ ...p, [f]: e.target.value }))}
+              />
+            )}
           </label>
         ))}
       </div>
@@ -97,9 +118,9 @@ export function TravelerDetailsForm({
   );
 }
 
-const EDITABLE: TravelerField[] = ["legal_first_name", "legal_last_name", "full_name", "date_of_birth", "email"];
+const EDITABLE = ALL_TRAVELER_FIELDS;
 
-/** Organizer/purchaser: what this vendor needs. We only ever collect name, DOB and email. */
+/** Organizer/purchaser: what this vendor needs. We only ever collect name, DOB, gender, email and phone. */
 export function TravelerRequirementEditor({
   tripId,
   elementId,
@@ -121,7 +142,7 @@ export function TravelerRequirementEditor({
       </summary>
       <div className="mt-2 flex flex-col gap-2">
         <span className="text-brand-muted">
-          We only collect name, date of birth and email — never passport or ID numbers. If the vendor needs more, tell the
+          We only collect name, date of birth, gender, email and phone — never passport or ID numbers. If the vendor needs more, tell the
           Catoco team before adding it.
         </span>
         <div className="flex gap-3">

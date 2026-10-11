@@ -106,7 +106,7 @@ export async function loadTravelerDetailsForBooking(elementId: string): Promise<
   return { travelers };
 }
 
-/** Organizer/purchaser: what this element's vendor needs (name/DOB/email only). */
+/** Organizer/purchaser: what this element's vendor needs (name/DOB/gender/email/phone only). */
 export async function setTravelerRequirement(
   tripId: string,
   elementId: string,
