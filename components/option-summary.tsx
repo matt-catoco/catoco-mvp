@@ -1,3 +1,4 @@
+import { isStockPhoto } from "@/lib/option-details";
 import {
   ACCOMMODATION_SUBTYPE_LABELS,
   EXPERIENCE_SUBTYPE_LABELS,
@@ -138,9 +139,13 @@ export function OptionSummary({
 }) {
   const title = typeof value.title === "string" ? value.title.trim() : "";
   const description = typeof value.description === "string" ? value.description.trim() : "";
-  // Only Destination shows a photo (founder, 2026-10-11); other types keep
-  // their map, if any, and otherwise go straight to the text.
-  const thumbnail = type === "destination" && typeof value.thumbnail_url === "string" ? value.thumbnail_url.trim() : "";
+  // Destination shows any photo; other types only a real one — from a vendor
+  // API or scraped from the link, never stock (founder, 2026-10-11).
+  const rawThumb = typeof value.thumbnail_url === "string" ? value.thumbnail_url.trim() : "";
+  const thumbnail =
+    rawThumb && (type === "destination" || !isStockPhoto(rawThumb, value.thumbnail_credit as { name?: string } | undefined))
+      ? rawThumb
+      : "";
   const bookingLink = typeof value.booking_link === "string" ? value.booking_link.trim() : "";
   const price = priceLine(value);
   const fallback = summarizeOptionValue(type, value);

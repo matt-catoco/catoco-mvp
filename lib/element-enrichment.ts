@@ -1,18 +1,23 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fetchOptionDetails } from "@/lib/option-details-fetch";
-import { readDetails, type ElementImage, type EnrichedDetails } from "@/lib/option-details";
+import { isStockPhoto, readDetails, type ElementImage, type EnrichedDetails } from "@/lib/option-details";
 import { PRICE_BEARING_TYPES, type ElementType } from "@/lib/trip-elements";
 import { pickUnsplashPhoto, placeQueries } from "@/lib/unsplash";
 
 export type StoredEnrichment = EnrichedDetails & { option_id: string };
 
 /** Element-level photo for a locked option (B3 image rule). */
-function imageFor(type: ElementType, value: Record<string, unknown>): ElementImage | null {
-  // Only Destination shows a photo (founder, 2026-10-11).
-  if (type !== "destination") return null;
+function imageFor(type: ElementType, value: Record<string, unknown>, vendorImages: string[] | undefined): ElementImage | null {
+  if (type === "dates") return null;
   const credit = value.thumbnail_credit as { name?: string; url?: string } | undefined;
   const thumb = typeof value.thumbnail_url === "string" && value.thumbnail_url.trim() ? value.thumbnail_url.trim() : null;
+  // Non-Destination: only a real image — the vendor API's listing photo or
+  // the one scraped from the option's link; never stock (isStockPhoto).
+  if (type !== "destination") {
+    if (vendorImages?.[0]) return { url: vendorImages[0], source: "vendor" };
+    return thumb && !isStockPhoto(thumb, credit) ? { url: thumb, source: "option" } : null;
+  }
   if (!thumb) return null;
   return credit?.name
     ? { url: thumb, source: "unsplash", credit_name: credit.name, credit_url: credit.url }
@@ -42,7 +47,7 @@ export async function ensureElementEnrichment(opts: {
     if (!details && PRICE_BEARING_TYPES.includes(opts.type)) {
       details = await fetchOptionDetails(opts.type, opts.value);
     }
-    let image = imageFor(opts.type, opts.value);
+    let image = imageFor(opts.type, opts.value, details?.images);
     // A Destination submitted before the place-name cascade may have no
     // photo at all (the Bodrum map-only card) — find one now.
     if (!image && opts.type === "destination" && typeof opts.value.name === "string" && opts.value.name.trim()) {

@@ -49,6 +49,16 @@ export type OptionDetails = {
 };
 
 /** The element-level photo shown once locked (Destination: always). */
+/**
+ * Element photos (founder, 2026-10-11): Destination can show any photo;
+ * every other type only shows a REAL image of the thing — a vendor API's
+ * listing photo or one scraped from the option's link — never a stock
+ * (Unsplash) picture.
+ */
+export function isStockPhoto(url: string, credit?: { name?: string } | null): boolean {
+  return Boolean(credit?.name) || url.startsWith("https://images.unsplash.com/");
+}
+
 export type ElementImage = {
   url: string;
   source: "option" | "vendor" | "unsplash" | "url";

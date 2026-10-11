@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { detailRows, mapsLink, type ElementImage, type OptionDetails } from "@/lib/option-details";
+import { detailRows, isStockPhoto, mapsLink, type ElementImage, type OptionDetails } from "@/lib/option-details";
 import { UNSPLASH_UTM_SOURCE } from "@/lib/trip-icons";
 import {
   describeDates,
@@ -134,14 +134,18 @@ export function BookingSnapshot({
         .join(" · ")
     : str("description");
   const optionCredit = value.thumbnail_credit as { name?: string; url?: string } | undefined;
-  // Only Destination has a photo (founder, 2026-10-11).
+  // Destination: any photo. Other types: only a real one — vendor API or
+  // scraped from the link, never stock (founder, 2026-10-11; isStockPhoto).
+  const optionThumb: ElementImage | null = str("thumbnail_url")
+    ? { url: str("thumbnail_url"), source: "option", credit_name: optionCredit?.name, credit_url: optionCredit?.url }
+    : null;
   const photo: ElementImage | null =
-    type !== "destination"
+    type === "dates"
       ? null
-      : (image ??
-        (str("thumbnail_url")
-          ? { url: str("thumbnail_url"), source: "option", credit_name: optionCredit?.name, credit_url: optionCredit?.url }
-          : null));
+      : type === "destination"
+        ? (image ?? optionThumb)
+        : ([image, optionThumb].find((p) => p && !isStockPhoto(p.url, { name: p.credit_name })) ??
+          (refDetails?.images?.[0] ? { url: refDetails.images[0], source: "vendor" } : null));
   const rows = detailRows(refDetails ?? null);
   const mapUrl = mapsLink(refDetails ?? null);
   const bookingLink = str("booking_link");
@@ -179,7 +183,7 @@ export function BookingSnapshot({
 
   return (
     <div className="overflow-hidden rounded-xl border border-brand-line">
-      {type === "destination" && (
+      {(type === "destination" || photo) && (
         <div className="relative">
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element -- arbitrary external host
