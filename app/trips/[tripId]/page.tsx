@@ -18,7 +18,7 @@ import { AddElementModal } from "./add-element-modal";
 import { getTripContext } from "./trip-context";
 import Link from "next/link";
 import type { TileAlerts } from "@/components/trip-home/element-tile";
-import { PaymentsTracker, type TrackerFailure, type TrackerRow } from "@/components/trip-home/payments-tracker";
+import { PaymentsTracker, type TrackerGroup } from "@/components/trip-home/payments-tracker";
 
 type AlertRow = {
   element_id: string;
@@ -296,10 +296,10 @@ export default async function TripLandingPage({
     }
   }
 
-  // "Your payments" — one tracker per currency (never summed across them).
-  const trackers = new Map<string, { rows: TrackerRow[]; failures: TrackerFailure[] }>();
+  // "Your payments" — one line per currency (never summed across them).
+  const trackers = new Map<string, TrackerGroup>();
   for (const p of (myPaymentRows ?? []) as MyPaymentRow[]) {
-    const t = trackers.get(p.currency) ?? { rows: [], failures: [] };
+    const t = trackers.get(p.currency) ?? { currency: p.currency, rows: [], failures: [] };
     t.rows.push({
       key: `${p.funding_request_id}:${p.element_id}`,
       symbol: ELEMENT_SYMBOLS[p.element_type],
@@ -416,15 +416,7 @@ export default async function TripLandingPage({
         elements={overviewElements}
         tripDates={tripDates}
         destinationName={tripContext.destination?.name ?? null}
-        tracker={
-          trackers.size === 0 ? (
-            <PaymentsTracker currency="USD" rows={[]} />
-          ) : (
-            [...trackers].map(([currency, t]) => (
-              <PaymentsTracker key={currency} currency={currency} rows={t.rows} failures={t.failures} />
-            ))
-          )
-        }
+        tracker={<PaymentsTracker groups={[...trackers.values()]} />}
       />
     </div>
   );

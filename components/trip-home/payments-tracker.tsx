@@ -2,13 +2,14 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/trip-elements";
 
 /**
- * "Your payments" — per-participant tracker at the top of Trip Home
- * (founder spec 2026-10-10 + decisions 2026-10-11). Bar length = what this
- * person has committed to; fill = what's been captured from them ("Funded").
- * One tracker per currency — amounts are never summed across currencies.
- * Amounts include the Catoco fee, which is never shown separately here.
- * Bundled elements each get their own row. Only ever fed the viewer's OWN
- * figures (get_my_trip_payments).
+ * "Your payments" — compact per-participant tracker at the top of Trip Home
+ * (founder spec 2026-10-10 + decisions 2026-10-11; made smaller 2026-10-11).
+ * One line + thin bar per currency — amounts are never summed across
+ * currencies. Fill = captured ("Funded"), hatched = committed, not yet
+ * funded. Amounts include the Catoco fee, which is never shown separately.
+ * Bundled elements each get their own breakdown row. Only ever fed the
+ * viewer's OWN figures (get_my_trip_payments). Renders nothing until the
+ * viewer has committed to something.
  */
 export type TrackerStatus = "funded" | "committed" | "failed";
 
@@ -23,61 +24,39 @@ export type TrackerRow = {
 
 export type TrackerFailure = { elementLabel: string; message: string; href: string };
 
+export type TrackerGroup = { currency: string; rows: TrackerRow[]; failures: TrackerFailure[] };
+
 const PILL: Record<TrackerStatus, { text: string; cls: string }> = {
   funded: { text: "Funded", cls: "border-brand-teal-deep text-brand-teal-deep" },
   committed: { text: "Committed", cls: "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep" },
-  failed: { text: "Payment failed", cls: "border-[#D4402F] text-[#D4402F]" },
+  failed: { text: "Failed", cls: "border-[#D4402F] text-[#D4402F]" },
 };
 
 const HATCH = {
-  background: "repeating-linear-gradient(135deg, var(--brand-teal-wash) 0 6px, rgb(0 0 0 / 0.05) 6px 12px)",
-  boxShadow: "inset 0 0 0 1.5px var(--brand-teal-deep)",
+  background: "repeating-linear-gradient(135deg, var(--brand-teal-wash) 0 4px, rgb(0 0 0 / 0.05) 4px 8px)",
+  boxShadow: "inset 0 0 0 1px var(--brand-teal-deep)",
 };
 
 const FAILED = {
-  background: "repeating-linear-gradient(135deg, #FBE9E7 0 6px, rgb(212 64 47 / 0.12) 6px 12px)",
-  boxShadow: "inset 0 0 0 1.5px #D4402F",
+  background: "repeating-linear-gradient(135deg, #FBE9E7 0 4px, rgb(212 64 47 / 0.12) 4px 8px)",
+  boxShadow: "inset 0 0 0 1px #D4402F",
 };
 
-export function PaymentsTracker({
-  currency,
-  rows,
-  failures = [],
-}: {
-  currency: string;
-  rows: TrackerRow[];
-  /** failed payments in this currency, with the retry-window wording */
-  failures?: TrackerFailure[];
-}) {
+function CurrencyLine({ currency, rows }: { currency: string; rows: TrackerRow[] }) {
   const money = (n: number) => formatCurrency(n, currency);
   const total = rows.reduce((s, r) => s + r.amount, 0);
   const funded = rows.filter((r) => r.status === "funded").reduce((s, r) => s + r.amount, 0);
   const failed = rows.filter((r) => r.status === "failed").reduce((s, r) => s + r.amount, 0);
   const rest = Math.max(0, total - funded - failed);
   const pct = (n: number) => (total > 0 ? (n / total) * 100 : 0);
-  const card = "flex w-full flex-col gap-3 rounded-2xl border-2 border-brand-line bg-background p-4 text-left";
-
-  if (rows.length === 0) {
-    return (
-      <section className={card} aria-label="Your payments">
-        <h2 className="font-[family-name:var(--font-display)] text-base font-bold">Your payments</h2>
-        <div className="h-3.5 rounded-full bg-black/[.06] dark:bg-white/[.08]" role="img" aria-label="Nothing committed yet" />
-        <p className="text-xs text-brand-muted">Nothing to pay yet. When you commit to an element, your share shows up here.</p>
-      </section>
-    );
-  }
-
   return (
-    <section className={card} aria-label={`Your payments (${currency})`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="font-[family-name:var(--font-display)] text-base font-bold">Your payments</h2>
-        <span className="text-sm tabular-nums text-brand-muted">
-          <b className="mr-1 font-[family-name:var(--font-display)] text-xl font-bold text-foreground">{money(funded)}</b>
-          funded of {money(total)} committed
-        </span>
-      </div>
+    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+      <span className="shrink-0 text-[13px] tabular-nums text-brand-muted">
+        <b className="font-semibold text-foreground">{money(funded)}</b> funded of {money(total)}
+        {failed > 0 && <span className="text-[#D4402F]"> · {money(failed)} failed</span>}
+      </span>
       <div
-        className="flex h-3.5 overflow-hidden rounded-full bg-black/[.06] dark:bg-white/[.08]"
+        className="flex h-2 w-full min-w-0 shrink-0 overflow-hidden rounded-full sm:w-auto sm:flex-1 bg-black/[.06] dark:bg-white/[.08]"
         role="img"
         aria-label={`${money(funded)} funded of ${money(total)} committed${failed > 0 ? `, ${money(failed)} failed` : ""}`}
       >
@@ -85,28 +64,54 @@ export function PaymentsTracker({
         {rest > 0 && <div className="h-full" style={{ ...HATCH, width: `${pct(rest)}%` }} />}
         {failed > 0 && <div className="h-full" style={{ ...FAILED, width: `${pct(failed)}%` }} />}
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs tabular-nums text-brand-muted">
-        <span className="inline-flex items-center gap-1.5">
-          <i className="inline-block size-3 rounded bg-brand-teal-deep" aria-hidden />
-          Funded {money(funded)}
-        </span>
-        {rest > 0 && (
-          <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block size-3 rounded" style={HATCH} aria-hidden />
-            Committed, not yet funded {money(rest)}
+    </div>
+  );
+}
+
+export function PaymentsTracker({ groups }: { groups: TrackerGroup[] }) {
+  const live = groups.filter((g) => g.rows.length > 0);
+  if (live.length === 0) return null;
+  const failures = live.flatMap((g) => g.failures);
+
+  return (
+    <section
+      className="flex w-full flex-col gap-2 rounded-xl border border-brand-line bg-background px-3.5 py-2.5 text-left"
+      aria-label="Your payments"
+    >
+      <details className="group">
+        <summary className="flex cursor-pointer list-none flex-col gap-1.5 [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center justify-between gap-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-brand-muted">Your payments</h2>
+            <span className="text-[11px] font-semibold text-brand-teal-deep">
+              <span className="group-open:hidden">Breakdown ▸</span>
+              <span className="hidden group-open:inline">Hide ▾</span>
+            </span>
           </span>
-        )}
-        {failed > 0 && (
-          <span className="inline-flex items-center gap-1.5">
-            <i className="inline-block size-3 rounded" style={FAILED} aria-hidden />
-            Payment failed {money(failed)}
-          </span>
-        )}
-      </div>
+          {live.map((g) => (
+            <CurrencyLine key={g.currency} currency={g.currency} rows={g.rows} />
+          ))}
+        </summary>
+        <ul className="mt-2 flex flex-col border-t border-brand-line pt-1">
+          {live.flatMap((g) =>
+            g.rows.map((r) => (
+              <li key={r.key} className="flex items-center gap-2.5 py-1.5 text-[13px]">
+                <span className="grid size-6 shrink-0 place-items-center rounded-md border border-brand-line text-[10px] font-bold">
+                  {r.symbol}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{r.label}</span>
+                <span className="font-semibold tabular-nums">{formatCurrency(r.amount, g.currency)}</span>
+                <span className={`rounded-full border px-1.5 py-px text-[10px] font-semibold ${PILL[r.status].cls}`}>
+                  {PILL[r.status].text}
+                </span>
+              </li>
+            )),
+          )}
+        </ul>
+      </details>
       {failures.map((f) => (
         <p
           key={f.href}
-          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+          className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
         >
           Your payment for <b>{f.elementLabel}</b> didn&apos;t go through — {f.message}{" "}
           <Link href={f.href} className="font-semibold underline">
@@ -114,28 +119,6 @@ export function PaymentsTracker({
           </Link>
         </p>
       ))}
-      <details className="border-t border-brand-line pt-2.5">
-        <summary className="cursor-pointer text-xs font-semibold text-brand-teal-deep">See the breakdown</summary>
-        <ul className="mt-1.5 flex flex-col">
-          {rows.map((r) => (
-            <li key={r.key} className="grid grid-cols-[2rem_1fr_auto] items-center gap-2.5 border-b border-brand-line py-2 text-[13px] last:border-0">
-              <span className="grid size-7 place-items-center rounded-lg border border-brand-line font-[family-name:var(--font-display)] text-xs font-bold">
-                {r.symbol}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate">{r.label}</span>
-                <span className="block text-[11px] text-brand-muted">Your share</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="font-semibold tabular-nums">{money(r.amount)}</span>
-                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${PILL[r.status].cls}`}>
-                  {PILL[r.status].text}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </details>
     </section>
   );
 }
