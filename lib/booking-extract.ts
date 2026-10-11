@@ -151,18 +151,29 @@ export function extractBooking(input: { subject: string; text?: string | null; h
   const vendor = vendorFrom(text, subject);
   if (vendor) out.vendor = vendor;
 
-  // Most specific labels first; a bare "Date:" only as a last resort.
-  const start =
-    lineAfter(text, /\b(check[- ]?in|arrival|arrive|departure date|depart(?:s|ing)?|date of (?:visit|activity|tour)|start(?:s| date)?|reservation date)\b\s*(?:date)?/i) ??
+  // Most specific labels first; a bare "Date:" only as a last resort. A
+  // label whose value isn't a date ("Departure terminal") falls through to
+  // the next label instead of ending the search.
+  const firstDate = (...labels: RegExp[]) => {
+    for (const l of labels) {
+      const v = lineAfter(text, l);
+      const d = v ? parseDate(v) : undefined;
+      if (d) return d;
+    }
+    return undefined;
+  };
+  const s = firstDate(
+    /\b(check[- ]?in|arrival|arrive|departure date|depart(?:s|ing)?|date of (?:visit|activity|tour)|start(?:s| date)?|reservation date)\b\s*(?:date)?/i,
     // car rentals; may be glued to the previous word ("DetailsPickup Date & Time")
-    lineAfter(text, /pick[- ]?up\s*date/i) ??
-    lineAfter(text, /\bdate\b/i);
-  const end =
-    lineAfter(text, /\b(check[- ]?out|departure|end(?:s| date)?)\b\s*(?:date)?/i) ??
-    lineAfter(text, /\b(return|drop[- ]?off)\s*date/i) ??
-    lineAfter(text, /\breturn\b\s*(?:date)?/i);
-  const s = start ? parseDate(start) : undefined;
-  const e = end ? parseDate(end) : undefined;
+    /pick[- ]?up\s*date/i,
+    /\bdate\b/i,
+  );
+  const e = firstDate(
+    /\b(check[- ]?out|departure|end(?:s| date)?)\b\s*(?:date)?/i,
+    // may be glued too ("…AustriaReturn Date & Time")
+    /(return|drop[- ]?off)\s*date/i,
+    /\breturn\b\s*(?:date)?/i,
+  );
   if (s) out.starts_at = s;
   if (e && (!s || e >= s)) out.ends_at = e;
 

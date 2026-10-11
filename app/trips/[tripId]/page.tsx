@@ -18,6 +18,7 @@ import { AddElementModal } from "./add-element-modal";
 import { getTripContext } from "./trip-context";
 import Link from "next/link";
 import type { TileAlerts } from "@/components/trip-home/element-tile";
+import { PaymentsTracker, type TrackerFailure, type TrackerRow } from "@/components/trip-home/payments-tracker";
 
 type AlertRow = {
   element_id: string;
@@ -33,6 +34,27 @@ type AlertRow = {
 };
 
 type FailedFundingRow = { element_id: string; label: string; reason: string | null; refunds_pending: boolean };
+
+type MyPaymentRow = {
+  funding_request_id: string;
+  element_id: string;
+  element_type: ElementType;
+  element_label: string;
+  currency: string;
+  amount: number;
+  status: "funded" | "committed" | "failed";
+  failure_reason: string | null;
+  retry_deadline: string | null;
+};
+
+/** Same wording as the element page's retry panel. */
+function failureMessage(reason: string | null, deadline: string | null): string {
+  const ms = deadline ? new Date(deadline).getTime() - Date.now() : null;
+  const left = ms !== null && ms > 0 ? ` (${timeLeft(ms)} left)` : "";
+  if (reason === "authentication_required") return `your bank needs you to confirm it${left}.`;
+  if (reason === "settlement_failed") return "the bank payment failed after it was taken.";
+  return `your card was declined. Add a different card or bank account${left}.`;
+}
 
 /** "5h", "45m", "3d" — compact time-left for the card clock/footer. */
 function timeLeft(ms: number): string {
@@ -96,8 +118,6 @@ type ElementRow = {
 
 type FundingRow = {
   status: FundingStatus;
-  required_amount: number;
-  actual_amount_paid: number | null;
   funding_request_elements: { element_id: string }[];
 };
 
@@ -203,7 +223,7 @@ export default async function TripLandingPage({
     });
   }
 
-  const [{ data: elements }, { data: rosterData }, { data: canManage }, tripContext, { data: alertRows }, { data: failedRows }] =
+  const [{ data: elements }, { data: rosterData }, { data: canManage }, tripContext, { data: alertRows }, { data: failedRows }, { data: myPaymentRows }] =
     await Promise.all([
       supabase
         .from("trip_elements")
@@ -223,6 +243,8 @@ export default async function TripLandingPage({
       supabase.rpc("get_trip_element_alerts", { p_trip_id: tripId }),
       // Organizer-only (the RPC returns nothing for anyone else).
       supabase.rpc("get_trip_failed_funding", { p_trip_id: tripId }),
+      // The viewer's OWN payments only — the RPC never returns anyone else's.
+      supabase.rpc("get_my_trip_payments", { p_trip_id: tripId }),
     ]);
   const alertsByElement = new Map(((alertRows ?? []) as AlertRow[]).map((a) => [a.element_id, a]));
   const failedFunding = (failedRows ?? []) as FailedFundingRow[];
@@ -253,7 +275,7 @@ export default async function TripLandingPage({
       // what the viewer can see, same as everything else on this page.
       supabase
         .from("funding_requests")
-        .select("status, required_amount, actual_amount_paid, funding_request_elements(element_id)")
+        .select("status, funding_request_elements(element_id)")
         .eq("trip_id", tripId)
         .neq("status", "superseded")
         .returns<FundingRow[]>(),
@@ -268,14 +290,31 @@ export default async function TripLandingPage({
   );
 
   const fundingByElement = new Map<string, FundingStatus>();
-  let totalRequired = 0;
-  let totalActual = 0;
   for (const fr of fundingRows ?? []) {
     for (const fre of fr.funding_request_elements) {
       fundingByElement.set(fre.element_id, fr.status);
     }
-    totalRequired += fr.required_amount;
-    if (fr.status === "booked") totalActual += fr.actual_amount_paid ?? fr.required_amount;
+  }
+
+  // "Your payments" — one tracker per currency (never summed across them).
+  const trackers = new Map<string, { rows: TrackerRow[]; failures: TrackerFailure[] }>();
+  for (const p of (myPaymentRows ?? []) as MyPaymentRow[]) {
+    const t = trackers.get(p.currency) ?? { rows: [], failures: [] };
+    t.rows.push({
+      key: `${p.funding_request_id}:${p.element_id}`,
+      symbol: ELEMENT_SYMBOLS[p.element_type],
+      label: p.element_label,
+      amount: Number(p.amount),
+      status: p.status,
+    });
+    if (p.status === "failed") {
+      t.failures.push({
+        elementLabel: p.element_label,
+        message: failureMessage(p.failure_reason, p.retry_deadline),
+        href: `/trips/${tripId}/elements/${p.element_id}`,
+      });
+    }
+    trackers.set(p.currency, t);
   }
 
   const overviewElements: OverviewElement[] = rows.map((row, idx) => {
@@ -328,16 +367,6 @@ export default async function TripLandingPage({
 
   return (
     <div className="flex flex-1 flex-col items-center gap-8 px-6 py-16">
-      {totalRequired > 0 && (
-        <div className="flex w-full max-w-2xl items-center justify-between rounded-lg border border-black/[.1] px-4 py-3 text-sm dark:border-white/[.14]">
-          <span className="text-zinc-500">Budgeted vs. actual</span>
-          <span className="font-medium text-black dark:text-zinc-50">
-            {totalActual > 0 ? `${totalActual.toFixed(2)} actual · ` : ""}
-            {totalRequired.toFixed(2)} required
-          </span>
-        </div>
-      )}
-
       {failedFunding.length > 0 && (
         <div className="flex w-full max-w-2xl flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
           <span className="font-semibold">Funding didn&apos;t complete — set a new deadline to reopen it</span>
@@ -387,6 +416,15 @@ export default async function TripLandingPage({
         elements={overviewElements}
         tripDates={tripDates}
         destinationName={tripContext.destination?.name ?? null}
+        tracker={
+          trackers.size === 0 ? (
+            <PaymentsTracker currency="USD" rows={[]} />
+          ) : (
+            [...trackers].map(([currency, t]) => (
+              <PaymentsTracker key={currency} currency={currency} rows={t.rows} failures={t.failures} />
+            ))
+          )
+        }
       />
     </div>
   );

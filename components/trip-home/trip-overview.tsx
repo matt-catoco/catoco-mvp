@@ -56,6 +56,7 @@ export function TripOverview({
   elements,
   tripDates,
   destinationName,
+  tracker,
 }: {
   tripId: string;
   tripName: string;
@@ -65,6 +66,8 @@ export function TripOverview({
   elements: OverviewElement[];
   tripDates: { start: string; end: string } | null;
   destinationName: string | null;
+  /** "Your payments" tracker(s), rendered under the header */
+  tracker?: ReactNode;
 }) {
   const [view, setView] = useState<ViewKey>("table");
 
@@ -96,8 +99,18 @@ export function TripOverview({
             >
               Participants
             </Link>
+            {canManage && (
+              <Link
+                href={`/trips/${tripId}/payments`}
+                className="text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+              >
+                Payments
+              </Link>
+            )}
           </div>
         </div>
+
+        {tracker}
 
         {elements.length > 0 && (
           <div className="flex w-fit gap-1 rounded-full border border-brand-line bg-black/[.02] p-1 dark:bg-white/[.03]">
