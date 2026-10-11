@@ -59,21 +59,12 @@ async function applyLinkPreview(
     value.thumbnail_url = photo.url;
     value.thumbnail_credit = { name: photo.photographerName, url: photo.photographerProfileUrl };
   };
-  // §10 auto-photo: Destination has no booking_link to scrape an OG image
-  // from at all, so Unsplash is its only photo source. Experience/Dining
-  // fall back to Unsplash only when the OG scrape above didn't turn up an
-  // image — a real listing's own photo still wins when there is one.
+  // §10 auto-photo: only Destination shows photos (founder, 2026-10-11 —
+  // other elements don't need them), and it has no booking_link to scrape
+  // an OG image from, so Unsplash is its only photo source.
   if (type === "destination" && typeof value.name === "string" && !value.thumbnail_url) {
     const photo = await pickUnsplashPhoto(placeQueries(value.name));
     if (photo) credit(photo);
-  } else if ((type === "experience" || type === "dining") && !value.thumbnail_url) {
-    const query = [value.name, value.location_name]
-      .filter((v): v is string => typeof v === "string" && v.trim() !== "")
-      .join(" ");
-    if (query) {
-      const photo = await pickUnsplashPhoto(query);
-      if (photo) credit(photo);
-    }
   }
   return value;
 }

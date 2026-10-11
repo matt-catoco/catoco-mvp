@@ -638,7 +638,7 @@ export default async function ElementDetailPage({
               image={enrichment?.image}
               details={enrichment?.details ?? readDetails(option.value as Record<string, unknown>)}
               photoControl={
-                canEdit && element.type !== "dates" ? (
+                canEdit && element.type === "destination" ? (
                   <ChangePhoto
                     tripId={tripId}
                     elementId={element.id}

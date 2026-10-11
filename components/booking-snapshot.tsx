@@ -134,8 +134,9 @@ export function BookingSnapshot({
         .join(" · ")
     : str("description");
   const optionCredit = value.thumbnail_credit as { name?: string; url?: string } | undefined;
+  // Only Destination has a photo (founder, 2026-10-11).
   const photo: ElementImage | null =
-    type === "dates"
+    type !== "destination"
       ? null
       : (image ??
         (str("thumbnail_url")
@@ -178,7 +179,7 @@ export function BookingSnapshot({
 
   return (
     <div className="overflow-hidden rounded-xl border border-brand-line">
-      {type !== "dates" && (
+      {type === "destination" && (
         <div className="relative">
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element -- arbitrary external host

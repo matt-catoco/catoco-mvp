@@ -37,7 +37,7 @@ export async function setElementImage(tripId: string, elementId: string, pick: P
   ]);
   if (!element || element.trip_id !== tripId) return { error: "Couldn't find this element." };
   if (!isOrganizer && element.created_by !== user.id) return { error: "Only the organizer or whoever added this can change its photo." };
-  if (element.type === "dates") return { error: "Dates don't have a photo." };
+  if (element.type !== "destination") return { error: "Only a destination has a photo." };
   if (element.state !== "locked" || !element.locked_option_id) {
     return { error: "A photo appears once this is locked in." };
   }

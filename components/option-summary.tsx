@@ -138,7 +138,9 @@ export function OptionSummary({
 }) {
   const title = typeof value.title === "string" ? value.title.trim() : "";
   const description = typeof value.description === "string" ? value.description.trim() : "";
-  const thumbnail = typeof value.thumbnail_url === "string" ? value.thumbnail_url.trim() : "";
+  // Only Destination shows a photo (founder, 2026-10-11); other types keep
+  // their map, if any, and otherwise go straight to the text.
+  const thumbnail = type === "destination" && typeof value.thumbnail_url === "string" ? value.thumbnail_url.trim() : "";
   const bookingLink = typeof value.booking_link === "string" ? value.booking_link.trim() : "";
   const price = priceLine(value);
   const fallback = summarizeOptionValue(type, value);
@@ -244,11 +246,7 @@ export function OptionSummary({
           loading="lazy"
           className="h-32 w-full rounded-md bg-black/[.06] object-cover dark:bg-white/[.08]"
         />
-      ) : (
-        <span className="flex h-32 w-full items-center justify-center rounded-md bg-black/[.06] text-[10px] uppercase tracking-wide text-zinc-400 dark:bg-white/[.08]">
-          No image
-        </span>
-      )}
+      ) : null}
       <span className="block min-w-0">
         <span className="block truncate font-medium">{title || fallback}</span>
         {description && (
