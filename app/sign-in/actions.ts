@@ -19,7 +19,9 @@ export async function requestMagicLink(
   tripId: string | null,
   next: string,
 ): Promise<RequestMagicLinkResult> {
-  if (!isAllowedEmail(email)) {
+  const supabase = await createClient();
+
+  if (!(await isAllowedEmail(supabase, email))) {
     return { error: "Catoco is invite-only right now. Reach out to hello@catoco.co for access." };
   }
 
@@ -28,7 +30,6 @@ export async function requestMagicLink(
   const proto = process.env.NODE_ENV === "development" ? "http" : "https";
   const origin = host ? `${proto}://${host}` : "https://catoco.co";
 
-  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {

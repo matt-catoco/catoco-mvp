@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { InviteLink } from "../invite-link";
+import { InviteByEmail } from "../invite-by-email";
 import { ParticipantRoleSelect } from "../participant-role-select";
 import { CapacityForm } from "../capacity-form";
 import { LeaveTripButton, RemoveParticipantButton } from "../participation-controls";
@@ -48,10 +49,19 @@ export default async function ParticipantsPage({
 
   if (!trip) redirect(`/trips/${tripId}`);
 
-  const [{ data: rosterData }, { data: canManage }] = await Promise.all([
+  const [{ data: rosterData }, { data: canManage }, { data: inviteRows }] = await Promise.all([
     supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
     supabase.rpc("is_trip_organizer", { p_trip_id: tripId }),
+    // RLS ("organizers read trip invites") returns rows only to organizers /
+    // co-organizers — an empty list for anyone else, so always safe to run.
+    supabase
+      .from("trip_email_invites")
+      .select("email, last_sent_at, send_count")
+      .eq("trip_id", tripId)
+      .order("last_sent_at", { ascending: false })
+      .returns<{ email: string; last_sent_at: string; send_count: number }[]>(),
   ]);
+  const invites = (inviteRows ?? []).map((r) => ({ email: r.email, lastSentAt: r.last_sent_at, sendCount: r.send_count }));
   const roster = ((rosterData ?? []) as RosterRow[]).map((r) => ({
     userId: r.user_id,
     displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
@@ -154,6 +164,9 @@ export default async function ParticipantsPage({
         <div className="mt-4 rounded-xl border border-black/[.1] p-4 dark:border-white/[.14]">
           <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Invite people</h2>
           <InviteLink tripId={tripId} initialInvitesSent={trip.invites_sent} />
+          {/* Email invites grant beta access, so organizers/co-organizers only —
+              narrower than this box's own condition on purpose. */}
+          {canManage && <InviteByEmail tripId={tripId} initialInvites={invites} />}
         </div>
       )}
     </div>

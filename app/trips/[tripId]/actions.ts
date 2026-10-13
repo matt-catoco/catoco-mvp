@@ -22,6 +22,7 @@ import { sendCoreLoopEmail } from "@/lib/notifications";
 import { createServiceClient } from "@/lib/supabase/service";
 import { travelerDetailsOwed } from "@/lib/traveler-details";
 import { toUserFacingError } from "@/lib/action-errors";
+import { sendEmail } from "@/lib/email";
 import type { IconAttribution } from "@/lib/trip-icons";
 
 const MICRO_TYPES_WITH_LINK: ElementType[] = [
@@ -847,4 +848,62 @@ export async function updateTripPermissions(
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/settings`);
   return {};
+}
+
+// ---- Invite by email (founder, 2026-10-11) ----------------------------------
+// Organizer/co-organizer only (send_trip_invite enforces it). Sending also
+// grants the invitee beta access (public.beta_allowlist). A plain sendEmail,
+// not sendCoreLoopEmail: that path is keyed to an existing user id for
+// dedup/unsubscribe, and the invitee may not have an account yet.
+
+export type SendTripInviteResult = { error?: string; alreadyInvited?: boolean; sendCount?: number };
+
+const INVITE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+export async function sendTripInvite(tripId: string, email: string): Promise<SendTripInviteResult> {
+  const trimmed = email.trim().toLowerCase();
+  if (!INVITE_EMAIL_RE.test(trimmed)) {
+    return { error: "That doesn't look like a valid email address." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("send_trip_invite", { p_trip_id: tripId, p_email: trimmed })
+    .maybeSingle<{ already_invited: boolean; send_count: number }>();
+  if (error) return { error: toUserFacingError(error) };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Same name source as the roster (get_trip_roster reads profiles.display_name).
+  const [{ data: trip }, { data: profile }] = await Promise.all([
+    supabase.from("trips").select("name").eq("id", tripId).maybeSingle(),
+    user
+      ? supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+      : Promise.resolve({ data: null as { display_name: string | null } | null }),
+  ]);
+  const inviterName = profile?.display_name?.trim() || "Someone";
+  const tripName = trip?.name?.trim() || "a trip";
+
+  const h = await headers();
+  const host = h.get("host");
+  const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+  const origin = host ? `${proto}://${host}` : "https://catoco.co";
+
+  const subject = `${inviterName} invited you to ${tripName} on Catoco`;
+  const html = `
+    <p>${escapeHtml(inviterName)} invited you to join <b>${escapeHtml(tripName)}</b> on Catoco.</p>
+    <p><a href="${origin}/trip/${tripId}/join">Join the trip</a></p>
+  `;
+  const sent = await sendEmail({ to: trimmed, subject, html });
+  if (sent.error) {
+    // Access is granted and the invite is recorded either way; Resend retries it.
+    return { error: "Invite saved, but the email didn't send. Try Resend in a moment." };
+  }
+
+  revalidatePath(`/trips/${tripId}/participants`);
+  return { alreadyInvited: data?.already_invited ?? false, sendCount: data?.send_count };
 }
