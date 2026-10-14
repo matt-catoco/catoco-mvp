@@ -241,7 +241,7 @@ export function TripPermissionsFields({
           detail={
             v.checkoutCushion
               ? "For prices from a booking site, each person can allow a little extra in case the price moves. They're only charged the real price."
-              : "Everyone authorizes exactly their share. If the price rises, they'll be asked to commit again."
+              : "Everyone authorizes exactly their share. If the price rises, they'll be asked to recommit."
           }
         />
         {v.checkoutCushion && (

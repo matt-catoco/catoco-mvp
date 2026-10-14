@@ -177,7 +177,7 @@ export async function cancelFundingMandate(
       .catch((err) => console.error("[cancelFundingMandate] detach failed", err));
   }
   // Within 24h of the deadline a withdrawal recalculates the shares right
-  // away — email anyone who now has to commit again (no-op otherwise).
+  // away — email anyone who now has to recommit (no-op otherwise).
   const service = createServiceClient();
   const { data: m } = await service.from("funding_mandates").select("funding_request_id").eq("id", mandateId).maybeSingle();
   if (m?.funding_request_id) {
@@ -400,7 +400,7 @@ export type RecalculateSharesResult = { error?: string; population?: number; sha
 /**
  * §6: after someone withdraws, the organizer re-splits the cost among the
  * people still in. Authorizations that still cover the new share stay;
- * the rest are asked to authorize again (recalculate_funding_shares).
+ * the rest are asked to recommit (recalculate_funding_shares).
  */
 export async function recalculateFundingShares(
   tripId: string,

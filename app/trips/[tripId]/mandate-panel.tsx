@@ -326,7 +326,7 @@ export function MandatePanel(props: MandatePanelProps) {
                 <span>
                   If the share is recalculated for {estimate.remaining} people it becomes about {formatCurrency(estimateTotal, currency)}.
                   Your authorization is {formatCurrency(authorizedTotal, currency)}, which doesn&apos;t cover that, so you will need to
-                  re-authorize once the shares are recalculated
+                  recommit once the shares are recalculated
                   {props.autoRecalcAt ? <> (by <span className="whitespace-nowrap">{when(props.autoRecalcAt)}</span> at the latest)</> : ""}.
                 </span>
               </div>
@@ -352,7 +352,7 @@ export function MandatePanel(props: MandatePanelProps) {
             <div className="flex flex-col gap-0.5 rounded-xl border-[1.5px] border-amber-300 bg-amber-50 px-3.5 py-3 text-[13.5px] leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
               <b className="font-semibold">Someone withdrew</b>
               <span>
-                The organizer is updating the shares. You may be asked to commit again at a new amount
+                The organizer is updating the shares. You may be asked to recommit at a new amount
                 {props.autoRecalcAt ? <> — by <span className="whitespace-nowrap">{when(props.autoRecalcAt)}</span> at the latest</> : ""}.
               </span>
             </div>
@@ -360,7 +360,7 @@ export function MandatePanel(props: MandatePanelProps) {
           {reauthReason && (
             <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
               Your share is now {formatCurrency(individualAmount, currency)}
-              {reauthReason.startsWith("shares changed") ? " after someone withdrew" : " after the price changed"} — commit again to
+              {reauthReason.startsWith("shares changed") ? " after someone withdrew" : " after the price changed"} — recommit to
               stay in.
             </p>
           )}
@@ -386,7 +386,7 @@ export function MandatePanel(props: MandatePanelProps) {
           )}
           {iWithdrew && !paused && beforeDeadline && (
             <p className="text-center text-[13px] font-semibold text-brand-accent">
-              You withdrew. You can commit again{deadline ? ` until ${when(deadline)}` : ""}.
+              You withdrew. You can recommit{deadline ? ` until ${when(deadline)}` : ""}.
             </p>
           )}
           {!stripeJs && <p className="text-xs text-brand-coral">Payments aren&apos;t configured in this environment.</p>}
@@ -399,7 +399,7 @@ export function MandatePanel(props: MandatePanelProps) {
       {withdrawing && myMandate && (
         <Lightbox
           title="Withdraw your commitment?"
-          subtitle={deadline ? `You can commit again until ${when(deadline)}.` : undefined}
+          subtitle={deadline ? `You can recommit until ${when(deadline)}.` : undefined}
           onClose={withdrawPending ? undefined : () => setWithdrawing(false)}
         >
           <p className="rounded-xl border-[1.5px] border-amber-300 bg-amber-50 px-3.5 py-3 text-[13.5px] leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">

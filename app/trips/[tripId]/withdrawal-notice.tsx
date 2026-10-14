@@ -62,7 +62,7 @@ export function WithdrawalNotice({
         The {formatCurrency(info.currentShare, currency)} share was split between {info.population} people, so this can&apos;t
         fund as it is. Recalculate for {info.remaining} {info.remaining === 1 ? "person" : "people"}, or invite someone to take
         the spot. Anyone whose authorization already covers the new amount stays committed. Everyone else is asked to
-        re-authorize.
+        recommit.
       </p>
       {info.autoRecalcAt && (
         <p className="text-[13px] font-medium text-foreground">
@@ -85,7 +85,7 @@ export function WithdrawalNotice({
                   if (res.error) return setError(res.error);
                   setDone(
                     `Shares are now ${formatCurrency(res.share ?? info.newShare, currency)} each.` +
-                      (res.reauthorize ? ` ${res.reauthorize} ${res.reauthorize === 1 ? "person needs" : "people need"} to commit again.` : ""),
+                      (res.reauthorize ? ` ${res.reauthorize} ${res.reauthorize === 1 ? "person needs" : "people need"} to recommit.` : ""),
                   );
                   router.refresh();
                 });

@@ -531,7 +531,18 @@ export default async function ElementDetailPage({
                 canceled: "canceled",
               } as const
             )[m.status];
-            if (m.status === "charge_failed" || m.status === "canceled") detail = m.failure_reason;
+            if (m.status === "charge_failed") detail = m.failure_reason;
+            if (m.status === "canceled") {
+              // Stored reasons are matched elsewhere; show plain wording here.
+              const r = m.failure_reason ?? "";
+              detail = r === "canceled by participant"
+                ? "not participating"
+                : r.startsWith("shares changed")
+                  ? "needs to recommit (shares changed)"
+                  : r.startsWith("price rose")
+                    ? "needs to recommit (price rose)"
+                    : r || null;
+            }
           }
           return { userId: uid, displayName, state, method, detail };
         });

@@ -23,7 +23,7 @@ const OUTCOME_COPY: Record<string, string> = {
   unchanged: "Price checked — no change.",
   within_cushion: "Price updated. It's within everyone's cushion, so their authorizations still stand at the new share.",
   over_cushion:
-    "Price updated beyond the cushion — authorizations were canceled and everyone needs to authorize again at the new share (or drop this element).",
+    "Price updated beyond the cushion — authorizations were canceled and everyone needs to recommit at the new share (or drop this element).",
 };
 
 /**
@@ -85,8 +85,8 @@ export function PriceCheck({
       <p className="mt-1 text-[11px] text-brand-muted">
         Not guaranteed until booked — prices can move before the group pays.{" "}
         {info.cushionLabel
-          ? `Each person chose their own cushion at checkout (recommended: ${info.cushionLabel}); anyone it no longer covers is asked to authorize again.`
-          : "If the price rises, everyone is asked to authorize again."}
+          ? `Each person chose their own cushion at checkout (recommended: ${info.cushionLabel}); anyone it no longer covers is asked to recommit.`
+          : "If the price rises, everyone is asked to recommit."}
       </p>
 
       {canAct && editable && (

@@ -206,7 +206,7 @@ export async function notifyPaymentRetryNeeded(opts: {
  * After someone withdrew and the shares were recalculated (by the organizer,
  * automatically after 24h, or straight away near the deadline): email each
  * person whose authorization no longer covers the new share — they have to
- * commit again (founder, 2026-10-14). People still covered aren't emailed.
+ * recommit (founder, 2026-10-14). People still covered aren't emailed.
  * Keyed on the cancelled authorization, so a person gets one email per
  * recalculation however many call sites fire. Pass a service-role client.
  */
@@ -261,11 +261,11 @@ export async function notifySharesRecalculated(opts: {
         email: email as string,
         kind: "shares_recalculated",
         subjectId: m.id,
-        subject: `Commit again for ${elementLabel} — ${trip.name}`,
+        subject: `Please recommit to ${elementLabel} — ${trip.name}`,
         html: `
           <p>Someone withdrew from <strong>${escapeHtml(elementLabel)}</strong> on <strong>${escapeHtml(trip.name)}</strong>, so the cost has been split between fewer people.</p>
-          <p>Your new share is <strong>${escapeHtml(amount)}</strong> (Catoco fee included), which is more than you authorized. Please commit again${by ? ` by <strong>${by}</strong>` : ""} to stay in. Nothing has been charged.</p>
-          <p><a href="${url}">Commit again</a></p>
+          <p>Your new share is <strong>${escapeHtml(amount)}</strong> (Catoco fee included), which is more than you authorized. Please recommit${by ? ` by <strong>${by}</strong>` : ""} to stay in. Nothing has been charged.</p>
+          <p><a href="${url}">Recommit</a></p>
         `,
         origin: opts.origin,
       });
