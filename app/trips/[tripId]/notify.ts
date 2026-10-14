@@ -1,5 +1,6 @@
 import "server-only";
 import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/html";
 import { ELEMENT_LABELS, type ElementType } from "@/lib/trip-elements";
 
 /**
@@ -33,9 +34,9 @@ export async function notifyOrganizer({
 
   const html =
     reason === "tie"
-      ? `<p>Voting closed for <strong>${label}</strong> on <strong>${tripName}</strong>, but the top choices tied — the group didn't converge on one answer automatically.</p>
+      ? `<p>Voting closed for <strong>${escapeHtml(label)}</strong> on <strong>${escapeHtml(tripName)}</strong>, but the top choices tied — the group didn't converge on one answer automatically.</p>
          <p>Take a look and pick one: <a href="${url}">${url}</a></p>`
-      : `<p>The deadline for submitting options passed for <strong>${label}</strong> on <strong>${tripName}</strong>, and nobody proposed any — so it's still sitting open with nothing to vote on.</p>
+      : `<p>The deadline for submitting options passed for <strong>${escapeHtml(label)}</strong> on <strong>${escapeHtml(tripName)}</strong>, and nobody proposed any — so it's still sitting open with nothing to vote on.</p>
          <p>Take a look: <a href="${url}">${url}</a></p>`;
 
   await sendEmail({ to: organizerEmail, subject, html });

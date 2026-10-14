@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { sendCoreLoopEmail } from "@/lib/notifications";
+import { escapeHtml } from "@/lib/html";
 import { toUserFacingError } from "@/lib/action-errors";
 
 export type NudgeResult = { error?: string; sent?: number };
@@ -61,7 +62,7 @@ export async function nudgeElement(tripId: string, elementId: string): Promise<N
       subjectId: sendId,
       subject: `Reminder: ${element.label} — ${trip.name}`,
       html: `
-        <p>A friendly nudge from your organizer: the group is waiting on you to ${ask} for <strong>${element.label}</strong> on <strong>${trip.name}</strong>${by}.</p>
+        <p>A friendly nudge from your organizer: the group is waiting on you to ${ask} for <strong>${escapeHtml(element.label)}</strong> on <strong>${escapeHtml(trip.name)}</strong>${by}.</p>
         <p><a href="${url}">Take a look</a></p>
       `,
       origin,

@@ -23,6 +23,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { travelerDetailsOwed } from "@/lib/traveler-details";
 import { toUserFacingError } from "@/lib/action-errors";
 import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/html";
 import type { IconAttribution } from "@/lib/trip-icons";
 
 const MICRO_TYPES_WITH_LINK: ElementType[] = [
@@ -700,7 +701,7 @@ export async function resolveFundingOutcome(
         subjectId: fundingRequestId,
         subject: `Funding hit the goal for ${element.label} — ${trip.name}`,
         html: `
-          <p>Funding hit the goal for <strong>${element.label}</strong> on <strong>${trip.name}</strong> — ${fr.required_amount.toFixed(2)} collected. Go ahead and complete the purchase.</p>
+          <p>Funding hit the goal for <strong>${escapeHtml(element.label)}</strong> on <strong>${escapeHtml(trip.name)}</strong> — ${fr.required_amount.toFixed(2)} collected. Go ahead and complete the purchase.</p>
           <p><a href="${url}">Take a look</a></p>
         `,
         origin,
@@ -859,9 +860,6 @@ export async function updateTripPermissions(
 export type SendTripInviteResult = { error?: string; alreadyInvited?: boolean; sendCount?: number };
 
 const INVITE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export async function sendTripInvite(tripId: string, email: string): Promise<SendTripInviteResult> {
   const trimmed = email.trim().toLowerCase();

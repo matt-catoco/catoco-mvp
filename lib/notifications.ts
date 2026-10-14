@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailSendingEnabled, sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/html";
 
 // Cross-cutting: needs to be importable from a server action (page-load
 // invite trigger, funding-resolve trigger) and the cron route handler alike,
@@ -94,7 +95,7 @@ export async function notifyInvited(opts: {
 }): Promise<void> {
   const subject = `You're in — welcome to ${opts.tripName}`;
   const html = `
-    <p>${opts.organizerName} added you to <strong>${opts.tripName}</strong> on Catoco.</p>
+    <p>${escapeHtml(opts.organizerName)} added you to <strong>${escapeHtml(opts.tripName)}</strong> on Catoco.</p>
     <p><a href="${opts.origin}/trips/${opts.tripId}">Take a look</a></p>
   `;
   await sendCoreLoopEmail({
@@ -170,7 +171,7 @@ export async function notifyPaymentRetryNeeded(opts: {
         subjectId: opts.mandateId,
         subject: `Action needed for ${elementLabel} — ${trip.name}`,
         html: `
-          <p>The group's payment for <strong>${elementLabel}</strong> on <strong>${trip.name}</strong> is ready, but ${action}.</p>
+          <p>The group's payment for <strong>${escapeHtml(elementLabel)}</strong> on <strong>${escapeHtml(trip.name)}</strong> is ready, but ${action}.</p>
           <p>Everyone else's payment is on hold, waiting for you — please sort it out by <strong>${by}</strong> or the group's booking is called off.</p>
           <p><a href="${url}">${opts.reason === "authentication_required" ? "Confirm the payment" : "Update payment method"}</a></p>
         `,
@@ -187,7 +188,7 @@ export async function notifyPaymentRetryNeeded(opts: {
         subjectId: opts.mandateId,
         subject: `${elementLabel}: waiting on one payment — ${trip.name}`,
         html: `
-          <p>${who}'s payment for <strong>${elementLabel}</strong> on <strong>${trip.name}</strong> didn't go through (${opts.reason === "authentication_required" ? "their bank needs them to confirm it" : "card declined"}).</p>
+          <p>${escapeHtml(who)}'s payment for <strong>${escapeHtml(elementLabel)}</strong> on <strong>${escapeHtml(trip.name)}</strong> didn't go through (${opts.reason === "authentication_required" ? "their bank needs them to confirm it" : "card declined"}).</p>
           <p>Everyone else's payment is on hold — nothing's been charged. They have until <strong>${by}</strong>; you can give them more time from the element page.</p>
           <p><a href="${url}">See where things stand</a></p>
         `,

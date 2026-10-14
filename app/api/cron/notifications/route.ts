@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { TRAVELER_DETAILS_RETENTION_DAYS } from "@/lib/traveler-fields";
 import { sendCoreLoopEmail } from "@/lib/notifications";
+import { escapeHtml } from "@/lib/html";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ function tripName(row: ElementRow): string {
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
         subjectId: el.id,
         subject: `Add an option for ${el.label} — ${trip}`,
         html: `
-          <p><strong>${el.label}</strong> on <strong>${trip}</strong> needs option submissions by ${deadline} — nobody's proposed anything for you to vote on yet.</p>
+          <p><strong>${escapeHtml(el.label)}</strong> on <strong>${escapeHtml(trip)}</strong> needs option submissions by ${deadline} — nobody's proposed anything for you to vote on yet.</p>
           <p><a href="${origin}/trips/${el.trip_id}/elements/${el.id}">Propose one</a></p>
         `,
       });
@@ -159,7 +160,7 @@ export async function GET(request: NextRequest) {
         subjectId: el.id,
         subject: `Vote on ${el.label} — ${trip}`,
         html: `
-          <p>Voting closes for <strong>${el.label}</strong> on <strong>${trip}</strong> on ${deadline} — you haven't ranked the options yet.</p>
+          <p>Voting closes for <strong>${escapeHtml(el.label)}</strong> on <strong>${escapeHtml(trip)}</strong> on ${deadline} — you haven't ranked the options yet.</p>
           <p><a href="${origin}/trips/${el.trip_id}/elements/${el.id}">Vote now</a></p>
         `,
       });
@@ -223,7 +224,7 @@ export async function GET(request: NextRequest) {
         subjectId: fr.id,
         subject: `${primaryElement.label} needs ${stillNeeded.toFixed(2)} more — ${tripLabel}`,
         html: `
-          <p><strong>${primaryElement.label}</strong> on <strong>${tripLabel}</strong> still needs ${stillNeeded.toFixed(2)} by ${deadline} to hit its funding goal.</p>
+          <p><strong>${escapeHtml(primaryElement.label)}</strong> on <strong>${escapeHtml(tripLabel)}</strong> still needs ${stillNeeded.toFixed(2)} by ${deadline} to hit its funding goal.</p>
           <p><a href="${origin}/trips/${fr.trip_id}/elements/${primaryElement.id}">Contribute</a></p>
         `,
       });
@@ -256,7 +257,7 @@ export async function GET(request: NextRequest) {
       subjectId: fr.id,
       subject: `Funding deadline auto-set to ${deadline} — ${trip.name}`,
       html: `
-        <p>A funding deadline was auto-set to <strong>${deadline}</strong> (${days} days out) on <strong>${trip.name}</strong>. You've got ${GRACE_WINDOW_HOURS} hours before funding reminders start — update it if that doesn't work.</p>
+        <p>A funding deadline was auto-set to <strong>${deadline}</strong> (${days} days out) on <strong>${escapeHtml(trip.name)}</strong>. You've got ${GRACE_WINDOW_HOURS} hours before funding reminders start — update it if that doesn't work.</p>
         <p><a href="${origin}/trips/${fr.trip_id}">Take a look</a></p>
       `,
     });
