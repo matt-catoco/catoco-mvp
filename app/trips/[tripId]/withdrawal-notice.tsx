@@ -17,7 +17,12 @@ export type WithdrawalInfo = {
   /** the share and headcount it was split over before the withdrawal */
   currentShare: number;
   population: number;
+  /** when the shares are recalculated automatically if nobody acts */
+  autoRecalcAt?: string | null;
 };
+
+const when = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 function joinNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? "Someone";
@@ -59,6 +64,12 @@ export function WithdrawalNotice({
         the spot. Anyone whose authorization already covers the new amount stays committed. Everyone else is asked to
         re-authorize.
       </p>
+      {info.autoRecalcAt && (
+        <p className="text-[13px] font-medium text-foreground">
+          If you don&apos;t act, the shares are recalculated automatically{" "}
+          <span className="whitespace-nowrap">around {when(info.autoRecalcAt)}</span>.
+        </p>
+      )}
       {done ? (
         <p className="text-[13px] font-medium text-brand-accent">{done}</p>
       ) : (

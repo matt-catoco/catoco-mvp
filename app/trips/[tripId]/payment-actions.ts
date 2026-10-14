@@ -11,6 +11,7 @@ import { activateFromSetupIntent, getOrCreateStripeCustomer } from "@/lib/stripe
 import { headers } from "next/headers";
 import { cushionArgs, type CushionChoice } from "@/lib/cushion";
 import { advanceBatch, refundOwedContributions, syncRetriedHold } from "@/lib/stripe/charges";
+import { notifySharesRecalculated } from "@/lib/notifications";
 
 /**
  * Mandate-based funding (flow #4, Stripe TEST MODE). A participant
@@ -174,6 +175,13 @@ export async function cancelFundingMandate(
     await getStripe()
       .paymentMethods.detach(paymentMethodId as string)
       .catch((err) => console.error("[cancelFundingMandate] detach failed", err));
+  }
+  // Within 24h of the deadline a withdrawal recalculates the shares right
+  // away — email anyone who now has to commit again (no-op otherwise).
+  const service = createServiceClient();
+  const { data: m } = await service.from("funding_mandates").select("funding_request_id").eq("id", mandateId).maybeSingle();
+  if (m?.funding_request_id) {
+    await notifySharesRecalculated({ supabase: service, fundingRequestId: m.funding_request_id, origin: await requestOrigin() });
   }
   revalidateFunding(tripId, elementId);
   return {};
@@ -404,7 +412,28 @@ export async function recalculateFundingShares(
     .rpc("recalculate_funding_shares", { p_funding_request_id: fundingRequestId })
     .maybeSingle<{ population: number; individual_amount: number; reauthorize: number }>();
   if (error) return { error: toUserFacingError(error) };
+  if (data?.reauthorize) {
+    await notifySharesRecalculated({ supabase: createServiceClient(), fundingRequestId, origin: await requestOrigin() });
+  }
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
   return { population: data?.population, share: data ? Number(data.individual_amount) : undefined, reauthorize: data?.reauthorize };
+}
+
+/**
+ * A trip member who isn't on the element takes a spot someone withdrew
+ * from (take_withdrawn_spot): same share, the pause clears once every
+ * withdrawn spot is filled. They commit next like anyone else.
+ */
+export async function takeWithdrawnSpot(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("take_withdrawn_spot", { p_funding_request_id: fundingRequestId });
+  if (error) return { error: toUserFacingError(error) };
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return {};
 }

@@ -505,7 +505,7 @@ export function FundingCard({
                       {c.initials}
                     </span>
                     {c.name}
-                    {c.withdrew && " · withdrew"}
+                    {c.withdrew && " · not participating"}
                     <span className="sr-only">{c.committed ? " — committed" : c.withdrew ? "" : " — not yet"}</span>
                   </li>
                 ))}

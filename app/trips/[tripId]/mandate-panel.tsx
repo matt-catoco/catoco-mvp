@@ -82,6 +82,10 @@ export type MandatePanelProps = {
   recommendedCushion?: CushionChoice | null;
   /** §6: the cost is split across the group (flat / per night), so a withdrawal changes others' shares. */
   groupSplit?: boolean;
+  /** The viewer isn't on this element (e.g. they withdrew and the shares were recalculated). */
+  notParticipating?: boolean;
+  /** §6: when the shares are recalculated automatically if the organizer doesn't act. */
+  autoRecalcAt?: string | null;
   /** §6: while a withdrawal is pending, the share if it's recalculated for `remaining` people. */
   withdrawalEstimate?: { remaining: number; newShare: number } | null;
 };
@@ -268,6 +272,16 @@ export function MandatePanel(props: MandatePanelProps) {
   const capFee = platformFee(capShare, props.platformFeePercent);
   const hasCushion = capShare > individualAmount;
 
+  // Out of this element (it stays on their trip). Per-person pools let
+  // someone who withdrew take their place back before the deadline.
+  if (props.notParticipating && !active && !inFlight && !(iWithdrew && props.groupSplit === false && beforeDeadline)) {
+    return (
+      <p className="rounded-xl border border-brand-line bg-brand-surface px-3.5 py-3 text-[13.5px] text-brand-muted">
+        {iWithdrew ? "You withdrew, so you're not participating in this." : "You're not participating in this."}
+      </p>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2.5">
       <p className="flex flex-wrap items-baseline gap-x-2">
@@ -312,7 +326,8 @@ export function MandatePanel(props: MandatePanelProps) {
                 <span>
                   If the share is recalculated for {estimate.remaining} people it becomes about {formatCurrency(estimateTotal, currency)}.
                   Your authorization is {formatCurrency(authorizedTotal, currency)}, which doesn&apos;t cover that, so you will need to
-                  re-authorize once the organizer confirms.
+                  re-authorize once the shares are recalculated
+                  {props.autoRecalcAt ? <> (by <span className="whitespace-nowrap">{when(props.autoRecalcAt)}</span> at the latest)</> : ""}.
                 </span>
               </div>
             ))}
@@ -336,7 +351,10 @@ export function MandatePanel(props: MandatePanelProps) {
           {paused && (
             <div className="flex flex-col gap-0.5 rounded-xl border-[1.5px] border-amber-300 bg-amber-50 px-3.5 py-3 text-[13.5px] leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
               <b className="font-semibold">Someone withdrew</b>
-              <span>The organizer is updating the shares. You may be asked to commit again at a new amount.</span>
+              <span>
+                The organizer is updating the shares. You may be asked to commit again at a new amount
+                {props.autoRecalcAt ? <> — by <span className="whitespace-nowrap">{when(props.autoRecalcAt)}</span> at the latest</> : ""}.
+              </span>
             </div>
           )}
           {reauthReason && (

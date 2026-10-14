@@ -36,6 +36,8 @@ import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
 import { BookingRecord, type BookingRecordView } from "@/components/booking-record";
 import { isAutomaticBooking } from "@/lib/booking-capability";
 import { recommendedCushion } from "@/lib/cushion";
+import { autoRecalcAt } from "@/lib/funding-rules";
+import { OpenSpotCard } from "../../open-spot-card";
 import type { HeaderDialog } from "../../element-header";
 import { BookingRecordForm, type BookingDraft } from "../../booking-record-form";
 import { TravelerDetailsReveal, TravelerDetailsStatus, TravelerGate, TravelerRequirementEditor } from "../../traveler-details";
@@ -447,7 +449,15 @@ export default async function ElementDetailPage({
           supabase.from("funding_requests").select("shares_recalculated_at").eq("id", fundingRow.id).maybeSingle(),
           supabase.rpc("funding_request_is_group_split", { p_funding_request_id: fundingRow.id }),
         ]);
-        const withdrawals = ((withdrawalRows ?? []) as { participant_id: string; display_name: string | null }[]).filter(
+        const allWithdrawals = (withdrawalRows ?? []) as { participant_id: string; display_name: string | null; withdrawn_at?: string | null }[];
+        // Recalculated automatically if the organizer doesn't act (founder, 2026-10-14).
+        const firstWithdrawnAt =
+          allWithdrawals
+            .map((w) => w.withdrawn_at)
+            .filter((t): t is string => Boolean(t))
+            .sort()[0] ?? null;
+        const recalcAt = autoRecalcAt(firstWithdrawnAt, fundingRow.funding_deadline);
+        const withdrawals = allWithdrawals.filter(
           (w) => w.participant_id !== user.id,
         );
         const sharesRecalculatedAt = (recalcRow as { shares_recalculated_at: string | null } | null)?.shares_recalculated_at ?? null;
@@ -568,6 +578,8 @@ export default async function ElementDetailPage({
             sharesMayChange: withdrawals.length > 0,
             sharesRecalculatedAt,
             withdrawalEstimate,
+            autoRecalcAt: recalcAt,
+            notParticipating: !scopedParticipants.some((p) => p.userId === user.id),
           },
           withdrawals:
             isOrganizerView && withdrawalEstimate && summary
@@ -575,6 +587,7 @@ export default async function ElementDetailPage({
                   names: withdrawals.map((w) => w.display_name?.trim() || "Someone"),
                   ...withdrawalEstimate,
                   currentShare: Number(fundingRow.individual_amount ?? fundingRow.required_amount),
+                  autoRecalcAt: recalcAt,
                   population: summary.population,
                 }
               : null,
@@ -724,6 +737,18 @@ export default async function ElementDetailPage({
         ? await travelerDetailsProgress(travelerService, element.id, travelerInfo.tripId, travelerReq)
         : null;
     const automaticBooking = isAutomaticBooking(optionValue);
+    // A trip member who isn't on this element can take a spot someone
+    // withdrew from (founder, 2026-10-14) — they can't read its funding, so ask.
+    const openSpotRows =
+      !element.booked_at && !scopedParticipants.some((p) => p.userId === user.id)
+        ? (await supabase.rpc("get_element_open_spot", { p_element_id: element.id })).data
+        : null;
+    const openSpot = ((openSpotRows ?? []) as {
+      funding_request_id: string;
+      open_spots: number;
+      individual_amount: number;
+      currency: string | null;
+    }[])[0];
     const bookerRow = fundingRow?.purchaser_id ? rosterById.get(fundingRow.purchaser_id) : undefined;
     const bookerName = bookerRow?.display_name?.trim() || "the organizer";
 
@@ -872,6 +897,16 @@ export default async function ElementDetailPage({
               real Stripe payments back it: everyone's "used for booking"
               status and the Refund everyone path (a cancelled booking) have
               to stay reachable. */}
+          {openSpot && (
+            <OpenSpotCard
+              tripId={tripId}
+              elementId={element.id}
+              fundingRequestId={openSpot.funding_request_id}
+              share={Number(openSpot.individual_amount)}
+              currency={openSpot.currency ?? "USD"}
+              openSpots={openSpot.open_spots}
+            />
+          )}
           {(!element.booked_at || (funding && payments)) &&
             (funding ? (
               <MaybeTravelerGate

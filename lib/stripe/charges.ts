@@ -3,7 +3,8 @@ import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fromMinorUnits, getStripe, toMinorUnits } from "@/lib/stripe/server";
 import { requoteOption } from "@/lib/vendor-search/requote";
-import { notifyPaymentRetryNeeded } from "@/lib/notifications";
+import { AUTO_RECALC_HOURS } from "@/lib/funding-rules";
+import { notifyPaymentRetryNeeded, notifySharesRecalculated } from "@/lib/notifications";
 
 /**
  * The charge engine for mandate-based funding (flow #4): AUTHORIZE, then
@@ -83,18 +84,44 @@ export type ChargeJobSummary = {
   errors: string[];
   /** Price cushion: vendor options re-quoted right before charging. */
   repriced: { elementId: string; outcome: string }[];
+  /** Withdrawals the organizer didn't act on: shares recalculated automatically. */
+  autoRecalculated: { fundingRequestId: string; share: number | null; reauthorize: number | null; skipped: string | null }[];
 };
 
 // Re-quote vendor-priced options whose deadline is within this window, so
 // the hold reflects the price at charge time (price cushion).
 const RECHECK_WINDOW_HOURS = 2;
 
+
+
 export async function runFundingChargeJob(origin: string): Promise<ChargeJobSummary> {
   const supabase = createServiceClient();
   const summary: ChargeJobSummary = {
     claimed: [], holdsPlaced: 0, awaitingRetry: 0, captured: [], expired: [],
-    failedBatches: [], refundsRequested: 0, errors: [], repriced: [],
+    failedBatches: [], refundsRequested: 0, errors: [], repriced: [], autoRecalculated: [],
   };
+
+  // 0a. withdrawals left waiting on the organizer: recalculate automatically.
+  const { data: recalculated, error: recalcError } = await supabase.rpc("auto_recalculate_funding_shares", {
+    p_hours: AUTO_RECALC_HOURS,
+  });
+  if (recalcError) summary.errors.push(`auto_recalculate_funding_shares: ${recalcError.message}`);
+  for (const row of (recalculated ?? []) as {
+    funding_request_id: string;
+    individual_amount: number | null;
+    reauthorize: number | null;
+    skipped: string | null;
+  }[]) {
+    summary.autoRecalculated.push({
+      fundingRequestId: row.funding_request_id,
+      share: row.individual_amount != null ? Number(row.individual_amount) : null,
+      reauthorize: row.reauthorize,
+      skipped: row.skipped,
+    });
+    if (!row.skipped && row.reauthorize) {
+      await notifySharesRecalculated({ supabase, fundingRequestId: row.funding_request_id, origin });
+    }
+  }
 
   // 0. recheck vendor prices (Duffel / LiteAPI) right before charging.
   const { data: dueForRecheck } = await supabase.rpc("list_vendor_priced_elements_due", {

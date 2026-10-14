@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailSendingEnabled, sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/html";
+import { platformFee } from "@/lib/platform-fee";
 
 // Cross-cutting: needs to be importable from a server action (page-load
 // invite trigger, funding-resolve trigger) and the cron route handler alike,
@@ -14,7 +15,8 @@ export type NotificationKind =
   | "funding_needed"
   | "funding_deadline_set"
   | "payment_retry_needed"
-  | "nudge";
+  | "nudge"
+  | "shares_recalculated";
 
 /**
  * The one send path for all four core-loop triggers. Checks eligibility
@@ -197,5 +199,78 @@ export async function notifyPaymentRetryNeeded(opts: {
     }
   } catch (err) {
     console.error(`notifyPaymentRetryNeeded failed (${opts.mandateId}):`, err);
+  }
+}
+
+/**
+ * After someone withdrew and the shares were recalculated (by the organizer,
+ * automatically after 24h, or straight away near the deadline): email each
+ * person whose authorization no longer covers the new share — they have to
+ * commit again (founder, 2026-10-14). People still covered aren't emailed.
+ * Keyed on the cancelled authorization, so a person gets one email per
+ * recalculation however many call sites fire. Pass a service-role client.
+ */
+export async function notifySharesRecalculated(opts: {
+  supabase: SupabaseClient;
+  fundingRequestId: string;
+  origin: string;
+}): Promise<void> {
+  try {
+    const { data: fr } = await opts.supabase
+      .from("funding_requests")
+      .select(
+        "trip_id, individual_amount, platform_fee_percent, currency, funding_deadline, shares_recalculated_at, trips(name), funding_request_elements(element_id, trip_elements(label))",
+      )
+      .eq("id", opts.fundingRequestId)
+      .maybeSingle();
+    if (!fr?.shares_recalculated_at) return;
+    const trip = (Array.isArray(fr.trips) ? fr.trips[0] : fr.trips) as { name: string } | null;
+    const links = (fr.funding_request_elements ?? []) as {
+      element_id: string;
+      trip_elements: { label: string } | { label: string }[] | null;
+    }[];
+    const first = links[0];
+    if (!trip || !first) return;
+    const elementLabel =
+      (Array.isArray(first.trip_elements) ? first.trip_elements[0]?.label : first.trip_elements?.label) ?? "your trip";
+
+    // Cancelled by this recalculation (same transaction → same timestamp).
+    const { data: mandates } = await opts.supabase
+      .from("funding_mandates")
+      .select("id, participant_id")
+      .eq("funding_request_id", opts.fundingRequestId)
+      .eq("status", "canceled")
+      .like("failure_reason", "shares changed%")
+      .gte("canceled_at", fr.shares_recalculated_at);
+    if (!mandates?.length) return;
+
+    const share = Number(fr.individual_amount);
+    const total = share + platformFee(share, Number(fr.platform_fee_percent ?? 0));
+    const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: (fr.currency as string) ?? "USD" }).format(total);
+    const by = fr.funding_deadline
+      ? new Date(fr.funding_deadline as string).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC"
+      : null;
+    const url = `${opts.origin}/trips/${fr.trip_id}/elements/${first.element_id}`;
+
+    for (const m of mandates as { id: string; participant_id: string }[]) {
+      const { data: email } = await opts.supabase.rpc("get_user_email", { p_user_id: m.participant_id });
+      if (!email) continue;
+      await sendCoreLoopEmail({
+        supabase: opts.supabase,
+        userId: m.participant_id,
+        email: email as string,
+        kind: "shares_recalculated",
+        subjectId: m.id,
+        subject: `Commit again for ${elementLabel} — ${trip.name}`,
+        html: `
+          <p>Someone withdrew from <strong>${escapeHtml(elementLabel)}</strong> on <strong>${escapeHtml(trip.name)}</strong>, so the cost has been split between fewer people.</p>
+          <p>Your new share is <strong>${escapeHtml(amount)}</strong> (Catoco fee included), which is more than you authorized. Please commit again${by ? ` by <strong>${by}</strong>` : ""} to stay in. Nothing has been charged.</p>
+          <p><a href="${url}">Commit again</a></p>
+        `,
+        origin: opts.origin,
+      });
+    }
+  } catch (err) {
+    console.error(`notifySharesRecalculated failed (${opts.fundingRequestId}):`, err);
   }
 }

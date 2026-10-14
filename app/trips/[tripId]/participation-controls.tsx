@@ -167,8 +167,9 @@ export function ElementScopePanel({
       <ul className="mt-2 flex flex-col gap-1.5">
         {visible.map((m) => (
           <li key={m.userId} className="flex items-center justify-between gap-2 text-xs">
-            <span className={m.optedIn ? "" : "text-brand-muted line-through"}>
-              {m.userId === currentUserId ? "You" : m.displayName}
+            <span className={m.optedIn ? "" : "text-brand-muted"}>
+              <span className={m.optedIn ? "" : "line-through"}>{m.userId === currentUserId ? "You" : m.displayName}</span>
+              {m.optedIn === false && <span className="ml-1.5 text-[11px]">· not participating</span>}
             </span>
             <button
               type="button"
