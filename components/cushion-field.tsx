@@ -5,13 +5,15 @@ import { fieldClass, labelClass } from "@/lib/ui";
 export type CushionChoice = { kind: "" | "percent" | "amount"; value: string };
 
 /**
- * Organizer-only per-element price cushion override. "" kind = the trip's
- * default (Trip settings). Enforced server-side in set_element_cushion().
+ * Organizer-only per-element override of the RECOMMENDED price cushion —
+ * pre-selected for everyone at checkout, where each person picks their own.
+ * "" kind = the trip's default (Trip settings). Only shown when the trip
+ * allows a cushion at all. Enforced server-side in set_element_cushion().
  */
 export function CushionField({ value, onChange }: { value: CushionChoice; onChange: (v: CushionChoice) => void }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className={labelClass}>Price cushion (optional)</span>
+      <span className={labelClass}>Recommended price cushion (optional)</span>
       <span className="flex items-center gap-2">
         <select
           className={`h-10 w-auto ${fieldClass}`}

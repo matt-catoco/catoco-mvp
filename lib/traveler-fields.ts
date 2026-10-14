@@ -53,12 +53,14 @@ export function defaultRequirement(type: ElementType, value?: Record<string, unk
         ? { scope: "each", fields: ["legal_first_name", "legal_last_name", "date_of_birth", "gender", "email", "phone"] }
         : null;
     case "accommodation":
-      return { scope: "lead", fields: ["full_name", "email"] };
+      // Lead guest; hotels ask for a contact phone (founder, 2026-10-14).
+      return { scope: "lead", fields: ["full_name", "email", "phone"] };
     case "experience":
       // + headcount, which is the element's participant count — not personal data.
       return { scope: "lead", fields: ["full_name", "email"] };
     case "dining":
-      return null; // headcount only
+      // Lead guest for the reservation (was headcount only; founder, 2026-10-14).
+      return { scope: "lead", fields: ["full_name", "email", "phone"] };
     default:
       return null;
   }

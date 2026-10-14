@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notifyInvited } from "@/lib/notifications";
 import {
   ELEMENT_METADATA_FIELDS,
+  ELEMENT_SYMBOLS,
   PRICE_BEARING_TYPES,
   describeElementStatus,
   formatCurrency,
@@ -13,11 +14,12 @@ import {
   type ElementType,
 } from "@/lib/trip-elements";
 import { BookingSnapshot } from "@/components/booking-snapshot";
-import { StatusBadge } from "@/components/status-badge";
 import { SubmitOptionForm } from "../../submit-option-form";
 import { VotingSection } from "../../voting-section";
 import { resolveAndNotify } from "../../resolve-elements";
-import { EditElementForm } from "../../edit-element-form";
+import { ElementHeader, ElementPageUIProvider } from "../../element-header";
+import { PHASE_DEADLINE, timeLeft } from "@/lib/time-left";
+import { optionTitle as optionTitleOf } from "@/components/option-summary";
 import {
   FundingCard,
   type FundingRequestInfo,
@@ -32,14 +34,16 @@ import { cushionLabel } from "@/lib/trip-permissions";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CONFIRMATION_BUCKET } from "@/lib/booking-confirmation";
 import { BookingRecord, type BookingRecordView } from "@/components/booking-record";
+import { isAutomaticBooking } from "@/lib/booking-capability";
+import { recommendedCushion } from "@/lib/cushion";
+import type { HeaderDialog } from "../../element-header";
 import { BookingRecordForm, type BookingDraft } from "../../booking-record-form";
 import { TravelerDetailsReveal, TravelerDetailsStatus, TravelerGate, TravelerRequirementEditor } from "../../traveler-details";
-import { elementRequirement, hasCompleteDetails, requirementAppliesTo } from "@/lib/traveler-details";
+import { elementRequirement, hasCompleteDetails, requirementAppliesTo, travelerDetailsProgress } from "@/lib/traveler-details";
 import { decryptJson, travelerCryptoConfigured } from "@/lib/traveler-crypto";
 import type { TravelerDetails, TravelerRequirement } from "@/lib/traveler-fields";
 import { ElementScopePanel, type ScopeMember } from "../../participation-controls";
 import { getTripContext } from "../../trip-context";
-import { NudgeButton } from "../../nudge-button";
 import { ChangePhoto } from "../../change-photo";
 import { ensureElementEnrichment, type StoredEnrichment } from "@/lib/element-enrichment";
 import { readDetails } from "@/lib/option-details";
@@ -113,6 +117,35 @@ type OptionRow = {
   value: Record<string, unknown>;
   proposed_by: string | null;
 };
+
+/** "Funding closes in 9h" — the header's clock label, or null without a deadline. */
+function deadlineLabelFor(phase: keyof typeof PHASE_DEADLINE, iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return null;
+  return `${PHASE_DEADLINE[phase]} in ${timeLeft(ms)}`;
+}
+
+/** Collapsed Details summary: "Casa Mare · 12 Jun → 19 Jun · 5 guests". */
+function snapshotSummary(type: ElementType, value: Record<string, unknown>, guests: number): string {
+  const str = (k: string) => (typeof value[k] === "string" ? (value[k] as string).trim() : "");
+  const dates = (value.dates ?? {}) as Record<string, unknown>;
+  const start = (typeof dates.start_date === "string" && dates.start_date) || str("depart_date") || str("date");
+  const end = (typeof dates.end_date === "string" && dates.end_date) || str("return_date");
+  const when = start ? (end && end !== start ? `${formatDate(start)} → ${formatDate(end)}` : formatDate(start)) : null;
+  return [optionTitleOf(type, value), when, guests > 0 ? `${guests} guest${guests === 1 ? "" : "s"}` : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+const detailsClass = "group rounded-[18px] border-[1.5px] border-brand-line bg-brand-surface";
+const summaryClass =
+  "flex cursor-pointer list-none items-center justify-between gap-3 rounded-[18px] px-4 py-3.5 font-[family-name:var(--font-display)] text-base font-bold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-deep [&::-webkit-details-marker]:hidden sm:px-[18px]";
+function DetailsChevron() {
+  return (
+    <span aria-hidden className="inline-block size-2 flex-none rotate-45 border-b-2 border-r-2 border-current transition-transform group-open:-rotate-[135deg]" />
+  );
+}
 
 function MetadataLine({ type, metadata }: { type: ElementType; metadata: Record<string, string> }) {
   const fields = ELEMENT_METADATA_FIELDS[type];
@@ -192,6 +225,12 @@ export default async function ElementDetailPage({
 
   if (!trip) redirect(`/trips/${tripId}`);
 
+  // "Let people add a price cushion when they commit" (founder, 2026-10-14):
+  // off = no cushion anywhere — not at checkout, not in the organizer's
+  // element settings. Read on its own so a missing column degrades to on.
+  const { data: cushionSetting } = await supabase.from("trips").select("allow_checkout_cushion").eq("id", tripId).maybeSingle();
+  const checkoutCushion = (cushionSetting as { allow_checkout_cushion?: boolean } | null)?.allow_checkout_cushion !== false;
+
   // Lazy auto-lock, shared with the dashboard — a direct link to this page
   // (skipping the dashboard) must still catch a just-passed deadline.
   await resolveAndNotify(supabase, tripId, trip.organizer_id, trip.name);
@@ -238,6 +277,8 @@ export default async function ElementDetailPage({
         phase: string;
       }[])
     : [];
+
+  const nudgePhase = nudgeTargets[0] ? ({ submission: "submit", voting: "vote", funding: "commit" } as Record<string, string>)[nudgeTargets[0].phase] ?? "act" : "act";
 
   let body: ReactNode;
 
@@ -325,11 +366,13 @@ export default async function ElementDetailPage({
                 : "/night"
               : "",
         vendorLabel: vendor === "duffel" ? "Duffel" : vendor === "liteapi" ? "LiteAPI" : null,
-        cushionLabel: cushionLabel(
-          element.cushion_kind ?? cushionTrip?.price_cushion_kind,
-          element.cushion_kind ? element.cushion_value : cushionTrip?.price_cushion_value,
-          fundingRow.currency ?? String(optionValue.currency ?? "USD"),
-        ),
+        cushionLabel: checkoutCushion
+          ? cushionLabel(
+              element.cushion_kind ?? cushionTrip?.price_cushion_kind,
+              element.cushion_kind ? element.cushion_value : cushionTrip?.price_cushion_value,
+              fundingRow.currency ?? String(optionValue.currency ?? "USD"),
+            )
+          : null,
         previousShare: fundingRow.previous_individual_amount,
         priceChangedAt: fundingRow.price_changed_at,
       };
@@ -362,7 +405,18 @@ export default async function ElementDetailPage({
         // RLS scopes these: the organizer reads every mandate on the
         // request, a participant only their own. Contributions are visible
         // to all members (existing policy).
-        const [{ data: mandateRows }, { data: summaryRows }, { data: contributionRows }, { data: spotsFull }, { data: capAmount }, { data: retryRows }] = await Promise.all([
+        const [
+          { data: mandateRows },
+          { data: summaryRows },
+          { data: contributionRows },
+          { data: spotsFull },
+          { data: capAmount },
+          { data: retryRows },
+          { data: cushionAllowed },
+          { data: withdrawalRows },
+          { data: recalcRow },
+          { data: groupSplit },
+        ] = await Promise.all([
           supabase
             .from("funding_mandates")
             .select("id, participant_id, status, payment_method_type, failure_reason, created_at, max_amount, retry_reason")
@@ -384,7 +438,19 @@ export default async function ElementDetailPage({
           fundingRow.charge_status === "charging"
             ? supabase.rpc("get_funding_retry_status", { p_funding_request_id: fundingRow.id })
             : Promise.resolve({ data: null }),
+          // After-commit pass (2026-10-14): the per-participant cushion is
+          // offered only for vendor-sourced prices with the trip setting on;
+          // withdrawals pause Commit until the organizer recalculates.
+          // Each degrades to "off" where the migration isn't applied yet.
+          supabase.rpc("funding_request_cushion_allowed", { p_funding_request_id: fundingRow.id }),
+          supabase.rpc("get_funding_withdrawals", { p_funding_request_id: fundingRow.id }),
+          supabase.from("funding_requests").select("shares_recalculated_at").eq("id", fundingRow.id).maybeSingle(),
+          supabase.rpc("funding_request_is_group_split", { p_funding_request_id: fundingRow.id }),
         ]);
+        const withdrawals = ((withdrawalRows ?? []) as { participant_id: string; display_name: string | null }[]).filter(
+          (w) => w.participant_id !== user.id,
+        );
+        const sharesRecalculatedAt = (recalcRow as { shares_recalculated_at: string | null } | null)?.shares_recalculated_at ?? null;
         const retryRow = (Array.isArray(retryRows) ? retryRows[0] : retryRows) as
           | { waiting: number; held: number; total: number; retry_deadline: string | null; hold_cap_at: string | null }
           | null
@@ -392,6 +458,19 @@ export default async function ElementDetailPage({
         const summary = (Array.isArray(summaryRows) ? summaryRows[0] : summaryRows) as
           | { population: number; covered: number }
           | undefined;
+        // Estimated re-split if the organizer recalculates for the people still in.
+        const withdrawalEstimate =
+          withdrawals.length > 0 && summary
+            ? (() => {
+                const remaining = Math.max(0, summary.population - withdrawals.length);
+                const required = Number(fundingRow.required_amount);
+                const newShare =
+                  option?.pricing_basis === "per_person" || remaining === 0
+                    ? Number(fundingRow.individual_amount ?? required)
+                    : Math.round((required / remaining) * 100) / 100;
+                return { remaining, newShare };
+              })()
+            : null;
         const mandates = mandateRows ?? [];
         const contributions = contributionRows ?? [];
         // Rows are newest-first, so the first match per person is their latest.
@@ -480,7 +559,25 @@ export default async function ElementDetailPage({
                 }
               : null,
             isOrganizerView,
+            cushionAllowed: cushionAllowed === true,
+            recommendedCushion: recommendedCushion(
+              element.cushion_kind ?? cushionTrip?.price_cushion_kind,
+              element.cushion_kind ? element.cushion_value : cushionTrip?.price_cushion_value,
+            ),
+            groupSplit: groupSplit !== false,
+            sharesMayChange: withdrawals.length > 0,
+            sharesRecalculatedAt,
+            withdrawalEstimate,
           },
+          withdrawals:
+            isOrganizerView && withdrawalEstimate && summary
+              ? {
+                  names: withdrawals.map((w) => w.display_name?.trim() || "Someone"),
+                  ...withdrawalEstimate,
+                  currentShare: Number(fundingRow.individual_amount ?? fundingRow.required_amount),
+                  population: summary.population,
+                }
+              : null,
           roster: paymentRoster,
           isOrganizerView,
           // Refunds return the whole charge, Catoco fee included.
@@ -621,6 +718,12 @@ export default async function ElementDetailPage({
         complete: await hasCompleteDetails(travelerService, element.id, user.id, travelerReq),
       };
     }
+    // Organizer/purchaser view: how many have added what the vendor needs.
+    const travelerProgress =
+      canEditBooking && travelerReq && travelerInfo && fundingRow?.status === "collecting"
+        ? await travelerDetailsProgress(travelerService, element.id, travelerInfo.tripId, travelerReq)
+        : null;
+    const automaticBooking = isAutomaticBooking(optionValue);
     const bookerRow = fundingRow?.purchaser_id ? rosterById.get(fundingRow.purchaser_id) : undefined;
     const bookerName = bookerRow?.display_name?.trim() || "the organizer";
 
@@ -645,167 +748,244 @@ export default async function ElementDetailPage({
         }
       : undefined;
 
+    const lockedTitle = option ? optionTitleOf(element.type, option.value as Record<string, unknown>) : null;
+    const collecting = funding?.status === "collecting";
+    // "Waiting on you": you're in this element and haven't committed yet.
+    const myMandateStatus = payments?.panel.myMandate?.status ?? "";
+    const waitingOnYou = Boolean(
+      collecting &&
+        payments &&
+        !funding?.chargeStatus &&
+        scopedParticipants.some((p) => p.userId === user.id) &&
+        !["active", "charging", "held", "awaiting_retry", "charge_succeeded"].includes(myMandateStatus) &&
+        !payments.panel.alreadyContributed &&
+        !payments.panel.waitlisted,
+    );
+
+    // "⋯" menu per stage (founder, 2026-10-14) — Collecting: Edit element ·
+    // Set a new deadline · Nudge · Traveler details…; Committing: Final
+    // nudge (+24h) only; Booked (manual): Edit booking record.
+    const committingPhase = collecting && funding?.chargeStatus === "charging";
+    const headerDialogs: HeaderDialog[] = [];
+    const readyToBook = funding?.status === "ready_to_purchase";
+    if (((collecting && !committingPhase) || readyToBook) && canEditBooking && travelerCryptoConfigured() && !automaticBooking) {
+      headerDialogs.push({
+        key: "traveler-details",
+        text: "Traveler details…",
+        title: "Traveler details",
+        subtitle: "What the vendor needs to book",
+        content: <TravelerRequirementEditor tripId={tripId} elementId={element.id} requirement={travelerInfo?.req ?? null} />,
+      });
+    }
+    if (booking?.confirmed_at && canEditBooking && booking.source !== "api") {
+      headerDialogs.push({
+        key: "booking-record",
+        text: "Edit booking record",
+        title: "Edit booking record",
+        content: (
+          <BookingRecordForm
+            tripId={tripId}
+            elementId={element.id}
+            draft={bookingDraft}
+            roster={bookingRoster}
+            mode="edit"
+            amountFromCard={null}
+            showIncidentals={false}
+          />
+        ),
+      });
+    }
+
     body = (
-      <div className="w-full max-w-xl rounded-xl border border-brand-line p-4 text-left">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-black dark:text-zinc-50">
-            {element.label}
-          </span>
-          <StatusBadge state={status.funded ? "funded" : "locked"} label={status.statusLabel} />
-        </div>
-        <MetadataLine type={element.type} metadata={element.metadata} />
-        <div className="mt-2">
-          {option ? (
-            <BookingSnapshot
-              type={element.type}
-              value={option.value}
-              participants={scopedParticipants}
-              pricing={snapshotPricing}
-              image={enrichment?.image}
-              details={enrichment?.details ?? readDetails(option.value as Record<string, unknown>)}
-              photoControl={
-                canEdit && element.type === "destination" ? (
-                  <ChangePhoto
-                    tripId={tripId}
-                    elementId={element.id}
-                    candidates={enrichment?.details?.images ?? []}
-                    defaultQuery={
-                      String(
-                        (option.value as Record<string, unknown>).name ??
-                          (option.value as Record<string, unknown>).title ??
-                          element.label,
-                      ).split(",")[0]
+      <ElementPageUIProvider>
+        <div className="flex w-full max-w-xl flex-col gap-3.5 text-left">
+          <section
+            className={`flex flex-col gap-3 rounded-[18px] border-[1.5px] bg-brand-surface p-4 sm:px-[18px] ${
+              collecting ? "border-brand-teal-deep" : "border-brand-line"
+            }`}
+          >
+            <ElementHeader
+              tripId={tripId}
+              elementId={element.id}
+              symbol={ELEMENT_SYMBOLS[element.type]}
+              label={element.label}
+              subtitle={lockedTitle}
+              chip={{
+                text:
+                  collecting && funding?.chargeStatus === "charging"
+                    ? "Committing"
+                    : collecting
+                      ? "Ready to fund"
+                      : funding?.status === "ready_to_purchase"
+                        ? automaticBooking
+                          ? "Funded · booking now"
+                          : canEditBooking
+                            ? "Funded · ready to book"
+                            : "Funded"
+                        : status.statusLabel,
+              }}
+              deadlineLabel={collecting ? deadlineLabelFor("funding", funding?.deadline) : null}
+              waitingOnYou={waitingOnYou}
+              edit={
+                canEdit && !element.booked_at && !committingPhase
+                  ? {
+                      tripId,
+                      elementId: element.id,
+                      type: element.type,
+                      state: "locked",
+                      initialLabel: element.label,
+                      initialMetadata: element.metadata ?? {},
+                      initialOptionsDeadline: null,
+                      initialVotingDeadline: null,
+                      initialLockedValue: option?.value ?? {},
+                      canSetSpots: Boolean(canManage) && element.type !== "dates" && element.type !== "destination",
+                      initialSpots: element.spots,
+                      initialCushionKind: element.cushion_kind,
+                      initialCushionValue: element.cushion_value,
+                      cushionEnabled: checkoutCushion,
                     }
-                  />
-                ) : undefined
+                  : null
               }
+              deadlineAction={canManage && collecting && !committingPhase ? "funding" : null}
+              nudge={canManage && !committingPhase && nudgeTargets.length > 0 ? { count: nudgeTargets.length, phaseLabel: nudgePhase } : null}
+              finalNudge={canManage && committingPhase && funding ? { fundingRequestId: funding.id } : null}
+              dialogs={headerDialogs}
             />
-          ) : (
-            "?"
-          )}
-          {booking?.confirmed_at && (
-            <BookingRecord
-              record={booking}
-              document={bookingDocument}
-              leadName={bookingLeadName}
-              showIncidentals={showIncidentals}
-            />
-          )}
-          {booking?.confirmed_at && canEditBooking && (
-            <details className="mt-2 text-xs">
-              <summary className="cursor-pointer text-brand-muted">Edit the booking record</summary>
-              <div className="mt-2">
-                <BookingRecordForm
-                  tripId={tripId}
-                  elementId={element.id}
-                  draft={bookingDraft}
-                  roster={bookingRoster}
-                  mode="edit"
-                  amountFromCard={null}
-                  showIncidentals={false}
+            <MetadataLine type={element.type} metadata={element.metadata} />
+            {travelerProgress && travelerProgress.total > 0 && (
+              <p className="text-xs text-brand-muted">
+                {travelerProgress.scope === "lead"
+                  ? `Lead guest details: ${travelerProgress.added > 0 ? "added" : "not added yet"}`
+                  : `Traveler details: ${travelerProgress.added} of ${travelerProgress.total} added`}
+              </p>
+            )}
+            {booking?.confirmed_at && (
+              <BookingRecord
+                record={booking}
+                document={bookingDocument}
+                leadName={bookingLeadName}
+                showIncidentals={showIncidentals}
+              />
+            )}
+  
+          {/* Booked elements normally drop the funding card — except when
+              real Stripe payments back it: everyone's "used for booking"
+              status and the Refund everyone path (a cancelled booking) have
+              to stay reachable. */}
+          {(!element.booked_at || (funding && payments)) &&
+            (funding ? (
+              <MaybeTravelerGate
+                gate={
+                  funding.status === "collecting" && travelerReq && myTraveler
+                    ? { requirement: travelerReq, initial: myTraveler.initial, complete: myTraveler.complete }
+                    : null
+                }
+                tripId={tripId}
+                elementId={element.id}
+                bookerName={bookerName}
+              >
+              <FundingCard
+                tripId={tripId}
+                elementId={element.id}
+                currentUserId={user.id}
+                canManage={Boolean(canManage)}
+                funding={funding}
+                roster={fundingRoster.map((r) => ({
+                  userId: r.user_id,
+                  displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
+                }))}
+                currency={
+                  fundingRow?.currency ??
+                  ((option?.value as Record<string, unknown> | undefined)?.currency as string | undefined)
+                }
+                members={bundleMembers}
+                elementLabel={element.label}
+                optionTitle={lockedTitle ?? undefined}
+                payments={payments}
+                priceInfo={priceInfo}
+                booking={
+                  canEditBooking
+                    ? {
+                        draft: bookingDraft,
+                        roster: bookingRoster,
+                        showIncidentals,
+                        amountFromCard: null,
+                        alreadyBooked: Boolean(booking?.confirmed_at && element.booked_at),
+                        optionValue,
+                        travelers: travelerReq ? <TravelerDetailsReveal elementId={element.id} /> : undefined,
+                      }
+                    : null
+                }
+              />
+              </MaybeTravelerGate>
+            ) : (
+              // Dates/Destination are never price-bearing, so `funding` is
+              // always null for them too — that's not "locked but missing a
+              // funding request," there's nothing to book at all for these
+              // two types.
+              canEditBooking &&
+              PRICE_BEARING_TYPES.includes(element.type) &&
+              !element.booked_at && (
+                <div className="mt-3 rounded-lg border border-brand-line p-3">
+                  <span className="text-xs font-medium text-black dark:text-zinc-50">Record the booking</span>
+                  <div className="mt-2">
+                    <BookingRecordForm
+                      tripId={tripId}
+                      elementId={element.id}
+                      draft={bookingDraft}
+                      roster={bookingRoster}
+                      mode="purchase"
+                      amountFromCard={null}
+                      showIncidentals={showIncidentals}
+                    />
+                  </div>
+                </div>
+              )
+            ))}
+  
+          </section>
+
+          {option && (
+            <details className={detailsClass}>
+              <summary className={summaryClass}>
+                <span>Details</span>
+                <span className="flex min-w-0 items-center gap-2.5 font-[family-name:var(--font-sans)] text-[13px] font-medium text-brand-muted">
+                  <span className="truncate group-open:hidden">
+                    {snapshotSummary(element.type, option.value as Record<string, unknown>, scopedParticipants.length)}
+                  </span>
+                  <DetailsChevron />
+                </span>
+              </summary>
+              <div className="px-4 pb-4 sm:px-[18px]">
+                <BookingSnapshot
+                  type={element.type}
+                  value={option.value}
+                  participants={scopedParticipants}
+                  pricing={snapshotPricing}
+                  image={enrichment?.image}
+                  details={enrichment?.details ?? readDetails(option.value as Record<string, unknown>)}
+                  photoControl={
+                    canEdit && element.type === "destination" ? (
+                      <ChangePhoto
+                        tripId={tripId}
+                        elementId={element.id}
+                        candidates={enrichment?.details?.images ?? []}
+                        defaultQuery={
+                          String(
+                            (option.value as Record<string, unknown>).name ??
+                              (option.value as Record<string, unknown>).title ??
+                              element.label,
+                          ).split(",")[0]
+                        }
+                      />
+                    ) : undefined
+                  }
                 />
               </div>
             </details>
           )}
         </div>
-        {canEdit && !element.booked_at && (
-          <div className="mt-3">
-            <EditElementForm
-              tripId={tripId}
-              elementId={element.id}
-              type={element.type}
-              state="locked"
-              initialLabel={element.label}
-              initialMetadata={element.metadata ?? {}}
-              initialOptionsDeadline={null}
-              initialVotingDeadline={null}
-              initialLockedValue={option?.value ?? {}}
-              canSetSpots={Boolean(canManage) && element.type !== "dates" && element.type !== "destination"}
-              initialSpots={element.spots}
-              initialCushionKind={element.cushion_kind}
-              initialCushionValue={element.cushion_value}
-            />
-          </div>
-        )}
-
-        {/* Booked elements normally drop the funding card — except when
-            real Stripe payments back it: everyone's "used for booking"
-            status and the Refund everyone path (a cancelled booking) have
-            to stay reachable. */}
-        {funding?.status === "collecting" && canEditBooking && travelerCryptoConfigured() && (
-          <div className="mt-3">
-            <TravelerRequirementEditor tripId={tripId} elementId={element.id} requirement={travelerInfo?.req ?? null} />
-          </div>
-        )}
-        {(!element.booked_at || (funding && payments)) &&
-          (funding ? (
-            <MaybeTravelerGate
-              gate={
-                funding.status === "collecting" && travelerReq && myTraveler
-                  ? { requirement: travelerReq, initial: myTraveler.initial, complete: myTraveler.complete }
-                  : null
-              }
-              tripId={tripId}
-              elementId={element.id}
-              bookerName={bookerName}
-            >
-            <FundingCard
-              tripId={tripId}
-              elementId={element.id}
-              currentUserId={user.id}
-              canManage={Boolean(canManage)}
-              funding={funding}
-              roster={fundingRoster.map((r) => ({
-                userId: r.user_id,
-                displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
-              }))}
-              currency={
-                fundingRow?.currency ??
-                ((option?.value as Record<string, unknown> | undefined)?.currency as string | undefined)
-              }
-              members={bundleMembers}
-              payments={payments}
-              priceInfo={priceInfo}
-              booking={
-                canEditBooking
-                  ? {
-                      draft: bookingDraft,
-                      roster: bookingRoster,
-                      showIncidentals,
-                      amountFromCard: null,
-                      alreadyBooked: Boolean(booking?.confirmed_at && element.booked_at),
-                      optionValue,
-                      travelers: travelerReq ? <TravelerDetailsReveal elementId={element.id} /> : undefined,
-                    }
-                  : null
-              }
-            />
-            </MaybeTravelerGate>
-          ) : (
-            // Dates/Destination are never price-bearing, so `funding` is
-            // always null for them too — that's not "locked but missing a
-            // funding request," there's nothing to book at all for these
-            // two types.
-            canEditBooking &&
-            PRICE_BEARING_TYPES.includes(element.type) &&
-            !element.booked_at && (
-              <div className="mt-3 rounded-lg border border-brand-line p-3">
-                <span className="text-xs font-medium text-black dark:text-zinc-50">Record the booking</span>
-                <div className="mt-2">
-                  <BookingRecordForm
-                    tripId={tripId}
-                    elementId={element.id}
-                    draft={bookingDraft}
-                    roster={bookingRoster}
-                    mode="purchase"
-                    amountFromCard={null}
-                    showIncidentals={showIncidentals}
-                  />
-                </div>
-              </div>
-            )
-          ))}
-      </div>
+      </ElementPageUIProvider>
     );
   } else {
     const [{ data: options }, tripContext] = await Promise.all([
@@ -861,26 +1041,26 @@ export default async function ElementDetailPage({
       .filter((m) => canManage || m.optedIn !== null);
     const iOptedOut = optedInById.get(user.id) === false;
 
-    // Trip setting: a participant may lock in their own SUBGROUP element
-    // (never an Everyone one) — lock_element() enforces the same rule.
-    const { data: lockSettings } = await supabase
-      .from("trips")
-      .select("allow_participant_subgroups")
-      .eq("id", tripId)
-      .maybeSingle();
-    const creatorCanLock =
-      Boolean(lockSettings?.allow_participant_subgroups) && !element.scope_all && element.created_by === user.id;
+    // Lock it in: organizers/co-organizers, or whoever added the element
+    // when the trip lets participants add their own (founder, 2026-10-14) —
+    // lock_element() enforces the same rule; nobody else sees the button.
+    const [{ data: lockSettings }, { data: voteSummary }] = await Promise.all([
+      supabase.from("trips").select("allow_participant_elements").eq("id", tripId).maybeSingle(),
+      // Counts only — votes stay private (no names).
+      supabase.rpc("get_element_vote_summary", { p_element_id: element.id }),
+    ]);
+    const creatorCanLock = Boolean(lockSettings?.allow_participant_elements) && element.created_by === user.id;
+    const summaryRows = (voteSummary ?? []) as {
+      option_id: string;
+      votes: number;
+      voters: number;
+      eligible: number;
+      /** only when the trip's "Show who voted" setting is on */
+      voter_initials: string[] | null;
+    }[];
+    const votesByOption = new Map(summaryRows.map((r) => [r.option_id, r.votes]));
+    const initialsByOption = new Map(summaryRows.map((r) => [r.option_id, r.voter_initials]));
 
-    const status = describeElementStatus({
-      type: element.type,
-      state: "open",
-      lockedVia: null,
-      fundingStatus: null,
-      optionCount: (options ?? []).length,
-      optionsDeadline: element.options_deadline,
-      lockedValue: null,
-      bookedAt: null,
-    });
 
     // §11 phase gate: propose and rank never show at once. Before the
     // submission deadline, options are visible but not yet rankable; once
@@ -891,90 +1071,127 @@ export default async function ElementDetailPage({
     const stillSubmitting =
       !element.options_deadline || new Date(element.options_deadline) > new Date();
 
+    // The leading option (most votes, no tie) — its details stay open while voting.
+    const byVotes = [...(options ?? [])].sort((a, b) => (votesByOption.get(b.id) ?? 0) - (votesByOption.get(a.id) ?? 0));
+    const topVotes = byVotes[0] ? (votesByOption.get(byVotes[0].id) ?? 0) : 0;
+    const leader =
+      topVotes > 0 && (!byVotes[1] || (votesByOption.get(byVotes[1].id) ?? 0) < topVotes) ? byVotes[0] : null;
+    const leaderParticipants = scopeMembers
+      .filter((m) => m.optedIn === true)
+      .map((m) => ({ userId: m.userId, displayName: m.userId === user.id ? "You" : m.displayName }));
+
     body = (
-      <div className="w-full max-w-xl text-left">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-black dark:text-zinc-50">
-            {element.label}
-          </span>
-          <StatusBadge state="open" label={status.statusLabel} />
-        </div>
-        <MetadataLine type={element.type} metadata={element.metadata} />
-        {canEdit && (
-          <div className="mt-2">
-            <EditElementForm
-              tripId={tripId}
-              elementId={element.id}
-              type={element.type}
-              state="open"
-              initialLabel={element.label}
-              initialMetadata={element.metadata ?? {}}
-              initialOptionsDeadline={element.options_deadline}
-              initialVotingDeadline={element.voting_deadline}
-              initialLockedValue={null}
-              canSetSpots={Boolean(canManage) && element.type !== "dates" && element.type !== "destination"}
-              initialSpots={element.spots}
-              initialCushionKind={element.cushion_kind}
-              initialCushionValue={element.cushion_value}
-            />
-          </div>
-        )}
-
-        {(element.options_deadline || element.voting_deadline) && (
-          <p className="mt-2 text-xs text-brand-muted">
-            {element.options_deadline && `Submissions by ${formatDate(element.options_deadline)}`}
-            {element.options_deadline && element.voting_deadline && " · "}
-            {element.voting_deadline && `Vote by ${formatDate(element.voting_deadline)}`}
-          </p>
-        )}
-
-        {element.tie_notified && (
-          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-            Voting closed in a tie — this needs the organizer to pick a winner.
-          </p>
-        )}
-        {element.empty_notified && (
-          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-            The options deadline passed with nothing submitted.
-          </p>
-        )}
-
-        <ElementScopePanel
-          tripId={tripId}
-          elementId={element.id}
-          currentUserId={user.id}
-          canManage={Boolean(canManage)}
-          bundled={element.bundle_group_id !== null}
-          members={scopeMembers}
-        />
-
-        <div className="mt-3 flex flex-col gap-2">
-          {(options ?? []).length > 0 ? (
-            <VotingSection
-              tripId={tripId}
-              elementId={element.id}
-              elementType={element.type}
-              options={(options ?? []).map((o) => ({
-                id: o.id,
-                value: o.value,
-                score: scoresByOption.get(o.id) ?? 0,
-                proposedBy: o.proposed_by,
-              }))}
-              myRanking={myRanking}
-              votingDeadline={element.voting_deadline}
-              currentUserId={user.id}
-              canManage={Boolean(canManage)}
-              canLockAny={creatorCanLock}
-              readOnly={stillSubmitting || iOptedOut}
-            />
-          ) : (
-            <p className="text-xs text-brand-muted">No options yet.</p>
+      <div className="flex w-full max-w-xl flex-col gap-3.5 text-left">
+        <section className="flex flex-col gap-3 rounded-[18px] border-[1.5px] border-dashed border-brand-teal bg-brand-surface p-4 sm:px-[18px]">
+          <ElementHeader
+            tripId={tripId}
+            elementId={element.id}
+            symbol={ELEMENT_SYMBOLS[element.type]}
+            label={element.label}
+            subtitle={leader ? optionTitleOf(element.type, leader.value) : null}
+            chip={{ text: stillSubmitting ? "Open for options" : "Open for voting", dashed: true }}
+            deadlineLabel={
+              stillSubmitting
+                ? deadlineLabelFor("submission", element.options_deadline)
+                : deadlineLabelFor("voting", element.voting_deadline)
+            }
+            edit={
+              canEdit
+                ? {
+                    tripId,
+                    elementId: element.id,
+                    type: element.type,
+                    state: "open",
+                    initialLabel: element.label,
+                    initialMetadata: element.metadata ?? {},
+                    initialOptionsDeadline: element.options_deadline,
+                    initialVotingDeadline: element.voting_deadline,
+                    initialLockedValue: null,
+                    canSetSpots: Boolean(canManage) && element.type !== "dates" && element.type !== "destination",
+                    initialSpots: element.spots,
+                    initialCushionKind: element.cushion_kind,
+                    initialCushionValue: element.cushion_value,
+                  }
+                : null
+            }
+            deadlineAction={canManage ? "edit" : null}
+            nudge={canManage && nudgeTargets.length > 0 ? { count: nudgeTargets.length, phaseLabel: nudgePhase } : null}
+          />
+          <MetadataLine type={element.type} metadata={element.metadata} />
+          {element.tie_notified && (
+            <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              Voting closed in a tie — this needs the organizer to pick a winner.
+            </p>
           )}
-
-          {stillSubmitting && !iOptedOut && (
-            <SubmitOptionForm elementId={element.id} type={element.type} tripContext={tripContext} />
+          {element.empty_notified && (
+            <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              The options deadline passed with nothing submitted.
+            </p>
           )}
-        </div>
+  
+          <ElementScopePanel
+            tripId={tripId}
+            elementId={element.id}
+            currentUserId={user.id}
+            canManage={Boolean(canManage)}
+            bundled={element.bundle_group_id !== null}
+            members={scopeMembers}
+          />
+  
+  
+          <div className="flex flex-col gap-2">
+            {(options ?? []).length > 0 ? (
+              <VotingSection
+                tripId={tripId}
+                elementId={element.id}
+                elementType={element.type}
+                options={(options ?? []).map((o) => ({
+                  id: o.id,
+                  value: o.value,
+                  score: scoresByOption.get(o.id) ?? 0,
+                  votes: votesByOption.get(o.id) ?? 0,
+                  voterInitials: initialsByOption.get(o.id) ?? null,
+                  proposedBy: o.proposed_by,
+                }))}
+                symbol={ELEMENT_SYMBOLS[element.type]}
+                elementLabel={element.label}
+                voters={summaryRows[0]?.voters ?? 0}
+                eligible={summaryRows[0]?.eligible ?? 0}
+                myRanking={myRanking}
+                votingDeadline={element.voting_deadline}
+                currentUserId={user.id}
+                canManage={Boolean(canManage)}
+                canLockAny={creatorCanLock}
+                readOnly={stillSubmitting || iOptedOut}
+                hideHeader
+              />
+            ) : (
+              <p className="text-xs text-brand-muted">No options yet.</p>
+            )}
+  
+            </div>
+        </section>
+
+        {leader && (
+          <details open className={detailsClass}>
+            <summary className={summaryClass}>
+              <span>Details</span>
+              <DetailsChevron />
+            </summary>
+            <div className="px-4 pb-4 sm:px-[18px]">
+              <BookingSnapshot
+                type={element.type}
+                value={leader.value}
+                participants={leaderParticipants}
+                details={readDetails(leader.value)}
+              />
+            </div>
+          </details>
+        )}
+
+        {stillSubmitting && !iOptedOut && (
+          <SubmitOptionForm elementId={element.id} type={element.type} tripContext={tripContext} />
+        )}
       </div>
     );
   }
@@ -990,14 +1207,6 @@ export default async function ElementDetailPage({
         </Link>
       </div>
       {body}
-      {nudgeTargets.length > 0 && (
-        <NudgeButton
-          tripId={tripId}
-          elementId={element.id}
-          names={nudgeTargets.map((t) => t.display_name?.trim() || "Unnamed traveller")}
-          phaseLabel={{ submission: "submit", voting: "vote", funding: "commit" }[nudgeTargets[0].phase] ?? "act"}
-        />
-      )}
     </div>
   );
 }

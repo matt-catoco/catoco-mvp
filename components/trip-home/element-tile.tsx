@@ -117,16 +117,19 @@ export function ElementTile({
   const alertIcons = alerts && (alerts.clock || alerts.notCommitted) && (
     <>
       {alerts.clock && (
+        // Icon-only (founder, 2026-10-14): the time left lives in the
+        // tooltip and the accessible label, not as visible text.
         <span
           role="img"
+          tabIndex={0}
           aria-label={alerts.clockAria ?? `Deadline in ${alerts.clock}`}
-          className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          title={alerts.clockAria ?? `Deadline in ${alerts.clock}`}
+          className="inline-grid size-[22px] place-items-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-deep focus-visible:ring-offset-2 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <circle cx="12" cy="12" r="9" />
             <path d="M12 7v5l3 2" />
           </svg>
-          {alerts.clock}
         </span>
       )}
       {alerts.notCommitted && (

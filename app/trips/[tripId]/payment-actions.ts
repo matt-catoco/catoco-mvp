@@ -9,6 +9,7 @@ import { toUserFacingError } from "@/lib/action-errors";
 import { getStripe, stripeConfigured } from "@/lib/stripe/server";
 import { activateFromSetupIntent, getOrCreateStripeCustomer } from "@/lib/stripe/mandates";
 import { headers } from "next/headers";
+import { cushionArgs, type CushionChoice } from "@/lib/cushion";
 import { advanceBatch, refundOwedContributions, syncRetriedHold } from "@/lib/stripe/charges";
 
 /**
@@ -40,6 +41,8 @@ export async function startFundingMandate(
   tripId: string,
   elementId: string,
   fundingRequestId: string,
+  /** the participant's price cushion (§5) — none for fixed-price options */
+  cushion: CushionChoice = { kind: "none" },
 ): Promise<StartMandateResult> {
   if (!stripeConfigured()) {
     return { error: "Payments aren't set up in this environment yet." };
@@ -56,6 +59,7 @@ export async function startFundingMandate(
 
   const { data: mandateId, error } = await supabase.rpc("create_funding_mandate", {
     p_funding_request_id: fundingRequestId,
+    ...cushionArgs(cushion),
   });
   if (error) return { error: toUserFacingError(error) };
 
@@ -365,4 +369,42 @@ export async function extendPaymentRetry(
   if (error) return { error: toUserFacingError(error) };
   revalidateFunding(tripId, elementId);
   return { retryDeadline: data as string };
+}
+
+export type SetCushionResult = { error?: string; maxAmount?: number };
+
+/**
+ * §5: save the cushion picked in the Commit modal on the participant's own
+ * still-pending authorization, right before Stripe confirms it.
+ */
+export async function setMandateCushion(mandateId: string, cushion: CushionChoice): Promise<SetCushionResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_funding_mandate_cushion", {
+    p_mandate_id: mandateId,
+    ...cushionArgs(cushion),
+  });
+  if (error) return { error: toUserFacingError(error) };
+  return { maxAmount: Number(data) };
+}
+
+export type RecalculateSharesResult = { error?: string; population?: number; share?: number; reauthorize?: number };
+
+/**
+ * §6: after someone withdraws, the organizer re-splits the cost among the
+ * people still in. Authorizations that still cover the new share stay;
+ * the rest are asked to authorize again (recalculate_funding_shares).
+ */
+export async function recalculateFundingShares(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+): Promise<RecalculateSharesResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("recalculate_funding_shares", { p_funding_request_id: fundingRequestId })
+    .maybeSingle<{ population: number; individual_amount: number; reauthorize: number }>();
+  if (error) return { error: toUserFacingError(error) };
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath(`/trips/${tripId}/elements/${elementId}`);
+  return { population: data?.population, share: data ? Number(data.individual_amount) : undefined, reauthorize: data?.reauthorize };
 }

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { bookingLinkFor } from "@/lib/booking-link";
+import { isAutomaticBooking } from "@/lib/booking-capability";
 import { btnPrimary } from "@/lib/ui";
 import { BookingRecordForm, type BookingDraft } from "./booking-record-form";
 
@@ -27,13 +28,22 @@ export type ReadyToBookProps = {
  */
 export function ReadyToBook({ tripId, elementId, optionValue, draft, roster, showIncidentals, amountFromCard, card, travelers }: ReadyToBookProps) {
   const link = bookingLinkFor(optionValue);
+  // Gated off (AUTOMATIC_BOOKING_ENABLED) until a vendor booking integration exists.
+  if (isAutomaticBooking(optionValue)) {
+    return (
+      <div className="flex flex-col gap-1 rounded-lg border border-brand-line p-3 text-xs">
+        <span className="font-medium text-black dark:text-zinc-50">✓ Funded. We&apos;re booking it for you</span>
+        <span className="text-brand-muted">The booking is made automatically. The details appear here once it&apos;s confirmed.</span>
+      </div>
+    );
+  }
   const step = "flex flex-col gap-1.5 border-t border-brand-line pt-3 first:border-0 first:pt-0";
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-brand-line p-3 text-xs">
-      <span className="font-medium text-black dark:text-zinc-50">Funded — ready to book</span>
+      <span className="font-medium text-black dark:text-zinc-50">Funded · ready to book</span>
 
       <div className={step}>
-        <span className="font-medium">1. Open {link.providerLabel === "Added by hand" ? "the vendor" : link.providerLabel}</span>
+        <span className="font-medium">1. Open the vendor</span>
         {link.url ? (
           <a href={link.url} target="_blank" rel="noopener noreferrer" className={`w-fit px-3 py-1.5 ${btnPrimary}`}>
             Open booking page ↗
@@ -46,7 +56,7 @@ export function ReadyToBook({ tripId, elementId, optionValue, draft, roster, sho
         <span className="font-medium">2. Pay</span>
         {card ?? (
           <span className="text-brand-muted">
-            Pay with your own card on the vendor&apos;s site, then enter what you paid below. (Catoco cards aren&apos;t switched on yet.)
+            Pay with your own card on their site, then enter what you paid below. (Catoco cards aren&apos;t switched on yet.)
           </span>
         )}
       </div>

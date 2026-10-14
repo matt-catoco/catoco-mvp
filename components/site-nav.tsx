@@ -1,23 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { LogoMark } from "./logo-mark";
-import { SignOutButton } from "./sign-out-button";
+import { AccountMenu, MyTripsLink } from "./account-menu";
 
 /**
- * Persistent app-wide nav — present on every route including the marketing
- * homepage (rendered in app/layout.tsx above {children}), separate from the
- * homepage's own marketing header (How it works / The elements / Join the
- * beta), which stays as-is. This bar is purely about getting into and out of
- * the app: the mark, My Trips when signed in, sign in/out. No dropdown, no
- * avatar, no notifications — that's explicitly out of scope for MVP.
- *
- * The mark always links to "/" (marketing home), signed in or not — that's
- * the one thing this nav previously got wrong: it sent signed-in users to
- * /trips, so there was no way back to "/" at all once signed in. "My Trips"
- * is its own separate link, so from a trip page both Home and My Trips are
- * one click away. Sign out stays (sessions are persistent cookies, not
- * cleared on browser close, so there needs to be a real way to end one) but
- * kept visually secondary — smaller and quieter than the primary links.
+ * Persistent app-wide nav — on every route except the marketing homepage
+ * (each subtree's layout adds it), separate from the homepage's own
+ * marketing header. Getting into and out of the app: the wordmark (always
+ * links to "/", signed in or not), "My trips" (teal underline when current)
+ * and, signed in, an initials avatar with the account menu — name and
+ * email, Profile, Sign out ("Getting In" restyle, 2026-10-14; Email
+ * notifications deliberately not in the menu yet).
  *
  * Reuses the same server-side auth check every authed page already uses
  * (createClient() + auth.getUser()) rather than inventing a second pattern.
@@ -27,35 +19,33 @@ export async function SiteNav() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+    : { data: null };
+
+  const focusRing =
+    "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
   return (
-    <header className="border-b border-black/[.08] dark:border-white/[.12]">
-      <nav className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-6">
+    <header className="border-b border-brand-line bg-background">
+      <nav aria-label="Main" className="mx-auto flex h-[60px] w-full max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href="/"
-          className="flex items-center gap-2 text-sm font-semibold text-black dark:text-zinc-50"
+          className={`rounded-sm font-[family-name:var(--font-display)] text-[22px] font-bold tracking-[-0.02em] text-foreground ${focusRing}`}
         >
-          <span className="h-5 w-5">
-            <LogoMark />
-          </span>
           catoco
         </Link>
 
-        <div className="flex items-center gap-5">
+        <div className="flex h-full items-center gap-5 sm:gap-6">
           {user ? (
             <>
-              <Link
-                href="/trips"
-                className="text-sm font-medium text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
-              >
-                My Trips
-              </Link>
-              <SignOutButton />
+              <MyTripsLink />
+              <AccountMenu name={(profile?.display_name as string | null) ?? ""} email={user.email ?? ""} />
             </>
           ) : (
             <Link
               href="/sign-in"
-              className="text-sm font-medium text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+              className={`text-sm font-medium text-brand-muted hover:text-foreground ${focusRing} rounded-sm`}
             >
               Sign in
             </Link>

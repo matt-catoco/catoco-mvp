@@ -105,6 +105,16 @@ export function TripPermissionsFields({
           }
         />
         <Toggle
+          checked={v.showVoters}
+          onChange={(x) => onChange({ ...v, showVoters: x })}
+          title="Show who voted"
+          detail={
+            v.showVoters
+              ? "Each option shows its voters' initials (from their display names) — never full names or emails."
+              : "Votes are private — options show a vote count only."
+          }
+        />
+        <Toggle
           checked={v.allowParticipantInvites}
           onChange={(x) => onChange({ ...v, allowParticipantInvites: x })}
           title="Participants can invite others"
@@ -216,16 +226,27 @@ export function TripPermissionsFields({
             <span className="text-xs text-brand-muted">hours</span>
           </span>
           <span className="text-xs text-brand-muted">
-            At the funding deadline everyone&apos;s card is put on hold. If someone&apos;s card fails, they get this long
-            to fix it while the others wait — nobody is charged until every hold is in.
+            At the funding deadline everyone&apos;s commitment is confirmed with their bank. If someone&apos;s card fails,
+            they get this long to fix it while the others wait — nobody is charged until everyone is committed.
           </span>
         </label>
       </section>
 
       <section className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
         <span className="text-xs font-medium text-black dark:text-zinc-50">Money</span>
+        <Toggle
+          checked={v.checkoutCushion}
+          onChange={(x) => onChange({ ...v, checkoutCushion: x })}
+          title="Let people add a price cushion when they commit"
+          detail={
+            v.checkoutCushion
+              ? "For prices from a booking site, each person can allow a little extra in case the price moves. They're only charged the real price."
+              : "Everyone authorizes exactly their share. If the price rises, they'll be asked to commit again."
+          }
+        />
+        {v.checkoutCushion && (
         <label className="flex flex-col gap-1">
-          <span className={labelClass}>Price cushion</span>
+          <span className={labelClass}>Recommended cushion</span>
           {/* Same layout as the element-level CushionField: type, then amount, one row. */}
           <span className="flex items-center gap-2">
             <select
@@ -253,10 +274,11 @@ export function TripPermissionsFields({
             </span>
           )}
           <span className="text-xs text-brand-muted">
-            Prices move between lock-in and booking. Everyone authorizes up to their share plus this, and is
-            only charged the real price. Each element can override it.
+            Pre-selected for everyone at checkout — each person can choose more, less or none. Each element can
+            override it.
           </span>
         </label>
+        )}
       </section>
     </div>
   );

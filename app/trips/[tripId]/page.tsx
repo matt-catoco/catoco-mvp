@@ -18,6 +18,7 @@ import { AddElementModal } from "./add-element-modal";
 import { getTripContext } from "./trip-context";
 import Link from "next/link";
 import type { TileAlerts } from "@/components/trip-home/element-tile";
+import { PHASE_DEADLINE, timeLeft } from "@/lib/time-left";
 import { PaymentsTracker, type TrackerGroup } from "@/components/trip-home/payments-tracker";
 
 type AlertRow = {
@@ -56,16 +57,6 @@ function failureMessage(reason: string | null, deadline: string | null): string 
   return `your card was declined. Add a different card or bank account${left}.`;
 }
 
-/** "5h", "45m", "3d" — compact time-left for the card clock/footer. */
-function timeLeft(ms: number): string {
-  if (ms <= 0) return "now";
-  const h = ms / 3_600_000;
-  if (h < 1) return `${Math.max(1, Math.round(ms / 60_000))}m`;
-  if (h < 48) return `${Math.round(h)}h`;
-  return `${Math.round(h / 24)}d`;
-}
-
-const PHASE_DEADLINE = { submission: "Submissions close", voting: "Voting closes", funding: "Funding closes" } as const;
 // Nobody HAS to submit or vote — only funding needs everyone in.
 const PHASE_TODO = { submission: "Yet to submit", voting: "Yet to vote", funding: "Waiting on you" } as const;
 const PHASE_DONE = { submission: "Submitted", voting: "Voted", funding: "Committed" } as const;

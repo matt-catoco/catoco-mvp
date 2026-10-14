@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   TRAVEL_SEARCH_MODES,
   TRAVEL_MODE_LABELS,
@@ -19,7 +18,6 @@ import {
 import { fieldClass, labelClass, pillActiveTeal, pillInactive, btnPrimary, btnSecondary } from "@/lib/ui";
 import type { VendorSearchParams, VendorSearchResult, VendorSearchResponse } from "@/lib/vendor-search/types";
 import { vendorResultToOptionValue } from "@/lib/vendor-search/to-option-value";
-import { submitOption } from "./actions";
 import { DateRangeField } from "@/components/date-range-field";
 import { AirportPicker } from "@/components/airport-picker";
 import { NumberInput } from "@/components/number-input";
@@ -533,36 +531,25 @@ export function VendorSearchPanel({
 
 /**
  * Modal chrome around VendorSearchPanel for the post-creation "Search
- * options" flow — submits the picked result straight to the already-open
- * element via submitOption() and closes. See VendorSearchPanel for the
- * shared search UI itself.
+ * options" flow. Pure search-and-pick: the chosen result goes back to
+ * SubmitOptionForm (onPicked) for a review step with a note before it's
+ * added (founder redesign, 2026-10-14 — reverses the earlier "submit
+ * directly, no review" call). Search itself is unchanged.
  */
 export function VendorSearchModal({
-  elementId,
   elementType,
   tripContext,
   onClose,
+  onPicked,
 }: {
-  elementId: string;
   elementType: ElementType;
   tripContext?: TripContext;
   onClose: () => void;
+  onPicked: (value: Record<string, unknown>) => void;
 }) {
-  const router = useRouter();
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
   function handleSelect(value: Record<string, unknown>) {
-    setSubmitError(null);
-    startTransition(async () => {
-      const res = await submitOption(elementId, value);
-      if (res.error) {
-        setSubmitError(res.error);
-        return;
-      }
-      router.refresh();
-      onClose();
-    });
+    onPicked(value);
+    onClose();
   }
 
   return (
@@ -589,8 +576,7 @@ export function VendorSearchModal({
           </button>
         </div>
         <div className="overflow-y-auto pr-1">
-          <VendorSearchPanel elementType={elementType} tripContext={tripContext} onSelect={handleSelect} selecting={pending} />
-          {submitError && <p className="mt-2 text-xs text-red-500">{submitError}</p>}
+          <VendorSearchPanel elementType={elementType} tripContext={tripContext} onSelect={handleSelect} selecting={false} />
         </div>
       </div>
     </div>

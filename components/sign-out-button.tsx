@@ -1,10 +1,14 @@
 "use client";
 
-import { useTransition } from "react";
+import { forwardRef, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export function SignOutButton() {
+/** Sign out. Used as a menu item in the account menu (role/className passed in). */
+export const SignOutButton = forwardRef<
+  HTMLButtonElement,
+  { className?: string; role?: string; tabIndex?: number; icon?: ReactNode }
+>(function SignOutButton({ className, role, tabIndex, icon }, ref) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -19,12 +23,19 @@ export function SignOutButton() {
 
   return (
     <button
+      ref={ref}
       type="button"
+      role={role}
+      tabIndex={tabIndex}
       onClick={handleSignOut}
       disabled={pending}
-      className="text-sm font-medium text-zinc-600 underline-offset-2 hover:underline disabled:opacity-50 dark:text-zinc-400"
+      className={
+        className ??
+        "text-sm font-medium text-zinc-600 underline-offset-2 hover:underline disabled:opacity-50 dark:text-zinc-400"
+      }
     >
+      {icon}
       {pending ? "Signing out…" : "Sign out"}
     </button>
   );
-}
+});

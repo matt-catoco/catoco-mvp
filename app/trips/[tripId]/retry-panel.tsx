@@ -13,6 +13,7 @@ import {
 } from "./payment-actions";
 import { btnPrimary, btnSecondary } from "@/lib/ui";
 import { formatCurrency } from "@/lib/trip-elements";
+import { TestModeBadge } from "./test-mode-badge";
 
 export type RetryStatus = {
   waiting: number;
@@ -76,36 +77,37 @@ export function HoldPhasePanel({
     waiting > 0 ? (
       <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
         Waiting on {waiting} participant{waiting === 1 ? "" : "s"} to update payment{left ? ` — ${left}` : ""}. Everyone
-        else&apos;s card is on hold, not charged.
+        else is committed, not charged.
       </p>
     ) : (
       <p className="mt-2 text-xs text-brand-muted">
-        Placing holds — {retry?.held ?? 0} of {retry?.total ?? 0} in. Nobody is charged until every hold is in.
+        Committing — {retry?.held ?? 0} of {retry?.total ?? 0} in. Nobody is charged until everyone is committed.
       </p>
     );
 
   return (
-    <div className="rounded-lg border border-brand-line p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-black dark:text-zinc-50">Fund it</span>
-        <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
-          Test mode
-        </span>
+    // Sits directly in the element card (the header chip already says
+    // "Committing"), like the mockup — no box-in-a-box.
+    <div className="flex flex-col">
+      <div className="flex justify-end empty:hidden">
+        <TestModeBadge />
       </div>
 
       {myStatus === "held" && (
-        <p className="mt-2 text-xs text-black dark:text-zinc-50">
-          Your card is on hold for {formatCurrency(share, currency)} — not charged. You&apos;ll be charged once
-          everyone&apos;s hold is in.
-        </p>
+        <div className="mt-2 flex flex-col gap-0.5 rounded-xl border-[1.5px] border-brand-teal-deep bg-brand-teal-wash px-3.5 py-3 text-[13.5px] leading-relaxed text-foreground">
+          <b className="font-semibold text-brand-accent">✓ You&apos;re committed</b>
+          <span>
+            {formatCurrency(share, currency)} is authorized, not charged. You will be charged once everyone is committed.
+          </span>
+        </div>
       )}
 
       {iAmWaiting && myRetryReason === "authentication_required" && (
         <div className="mt-2 flex flex-col gap-2">
-          <p className="text-sm font-medium text-black dark:text-zinc-50">Your bank needs you to confirm this payment</p>
+          <p className="text-sm font-medium text-black dark:text-zinc-50">Your bank needs you to confirm</p>
           <p className="text-xs text-brand-muted">
-            Everyone else is waiting on you{left ? ` (${left})` : ""}. Confirming only places a hold — nothing is charged until
-            the whole group is in.
+            Everyone else is waiting on you{left ? ` (${left})` : ""}. Confirming completes your commitment. Nothing is charged
+            until everyone is committed.
           </p>
           <button
             type="button"
@@ -137,8 +139,8 @@ export function HoldPhasePanel({
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-sm font-medium text-black dark:text-zinc-50">Your card was declined</p>
           <p className="text-xs text-brand-muted">
-            Add a different card or bank account{left ? ` (${left})` : ""} — it only places a hold for{" "}
-            {formatCurrency(share, currency)}; nothing is charged until the whole group is in.
+            Add a different card or bank account{left ? ` (${left})` : ""} to complete your commitment of{" "}
+            {formatCurrency(share, currency)}. Nothing is charged until everyone is committed.
           </p>
           {newMethod && stripeJs ? (
             <Elements
@@ -176,10 +178,18 @@ export function HoldPhasePanel({
         </div>
       )}
 
-      {groupLine}
+      {!(isOrganizerView && waiting > 0) && groupLine}
 
       {isOrganizerView && waiting > 0 && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex flex-col gap-2 rounded-xl border-[1.5px] border-amber-300 bg-amber-50 px-3.5 py-3 text-[13.5px] leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+          <b className="font-semibold">
+            {waiting === 1 ? "1 person hasn't" : `${waiting} people haven't`} committed
+          </b>
+          <span>
+            If everyone isn&apos;t committed in time, authorizations are released and the funding date has to be reset. A final
+            nudge gives {waiting === 1 ? "them" : "everyone waiting"} 24 more hours.
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={pending}
@@ -191,11 +201,12 @@ export function HoldPhasePanel({
                 router.refresh();
               });
             }}
-            className={`h-8 px-3 text-xs ${btnSecondary}`}
+            className={`h-9 px-3 text-sm ${btnSecondary}`}
           >
-            Give them 24h more
+            {pending ? "Sending…" : "Send final nudge (+24h)"}
           </button>
-          <span className="text-[11px] text-brand-muted">Card holds last about a week, so this is capped.</span>
+          <span className="text-[11px]">Card authorizations last about a week, so this is capped.</span>
+          </div>
         </div>
       )}
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
@@ -246,7 +257,7 @@ function NewMethodForm({
     >
       <PaymentElement options={{ paymentMethodOrder: methods, layout: "tabs" }} />
       <button type="submit" disabled={!stripe || submitting} className={`h-9 px-3 text-xs ${btnPrimary}`}>
-        {submitting ? "Saving…" : "Save and place my hold"}
+        {submitting ? "Saving…" : "Save and commit"}
       </button>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </form>

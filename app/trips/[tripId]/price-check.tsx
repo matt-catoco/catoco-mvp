@@ -13,7 +13,8 @@ export type PriceInfo = {
   /** Duffel / LiteAPI options can be re-quoted automatically. */
   vendorLabel: string | null;
   /** e.g. "10%" or "€25 per person" */
-  cushionLabel: string;
+  /** the recommended checkout cushion, e.g. "10%" — null when the trip has none */
+  cushionLabel: string | null;
   previousShare: number | null;
   priceChangedAt: string | null;
 };
@@ -82,8 +83,10 @@ export function PriceCheck({
         </p>
       )}
       <p className="mt-1 text-[11px] text-brand-muted">
-        Not guaranteed until booked — prices can move before the group pays. Authorizations cover up to a{" "}
-        {info.cushionLabel} cushion; anything beyond that needs everyone to authorize again.
+        Not guaranteed until booked — prices can move before the group pays.{" "}
+        {info.cushionLabel
+          ? `Each person chose their own cushion at checkout (recommended: ${info.cushionLabel}); anyone it no longer covers is asked to authorize again.`
+          : "If the price rises, everyone is asked to authorize again."}
       </p>
 
       {canAct && editable && (

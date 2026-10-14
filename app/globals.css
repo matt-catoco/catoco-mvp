@@ -16,6 +16,13 @@
   --brand-amber: #f2a63c;
   --brand-line: #dedcd1;
   --brand-muted: #6b6b64;
+  /* 2026-10-14 (Getting In restyle): raised surfaces (inputs, menus), the
+     error/coral color, and an accent for teal text, links and focus rings —
+     deep teal on paper, bright teal on ink (deep teal itself stays the same
+     in dark mode: several fills put white text on it). */
+  --brand-surface: #ffffff;
+  --brand-coral: #d4402f;
+  --brand-accent: #0f8c7e;
 }
 
 @theme inline {
@@ -27,6 +34,9 @@
   --color-brand-amber: var(--brand-amber);
   --color-brand-line: var(--brand-line);
   --color-brand-muted: var(--brand-muted);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-coral: var(--brand-coral);
+  --color-brand-accent: var(--brand-accent);
   --font-sans: var(--font-inter);
   --font-display: var(--font-bricolage);
 }
@@ -37,6 +47,14 @@
   :root {
     --background: #0d2020;
     --foreground: #fafaf7;
+    /* Lines, muted text and washes were light-mode only before, so cards
+       and fields looked washed out on ink. */
+    --brand-line: #2c4543;
+    --brand-muted: #8fa6a3;
+    --brand-teal-wash: #12332f;
+    --brand-surface: #112424;
+    --brand-coral: #ff7a6b;
+    --brand-accent: #2dd4bf;
   }
 }
 

@@ -25,6 +25,10 @@ export type TripPermissions = {
   viewAllParticipants: boolean;
   /** Element cards show a deadline clock inside this many hours. */
   deadlineAlertHours: 12 | 24 | 48;
+  /** Voting tiles show who voted, as display-name initials (never names or emails). Off: counts only. */
+  showVoters: boolean;
+  /** Participants may add their own price cushion when they commit (vendor-sourced prices only). */
+  checkoutCushion: boolean;
 };
 
 /** Same defaults as the trips table columns (20261002000000 / 20261004000000). */
@@ -43,6 +47,8 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   votingDeadlineDays: 7,
   viewAllParticipants: true,
   deadlineAlertHours: 24,
+  showVoters: false,
+  checkoutCushion: true,
 };
 
 /** Above this the settings UI asks "are you sure?" — a typo guard, not a limit. */

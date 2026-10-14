@@ -41,6 +41,10 @@ export async function getTripContext(
     ctx.travelers = { adults: participantCount };
   }
 
+  // Hides the per-element cushion when the trip has none (missing column = on).
+  const { data: cushionSetting } = await supabase.from("trips").select("allow_checkout_cushion").eq("id", tripId).maybeSingle();
+  ctx.checkoutCushion = (cushionSetting as { allow_checkout_cushion?: boolean } | null)?.allow_checkout_cushion !== false;
+
   const { data: elements } = await supabase
     .from("trip_elements")
     .select("type, locked_option_id")

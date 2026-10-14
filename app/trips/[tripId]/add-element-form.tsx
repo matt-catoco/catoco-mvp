@@ -200,7 +200,7 @@ export function AddElementForm({
 
   function validate(): string | null {
     if (showSpots && parseSpots(spots) === undefined) return "Spots must be a whole number of at least 1.";
-    if (showSpots && parseCushion(cushion) === undefined) return "Price cushion must be a non-negative number.";
+    if (showSpots && tripContext?.checkoutCushion !== false && parseCushion(cushion) === undefined) return "Price cushion must be a non-negative number.";
     if (state === "locked") {
       return validateOptionValue(type, lockedValue, { requireDates: false });
     }
@@ -413,7 +413,7 @@ export function AddElementForm({
       )}
 
       {showSpots && <SpotsField value={spots} onChange={setSpots} />}
-      {showSpots && <CushionField value={cushion} onChange={setCushion} />}
+      {showSpots && tripContext?.checkoutCushion !== false && <CushionField value={cushion} onChange={setCushion} />}
 
       <div className="flex flex-col gap-2">
         <span className={`${labelClass} text-center`}>State</span>

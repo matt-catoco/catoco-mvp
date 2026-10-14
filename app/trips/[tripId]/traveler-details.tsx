@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, useTransition, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
 import {
@@ -115,17 +115,53 @@ export function TravelerDetailsStatus() {
 /** Centered overlay box used for the commit/checkout steps. */
 export function Lightbox({
   title,
+  subtitle,
   onClose,
   children,
 }: {
   title: string;
+  /** one muted line under the title (e.g. "Accommodations · Casa Mare") */
+  subtitle?: string;
   /** omit to make it non-dismissable (e.g. mid-payment) */
   onClose?: () => void;
   children: ReactNode;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Return focus to whatever opened the dialog (e.g. the Commit button) on
+  // close; move focus into the dialog on open.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      if (opener && document.body.contains(opener)) opener.focus();
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose?.();
+      if (e.key === "Escape") {
+        onClose?.();
+        return;
+      }
+      // Focus trap: Tab / Shift-Tab wrap inside the dialog.
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusables = [
+        ...dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => el.offsetParent !== null);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === dialogRef.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -139,18 +175,23 @@ export function Lightbox({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={() => onClose?.()}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="lightbox-title"
-        className="mx-auto my-[8vh] flex w-full max-w-md flex-col gap-3 rounded-2xl border border-brand-line bg-background p-5 text-left text-xs shadow-xl"
+        className="mx-auto my-[8vh] flex w-full max-w-md flex-col gap-3 rounded-2xl border border-brand-line bg-background p-5 text-left text-xs shadow-xl outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 id="lightbox-title" className="font-[family-name:var(--font-display)] text-lg font-bold text-foreground">
-            {title}
-          </h2>
+          <div className="min-w-0">
+            <h2 id="lightbox-title" className="font-[family-name:var(--font-display)] text-[22px] font-bold leading-tight text-foreground">
+              {title}
+            </h2>
+            {subtitle && <p className="mt-0.5 truncate text-sm text-brand-muted">{subtitle}</p>}
+          </div>
           {onClose && (
-            <button type="button" aria-label="Close" onClick={onClose} className="text-lg leading-none text-brand-muted hover:text-foreground">
+            <button type="button" aria-label="Close" onClick={onClose} className="rounded-md text-lg leading-none text-brand-muted outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand-teal-deep focus-visible:ring-offset-2">
               ×
             </button>
           )}
@@ -266,11 +307,12 @@ export function TravelerRequirementEditor({
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   return (
-    <details className="rounded-lg border border-brand-line p-3 text-xs">
-      <summary className="cursor-pointer font-medium text-black dark:text-zinc-50">
+    // Lives in the header "⋯" menu → "Traveler details…" dialog.
+    <div className="flex flex-col gap-2 text-xs">
+      <p className="font-medium text-black dark:text-zinc-50">
         Details the vendor needs: {requirement ? `${requirement.fields.length} field${requirement.fields.length === 1 ? "" : "s"}, ${requirement.scope === "each" ? "every traveler" : "lead guest only"}` : "none"}
-      </summary>
-      <div className="mt-2 flex flex-col gap-2">
+      </p>
+      <div className="flex flex-col gap-2">
         <span className="text-brand-muted">
           We only collect name, date of birth, gender, email and phone — never passport or ID numbers. If the vendor needs more, tell the
           Catoco team before adding it.
@@ -334,7 +376,7 @@ export function TravelerRequirementEditor({
           {msg && <span className="text-brand-muted">{msg}</span>}
         </div>
       </div>
-    </details>
+    </div>
   );
 }
 

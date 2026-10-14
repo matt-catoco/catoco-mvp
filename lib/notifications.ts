@@ -172,7 +172,7 @@ export async function notifyPaymentRetryNeeded(opts: {
         subject: `Action needed for ${elementLabel} — ${trip.name}`,
         html: `
           <p>The group's payment for <strong>${escapeHtml(elementLabel)}</strong> on <strong>${escapeHtml(trip.name)}</strong> is ready, but ${action}.</p>
-          <p>Everyone else's payment is on hold, waiting for you — please sort it out by <strong>${by}</strong> or the group's booking is called off.</p>
+          <p>Everyone else is committed and waiting for you — please sort it out by <strong>${by}</strong> or the group's booking is called off.</p>
           <p><a href="${url}">${opts.reason === "authentication_required" ? "Confirm the payment" : "Update payment method"}</a></p>
         `,
         origin: opts.origin,
@@ -189,7 +189,7 @@ export async function notifyPaymentRetryNeeded(opts: {
         subject: `${elementLabel}: waiting on one payment — ${trip.name}`,
         html: `
           <p>${escapeHtml(who)}'s payment for <strong>${escapeHtml(elementLabel)}</strong> on <strong>${escapeHtml(trip.name)}</strong> didn't go through (${opts.reason === "authentication_required" ? "their bank needs them to confirm it" : "card declined"}).</p>
-          <p>Everyone else's payment is on hold — nothing's been charged. They have until <strong>${by}</strong>; you can give them more time from the element page.</p>
+          <p>Everyone else is committed — nothing's been charged. They have until <strong>${by}</strong>; you can give them more time from the element page.</p>
           <p><a href="${url}">See where things stand</a></p>
         `,
         origin: opts.origin,

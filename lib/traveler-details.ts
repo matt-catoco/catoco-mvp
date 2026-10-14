@@ -96,3 +96,38 @@ export async function travelerDetailsOwed(service: SupabaseClient, fundingReques
   }
   return owed;
 }
+
+/**
+ * Organizer progress line (founder, 2026-10-14): how many of the people who
+ * owe details have added them — "Traveler details: 3 of 5 added", or for a
+ * lead-guest requirement just whether the lead guest has.
+ */
+export async function travelerDetailsProgress(
+  service: SupabaseClient,
+  elementId: string,
+  tripId: string,
+  req: TravelerRequirement,
+): Promise<{ scope: "each" | "lead"; added: number; total: number }> {
+  let ids: string[];
+  if (req.scope === "lead") {
+    const lead = await leadGuestId(service, elementId, tripId);
+    ids = lead ? [lead] : [];
+  } else {
+    const { data } = await service
+      .from("element_participants")
+      .select("participant_id")
+      .eq("element_id", elementId)
+      .eq("opted_in", true);
+    ids = (data ?? []).map((r) => r.participant_id as string);
+  }
+  if (ids.length === 0) return { scope: req.scope, added: 0, total: 0 };
+  const { data: rows } = await service
+    .from("element_traveler_details")
+    .select("participant_id, fields, confirmed_match")
+    .eq("element_id", elementId)
+    .in("participant_id", ids);
+  const added = (rows ?? []).filter(
+    (r) => r.confirmed_match && req.fields.every((f) => ((r.fields as string[] | null) ?? []).includes(f)),
+  ).length;
+  return { scope: req.scope, added, total: ids.length };
+}

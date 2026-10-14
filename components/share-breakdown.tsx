@@ -11,10 +11,13 @@ export function ShareBreakdown({
   share,
   percent,
   currency,
+  showPercent = true,
 }: {
   share: number;
   percent: number;
   currency: string;
+  /** false hides "(5%)" after "Catoco fee" (the commit modal) */
+  showPercent?: boolean;
 }) {
   const fee = platformFee(share, percent);
   if (fee <= 0) {
@@ -24,7 +27,7 @@ export function ShareBreakdown({
     <dl className="mt-1 grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 text-xs">
       <dt className="text-brand-muted">Share</dt>
       <dd className="text-right tabular-nums">{formatCurrency(share, currency)}</dd>
-      <dt className="text-brand-muted">Catoco fee ({percent}%)</dt>
+      <dt className="text-brand-muted">Catoco fee{showPercent ? ` (${percent}%)` : ""}</dt>
       <dd className="text-right tabular-nums">{formatCurrency(fee, currency)}</dd>
       <dt className="font-medium text-black dark:text-zinc-50">Total</dt>
       <dd className="text-right text-sm font-medium tabular-nums text-black dark:text-zinc-50">

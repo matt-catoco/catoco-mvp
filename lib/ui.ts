@@ -34,3 +34,8 @@ export const pillInactive =
   "border-brand-line text-brand-muted hover:bg-brand-teal-wash hover:text-brand-teal-deep";
 
 export const pillActiveTeal = "border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep";
+
+// Full-width, solid teal, large — the funding card's one primary action
+// (Commit). Distinct from btnPrimary (solid ink) used everywhere else.
+export const btnCommit =
+  "inline-flex h-12 w-full items-center justify-center rounded-xl bg-brand-teal font-[family-name:var(--font-display)] text-[17px] font-bold text-[#0D2020] transition-colors hover:bg-brand-teal-deep hover:text-white disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-deep focus-visible:ring-offset-2";

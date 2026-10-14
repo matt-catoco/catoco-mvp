@@ -33,6 +33,9 @@ export function EditElementForm({
   initialSpots = null,
   initialCushionKind = null,
   initialCushionValue = null,
+  cushionEnabled = true,
+  forceOpen,
+  onRequestClose,
 }: {
   tripId: string;
   elementId: string;
@@ -48,9 +51,19 @@ export function EditElementForm({
   initialSpots?: number | null;
   initialCushionKind?: string | null;
   initialCushionValue?: number | null;
+  /** The trip allows a price cushion at checkout (else the field is hidden). */
+  cushionEnabled?: boolean;
+  /** Hosted by the element header's "⋯" menu (in a Lightbox): starts open,
+   * no inline "Edit" toggle, and reports Cancel / a successful Save. */
+  forceOpen?: boolean;
+  onRequestClose?: () => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(forceOpen ?? false);
+  const close = () => {
+    setOpen(false);
+    onRequestClose?.();
+  };
   const [label, setLabel] = useState(initialLabel);
   const [metadata, setMetadata] = useState(initialMetadata);
   const [optionsDeadline, setOptionsDeadline] = useState(
@@ -90,8 +103,9 @@ export function EditElementForm({
     setError(null);
     const parsedSpots = canSetSpots ? parseSpots(spots) : null;
     if (parsedSpots === undefined) return setError("Spots must be a whole number of at least 1.");
-    const parsedCushion = canSetSpots ? parseCushion(cushion) : undefined;
-    if (canSetSpots && parsedCushion === undefined) return setError("Price cushion must be a non-negative number.");
+    const showCushion = canSetSpots && cushionEnabled;
+    const parsedCushion = showCushion ? parseCushion(cushion) : undefined;
+    if (showCushion && parsedCushion === undefined) return setError("Price cushion must be a non-negative number.");
     const cushionChanged = JSON.stringify(cushion) !== JSON.stringify(initialCushion);
     startTransition(async () => {
       const res = await updateElement({
@@ -105,19 +119,19 @@ export function EditElementForm({
         votingDeadline: votingDeadline || null,
         lockedValue: state === "locked" ? lockedValue : undefined,
         spots: canSetSpots && parsedSpots !== (initialSpots ?? null) ? parsedSpots : undefined,
-        cushion: canSetSpots && cushionChanged ? parsedCushion : undefined,
+        cushion: showCushion && cushionChanged ? parsedCushion : undefined,
       });
       if (res.error) {
         setError(res.error);
         return;
       }
-      setOpen(false);
+      close();
       router.refresh();
     });
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-3 rounded-lg border border-brand-line p-3">
+    <div className={forceOpen ? "flex flex-col gap-3" : "mt-3 flex flex-col gap-3 rounded-lg border border-brand-line p-3"}>
       <label className="flex flex-col gap-1">
         <span className={labelClass}>Label</span>
         <input className={field} value={label} onChange={(e) => setLabel(e.target.value)} />
@@ -154,7 +168,7 @@ export function EditElementForm({
       )}
 
       {canSetSpots && <SpotsField value={spots} onChange={setSpots} />}
-      {canSetSpots && <CushionField value={cushion} onChange={setCushion} />}
+      {canSetSpots && cushionEnabled && <CushionField value={cushion} onChange={setCushion} />}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
@@ -169,7 +183,7 @@ export function EditElementForm({
         </button>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={close}
           disabled={pending}
           className={`px-3 py-1.5 text-xs ${btnSecondary}`}
         >

@@ -664,6 +664,8 @@ export type TripContext = {
   // per search — derived from the trip's participant count (see
   // trip-context.ts), always overridable per search like everything else here.
   travelers?: TravelersBreakdown;
+  /** The trip allows a price cushion at checkout (Trip settings). */
+  checkoutCushion?: boolean;
 };
 
 /**

@@ -31,18 +31,18 @@ export type PaymentRosterEntry = {
 };
 
 const STATE_LABEL: Record<PaymentState, string> = {
-  not_authorized: "Not authorized yet",
+  not_authorized: "Not committed yet",
   started: "Started, not finished",
-  authorized: "Authorized — not charged",
+  authorized: "Committed — not charged",
   charging: "Charging…",
-  on_hold: "Card on hold — not charged",
+  on_hold: "Committed — not charged",
   needs_retry: "Needs to update payment",
   paid: "Paid",
   used: "Paid · used for booking",
   charge_failed: "Charge failed",
   refund_pending: "Refund pending",
   refunded: "Refunded",
-  canceled: "Authorization canceled",
+  canceled: "Withdrew",
 };
 
 // Solid = settled money, dashed = pending/open — the brand's own

@@ -3,6 +3,7 @@ import {
   ACCOMMODATION_SUBTYPE_LABELS,
   EXPERIENCE_SUBTYPE_LABELS,
   PRICE_BEARING_TYPES,
+  PRICING_BASIS_LABELS,
   TRAVEL_MODE_LABELS,
   describeDates,
   formatCurrency,
@@ -11,6 +12,7 @@ import {
   type AccommodationSubtype,
   type ElementType,
   type ExperienceSubtype,
+  type PricingBasis,
   type TravelMode,
   type TravelersBreakdown,
 } from "@/lib/trip-elements";
@@ -95,6 +97,85 @@ export function keyFactsLine(type: ElementType, value: Record<string, unknown>):
   }
 
   return parts.length ? parts.join(" · ") : null;
+}
+
+/** Price with its basis — "€45 per person", "€120 per night", "€300 flat". */
+export function priceWithBasis(value: Record<string, unknown>): { amount: string; basis: string } | null {
+  const raw = value.price;
+  if (raw === undefined || raw === null || String(raw).trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  const currency = typeof value.currency === "string" && value.currency ? value.currency : "USD";
+  if (value.deposit_required === true) return { amount: formatCurrency(n, currency), basis: "deposit" };
+  const basis = PRICING_BASIS_LABELS[value.pricing_basis as PricingBasis] ?? "";
+  return { amount: formatCurrency(n, currency), basis: basis.replace(" (shared cost)", "") };
+}
+
+/**
+ * Compare-table rows (voting restyle, 2026-10-14): the same facts as
+ * keyFactsLine, split into one labelled row each and chosen per type — a
+ * Dining compare shows cuisine and meal time, not guests or trip dates.
+ * Rows nobody has are dropped by the caller.
+ */
+export function compareFields(type: ElementType, value: Record<string, unknown>): { key: string; label: string; value: string | null }[] {
+  const str = (k: string) => (typeof value[k] === "string" ? (value[k] as string).trim() : "");
+  const when = (date: string, time: string) => (date ? (time ? `${formatDate(date)} · ${time}` : formatDate(date)) : time || null);
+  switch (type) {
+    case "travel": {
+      const mode = str("mode");
+      const depart = str("depart_date") || str("pickup_datetime");
+      const ret = str("return_date") || str("dropoff_datetime");
+      return [
+        { key: "mode", label: "Mode", value: mode ? (TRAVEL_MODE_LABELS[mode as TravelMode] ?? mode) : null },
+        { key: "dates", label: "Dates", value: depart ? (ret && ret !== depart ? `${formatDate(depart)} → ${formatDate(ret)}` : formatDate(depart)) : null },
+        { key: "trip", label: "Trip", value: depart && mode !== "rental_car" ? (value.round_trip === false ? "One-way" : "Round trip") : null },
+      ];
+    }
+    case "accommodation": {
+      const subtype = str("subtype");
+      const dates = (value.dates ?? {}) as Record<string, unknown>;
+      const start = typeof dates.start_date === "string" ? dates.start_date.trim() : "";
+      const end = typeof dates.end_date === "string" ? dates.end_date.trim() : "";
+      return [
+        { key: "type", label: "Type", value: subtype ? (ACCOMMODATION_SUBTYPE_LABELS[subtype as AccommodationSubtype] ?? subtype) : null },
+        { key: "stay", label: "Stay", value: start ? (end ? `${formatDate(start)} → ${formatDate(end)}` : formatDate(start)) : null },
+        { key: "location", label: "Location", value: str("location_name") || null },
+      ];
+    }
+    case "experience": {
+      const subtype = str("experience_subtype");
+      return [
+        { key: "category", label: "Category", value: subtype ? (EXPERIENCE_SUBTYPE_LABELS[subtype as ExperienceSubtype] ?? subtype) : null },
+        { key: "when", label: "When", value: when(str("date"), str("time")) },
+        { key: "location", label: "Location", value: str("location_name") || null },
+      ];
+    }
+    case "dining":
+      return [
+        { key: "cuisine", label: "Cuisine", value: str("cuisine") || null },
+        { key: "meal", label: "Meal", value: when(str("date"), str("dining_time")) },
+        { key: "price_tier", label: "Price range", value: str("price_tier") || null },
+        { key: "location", label: "Location", value: str("location_name") || null },
+      ];
+    default:
+      return [];
+  }
+}
+
+/** A real photo for a non-Destination option (vendor/scraped, never stock), else null. */
+export function optionThumbnail(type: ElementType, value: Record<string, unknown>): string | null {
+  const raw = typeof value.thumbnail_url === "string" ? value.thumbnail_url.trim() : "";
+  if (!raw) return null;
+  return type === "destination" || !isStockPhoto(raw, value.thumbnail_credit as { name?: string } | undefined) ? raw : null;
+}
+
+/** Option name for a tile/column header. */
+export function optionTitle(type: ElementType, value: Record<string, unknown>): string {
+  return (
+    (typeof value.title === "string" && value.title.trim()) ||
+    (typeof value.name === "string" && value.name.trim()) ||
+    summarizeOptionValue(type, value)
+  );
 }
 
 /**

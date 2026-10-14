@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { AuthCard, AuthHeading, authButton, authError, authField, authLabel } from "@/components/auth-ui";
 
 function ProfileForm() {
   const router = useRouter();
@@ -45,40 +46,40 @@ function ProfileForm() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-24">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          What should we call you?
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          This is the name other people in your trips will see.
-        </p>
-
-        <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-3">
+    <AuthCard label="Your name">
+      <AuthHeading>Your name</AuthHeading>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <div>
+          <label htmlFor="display-name" className={authLabel}>
+            Display name
+          </label>
           <input
+            id="display-name"
             type="text"
             required
             autoFocus
+            autoComplete="name"
             maxLength={80}
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Your name"
-            className="h-11 rounded-lg border border-black/[.12] bg-transparent px-3 text-sm outline-none focus:border-black/[.4] dark:border-white/[.16] dark:focus:border-white/[.4]"
+            className={authField}
           />
-          <button
-            type="submit"
-            disabled={status === "saving" || displayName.trim().length === 0}
-            className="h-11 rounded-lg bg-foreground px-4 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {status === "saving" ? "Saving…" : "Continue"}
-          </button>
-        </form>
-
-        {status === "error" && (
-          <p className="mt-3 text-sm text-red-500">{errorMsg}</p>
-        )}
-      </div>
-    </div>
+        </div>
+        <button
+          type="submit"
+          disabled={status === "saving" || displayName.trim().length === 0}
+          className={authButton}
+        >
+          {status === "saving" ? "Saving…" : "Continue"}
+        </button>
+      </form>
+      {status === "error" && (
+        <p role="alert" className={authError}>
+          {errorMsg}
+        </p>
+      )}
+    </AuthCard>
   );
 }
 

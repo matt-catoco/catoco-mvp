@@ -56,9 +56,20 @@ export function BookingRecord({
     { key: "notes", label: "Notes", value: record.notes },
   ];
 
+  const fromConfirmation = record.source === "email" || record.source === "upload";
+
   return (
     <section className="mt-3 flex flex-col gap-2 rounded-lg border border-brand-line p-3 text-xs">
-      <span className="font-medium text-black dark:text-zinc-50">Booking record</span>
+      <span className="flex flex-wrap items-baseline gap-x-2">
+        <span className="font-medium text-black dark:text-zinc-50">Booking record</span>
+        <span className="text-[11px] text-brand-muted">
+          {record.source === "api"
+            ? "booked by Catoco"
+            : fromConfirmation
+              ? "read from the confirmation"
+              : "entered by hand"}
+        </span>
+      </span>
       <dl className="flex flex-col gap-1.5">
         {rows
           .filter((r) => r.value)
@@ -67,10 +78,9 @@ export function BookingRecord({
               <dt className="text-brand-muted">{r.label}</dt>
               <dd className="whitespace-pre-line break-words font-medium">
                 {r.value}
-                {record.field_provenance[r.key] && (
-                  <span className="ml-1.5 text-[10px] font-normal text-brand-muted">
-                    ({record.field_provenance[r.key] === "extracted" ? "read from the confirmation" : "entered"})
-                  </span>
+                {/* The record-level line says where it came from; mark only the fields typed in on top of a confirmation. */}
+                {fromConfirmation && record.field_provenance[r.key] === "entered" && (
+                  <span className="ml-1.5 text-[10px] font-normal text-brand-muted">(entered)</span>
                 )}
               </dd>
             </div>
