@@ -22,6 +22,18 @@
   --font-body: var(--font-inter), "Inter", sans-serif;
   --max: 1120px;
 
+  /* The homepage is always light: pin the app's theme tokens (read directly
+     by Tailwind's @theme inline utilities) so the real ElementTile and the
+     Commit card don't flip to dark values in system dark mode. */
+  --background: #fafaf7;
+  --foreground: #0d2020;
+  --brand-line: #dedcd1;
+  --brand-muted: #6b6b64;
+  --brand-teal-wash: #e4f8f5;
+  --brand-surface: #ffffff;
+  --brand-coral: #d4402f;
+  --brand-accent: #0f8c7e;
+
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
@@ -234,114 +246,69 @@
   color: var(--muted);
   margin-bottom: 18px;
 }
-.tileGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* Hero board: the real Trip Home cards, a fixed 2x2 (founder mockup). */
+.heroTiles {
+  max-width: 350px;
+  margin-inline: auto;
+}
+.heroTiles > div {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-.tile {
+.heroTiles > div > * {
   aspect-ratio: 1;
-  border-radius: 12px;
+  min-height: 0;
   padding: 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-family: var(--font-display);
+  gap: 5px;
 }
-.tile.open {
-  border: 2px dashed var(--line);
-  background: transparent;
-  color: var(--muted);
+/* Square tiles this small need the mockup's tighter type, or the name and
+   status get squeezed out: rows keep their height, badge 28px, title 14px,
+   status 11px, footer 10px. */
+.heroTiles > div > * > * {
+  flex-shrink: 0;
 }
-.tile.candidate {
-  border: 2px dashed var(--teal-deep);
-  background: var(--teal-wash);
-  color: var(--teal-deep);
+.heroTiles > div > * > span:first-child > span:first-child {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  border-radius: 7px;
 }
-.tile.locked {
-  border: 2px solid var(--teal);
-  background: var(--ink);
-  color: var(--paper);
+.heroTiles > div > * > span:nth-child(2) {
+  font-size: 14px;
 }
-.tile.funded {
-  border: 2px solid var(--teal-deep);
-  background: var(--white);
-  color: var(--teal-deep);
+.heroTiles > div > * > span:nth-child(3) {
+  font-size: 11px;
+  flex-shrink: 1;
+  min-height: 0;
 }
-.tile .sym {
-  font-size: 17px;
-  font-weight: 700;
-}
-.tile .type {
-  font-family: var(--font-body);
-  font-size: 9px;
-  font-weight: 600;
-  opacity: 0.75;
-  overflow-wrap: break-word;
-}
-.tile .value {
-  font-family: var(--font-body);
-  font-size: 9.5px;
-  font-weight: 600;
-  overflow-wrap: break-word;
-}
-.tile .num {
+.heroTiles > div > * > span:nth-child(4) {
   font-size: 10px;
-  opacity: 0.55;
+  padding-top: 4px;
 }
-
-.convergenceNote {
+/* Phones: the panel is too narrow for a square tile to hold every row, so
+   tiles grow with their content instead of clipping it. */
+@media (max-width: 620px) {
+  .heroTiles > div > * {
+    aspect-ratio: auto;
+  }
+}
+.legend {
   display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
   margin-top: 20px;
   padding-top: 18px;
   border-top: 1px solid var(--line);
   font-size: 11.5px;
+  font-weight: 500;
   color: var(--muted);
 }
-.keyItem {
+.legendItem {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
-  min-width: 0;
-}
-.swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-.swatch.d {
-  border: 1.5px dashed var(--muted);
-}
-.swatch.c {
-  border: 1.5px dashed var(--teal-deep);
-  background: var(--teal-wash);
-}
-.swatch.s {
-  background: var(--ink);
-}
-.swatch.f {
-  border: 1.5px solid var(--teal-deep);
-  background: var(--white);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .tile.candidate {
-    animation: pulse 3s ease-in-out infinite;
-  }
-}
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.88;
-  }
 }
 
 /* ---------- SECTION SCAFFOLDING ---------- */
@@ -462,6 +429,187 @@
 /* .elGrid/.elTile* rules removed — the showcase grid now renders via the
    shared components/trip-home/ElementGrid, styled with Tailwind classes
    (an `onDark` prop reproduces this section's forced-dark contrast). */
+
+.bandTiles {
+  max-width: 620px;
+  margin-inline: auto;
+}
+
+/* ---------- NOBODY FRONTS THE MONEY ---------- */
+.fronts {
+  padding: 88px 0;
+  background: var(--white);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.frontsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 56px;
+  align-items: center;
+}
+.frontsH2 {
+  font-size: clamp(30px, 3.6vw, 42px);
+  line-height: 1.12;
+  margin-bottom: 22px;
+}
+.frontsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.frontsList li {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 14px;
+}
+.frontsList b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.frontsList span:not(.frontsNum) {
+  color: var(--muted);
+  font-size: 15.5px;
+}
+.frontsNum {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--teal-wash);
+  color: var(--teal-deep);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+}
+.frontsNote {
+  margin-top: 22px;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+/* ---------- ONE PLACE FOR THE WHOLE PLAN ---------- */
+.inside {
+  padding: 88px 0;
+}
+.insideGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.insideCard {
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.insideCard h3 {
+  font-size: 19px;
+}
+.insideCard p {
+  color: var(--muted);
+  font-size: 15px;
+}
+.snip {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--paper);
+  display: grid;
+  gap: 8px;
+  min-height: 112px;
+  align-content: center;
+}
+.voteRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  background: var(--white);
+}
+.voteRowSel {
+  border-color: var(--teal-deep);
+  background: var(--teal-wash);
+}
+.voteRow em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12px;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 2px;
+  background: var(--white);
+  width: fit-content;
+}
+.seg span {
+  padding: 3px 12px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.seg .segOn {
+  background: var(--ink);
+  color: var(--paper);
+}
+.days {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.days div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 4px 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+  min-width: 0;
+}
+.days b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.days span {
+  display: block;
+  margin-top: 3px;
+  border-radius: 6px;
+  padding: 2px 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  border: 1.5px solid var(--teal-deep);
+  color: var(--teal-deep);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 880px) {
+  .frontsGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+  .insideGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 
 /* ---------- PULL QUOTE ---------- */
 .pullquote {
@@ -646,8 +794,5 @@
 @media (max-width: 520px) {
   .steps {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  .tileGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

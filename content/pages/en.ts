@@ -153,27 +153,37 @@ export const contact = {
   title: "Talk to a human",
   lede:
     "Questions, feedback, a bug, or just curious? Write to us and a real person will answer.",
+  // One address per reason (founder, 2026-10-15). Never show info@,
+  // finance@, legal@, billing@ or notifications@ publicly.
   cards: [
     {
-      title: "General and support",
-      body: "For anything about using Catoco, your trip or your account.",
+      title: "Help with a trip",
+      body: "For help with a trip, your account or a payment.",
       action: "Email us",
+      email: "support@catoco.co",
     },
     {
-      title: "Partnerships and press",
-      body: "For partnerships, press and anything else that does not fit above.",
+      title: "General questions and press",
+      body: "For general questions, press and anything else that does not fit here.",
       action: "Email us",
+      email: "hello@catoco.co",
+    },
+    {
+      title: "Partnerships",
+      body: "For partnerships, vendors and affiliates.",
+      action: "Email us",
+      email: "partnerships@catoco.co",
     },
     {
       title: "Privacy requests",
       body: "To see, correct or delete your data. More in the privacy policy.",
       action: "Email us",
+      email: "privacy@catoco.co",
     },
   ],
-  responseTime: "[[Typical response time, for example: we reply within two working days.]]",
+  responseTime: "We'll reply just as soon as we can!",
   helpLine: "Looking for a quick answer first?",
   helpLink: { label: "Check the Help page", href: "/faq" },
-  languageNote: "[[Languages you offer support in, for example English and Dutch.]]",
 };
 
 export const faq = {

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { infoPagesHidden } from "@/components/info/visibility";
 import Link from "next/link";
 import { faq, site } from "@/content/pages/en";
 import { Banner, PageHeading, T } from "@/components/info/text";
@@ -9,6 +11,8 @@ export const metadata: Metadata = {
 };
 
 export default function FaqPage() {
+  // Hidden on production (see app/(info)/layout.tsx).
+  if (infoPagesHidden()) notFound();
   return (
     <article>
       <Banner>{site.draftBanner}</Banner>

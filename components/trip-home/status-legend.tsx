@@ -7,7 +7,7 @@ const LEGEND_ITEMS: { tier: ElementTier; label: string }[] = [
   { tier: "open", label: "Open" },
 ];
 
-const DOT_CLASSES: Record<ElementTier, string> = {
+export const DOT_CLASSES: Record<ElementTier, string> = {
   ready: "border-brand-teal bg-[#0D2020]",
   // Matches the actual tile fill (element-tile.tsx) — fixed paper, not the
   // flipping `bg-background` token.

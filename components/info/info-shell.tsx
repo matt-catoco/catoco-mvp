@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/logo-mark";
 import { site } from "@/content/pages/en";
+import { infoLinkVisible } from "@/components/info/visibility";
 
 /**
  * Header + footer for the public info pages. Deliberately static (no
@@ -18,7 +19,7 @@ export function InfoHeader() {
           catoco
         </Link>
         <div className="flex items-center gap-5">
-          {site.nav.map((item) => (
+          {site.nav.filter((item) => infoLinkVisible(item.href)).map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -44,7 +45,10 @@ export function InfoFooter() {
     { title: site.footer.product, links: site.footer.links.product },
     { title: site.footer.company, links: site.footer.links.company },
     { title: site.footer.legal, links: site.footer.links.legal },
-  ];
+  ]
+    // Where most info pages are hidden (production), only link to live ones.
+    .map((col) => ({ ...col, links: col.links.filter((l) => infoLinkVisible(l.href)) }))
+    .filter((col) => col.links.length > 0);
   return (
     <footer className="mt-24 border-t border-brand-line">
       <div className="mx-auto grid w-full max-w-5xl gap-10 px-6 py-12 sm:grid-cols-4">

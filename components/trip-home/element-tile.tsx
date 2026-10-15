@@ -48,6 +48,8 @@ export type ElementTileProps = {
    * fields truncate into an existing line, never add one.
    */
   variant?: "square" | "card";
+  /** Card variant: how many lines the status line may use (default 2). */
+  statusLines?: 2 | 3;
 };
 
 // Four-tier visual language (2026-09-xx "Trip overview — view options"
@@ -102,6 +104,7 @@ export function ElementTile({
   onDark = false,
   alerts,
   variant = "square",
+  statusLines = 2,
 }: ElementTileProps) {
   const card = variant === "card";
   const tileClassNames = [
@@ -134,6 +137,7 @@ export function ElementTile({
       )}
       {alerts.notCommitted && (
         <svg role="img" aria-label="You haven't committed yet" width="22" height="22" viewBox="0 0 24 24">
+          <title>You haven&apos;t committed yet</title>
           <circle cx="12" cy="12" r="12" fill="#D4402F" />
           <path d="M12 6.4v7.2" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" />
           <circle cx="12" cy="17.6" r="1.6" fill="#fff" />
@@ -149,7 +153,11 @@ export function ElementTile({
     </span>
   );
 
-  const footerLeft = alerts ? [alerts.deadlineText, alerts.capacity].filter(Boolean).join(" · ") : "";
+  // The clock icon already carries the deadline (tooltip + aria-label), so
+  // the footer doesn't repeat it as text (founder, 2026-10-15).
+  const showDeadlineText = !alerts?.clock;
+  const deadlineText = showDeadlineText ? alerts?.deadlineText : undefined;
+  const footerLeft = alerts ? [deadlineText, alerts.capacity].filter(Boolean).join(" · ") : "";
 
   const inner: ReactNode = card ? (
     <>
@@ -165,7 +173,7 @@ export function ElementTile({
         )}
       </span>
       <span className="truncate font-[family-name:var(--font-display)] text-[15px] font-bold leading-tight">{label}</span>
-      <span className="line-clamp-2 text-[11.5px] leading-snug opacity-85">
+      <span className={`${statusLines === 3 ? "line-clamp-3" : "line-clamp-2"} text-[11.5px] leading-snug opacity-85`}>
         <span className="font-semibold">{statusLabel}</span>
         {detail ? ` — ${detail}` : ""}
       </span>
@@ -187,11 +195,11 @@ export function ElementTile({
         {statusLabel}
         {detail ? ` — ${detail}` : ""}
       </span>
-      {alerts && (alerts.deadlineText || alerts.myStatus || alerts.capacity) && (
+      {alerts && (deadlineText || alerts.myStatus || alerts.capacity) && (
         <span className="mt-2 flex flex-col gap-0.5 border-t border-current/15 pt-2 text-[10.5px]">
-          {(alerts.deadlineText || alerts.myStatus) && (
+          {(deadlineText || alerts.myStatus) && (
             <span className="flex flex-wrap justify-between gap-x-2">
-              {alerts.deadlineText && <span className="opacity-70">{alerts.deadlineText}</span>}
+              {deadlineText && <span className="opacity-70">{deadlineText}</span>}
               {myStatus}
             </span>
           )}
