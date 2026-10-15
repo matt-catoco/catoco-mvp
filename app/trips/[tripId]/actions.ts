@@ -817,6 +817,7 @@ export async function updateTripPermissions(
     deadlineAlertHours: number;
     showVoters: boolean;
     checkoutCushion: boolean;
+    notifyPriceDrift: boolean;
   },
 ): Promise<UpdateTripPermissionsResult> {
   const supabase = await createClient();
@@ -848,6 +849,7 @@ export async function updateTripPermissions(
     p_deadline_alert_hours: input.deadlineAlertHours,
     p_show_voters: input.showVoters,
     p_allow_checkout_cushion: input.checkoutCushion,
+    p_notify_price_drift: input.notifyPriceDrift,
   });
   if (advancedError) return { error: toUserFacingError(advancedError) };
   revalidatePath(`/trips/${tripId}`);

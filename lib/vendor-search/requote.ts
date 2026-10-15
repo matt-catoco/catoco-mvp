@@ -59,5 +59,14 @@ export async function requoteOption(value: Record<string, unknown>): Promise<Req
     return { ok: true, unitPrice: match.price, currency: match.currency ?? String(value.currency ?? "USD") };
   }
 
-  return { ok: false, reason: "This price was entered by hand — update it manually." };
+  if (source === "viator") {
+    // TODO(viator): needs a verifyViatorOffer()-style re-quote in
+    // lib/vendor-search/viator.ts (it only exports viatorSearch today).
+    return { ok: false, reason: "Catoco can't auto-recheck Viator prices yet — check the listing yourself." };
+  }
+  if (!source) {
+    return { ok: false, reason: "This price was entered by hand — update it manually." };
+  }
+  // A vendor added before requoteOption learned about it: say so honestly.
+  return { ok: false, reason: `Catoco can't auto-recheck ${source} prices yet.` };
 }

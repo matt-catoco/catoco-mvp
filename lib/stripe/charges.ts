@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { fromMinorUnits, getStripe, toMinorUnits } from "@/lib/stripe/server";
 import { requoteOption } from "@/lib/vendor-search/requote";
 import { AUTO_RECALC_HOURS } from "@/lib/funding-rules";
-import { notifyPaymentRetryNeeded, notifySharesRecalculated } from "@/lib/notifications";
+import { notifyPaymentRetryNeeded, notifyPriceDrift, notifySharesRecalculated } from "@/lib/notifications";
 
 /**
  * The charge engine for mandate-based funding (flow #4): AUTHORIZE, then
@@ -82,15 +82,13 @@ export type ChargeJobSummary = {
   failedBatches: string[];
   refundsRequested: number;
   errors: string[];
-  /** Price cushion: vendor options re-quoted right before charging. */
+  /** Price-drift recheck: vendor options re-quoted on the stage cadence. */
   repriced: { elementId: string; outcome: string }[];
   /** Withdrawals the organizer didn't act on: shares recalculated automatically. */
   autoRecalculated: { fundingRequestId: string; share: number | null; reauthorize: number | null; skipped: string | null }[];
 };
 
-// Re-quote vendor-priced options whose deadline is within this window, so
-// the hold reflects the price at charge time (price cushion).
-const RECHECK_WINDOW_HOURS = 2;
+
 
 
 
@@ -123,23 +121,73 @@ export async function runFundingChargeJob(origin: string): Promise<ChargeJobSumm
     }
   }
 
-  // 0. recheck vendor prices (Duffel / LiteAPI) right before charging.
-  const { data: dueForRecheck } = await supabase.rpc("list_vendor_priced_elements_due", {
-    p_hours: RECHECK_WINDOW_HOURS,
-  });
-  for (const row of (dueForRecheck ?? []) as { element_id: string; value: Record<string, unknown> }[]) {
+  // 0b. price-drift recheck across all three stages (founder, 2026-10-14):
+  // submission (once, at its deadline), voting (leading option, weekly →
+  // daily inside 7 days), funding (locked option, daily → hourly inside
+  // 48h). The cadence lives in list_elements_due_for_price_check().
+  const { data: dueForRecheck, error: dueCheckError } = await supabase.rpc("list_elements_due_for_price_check");
+  if (dueCheckError) summary.errors.push(`list_elements_due_for_price_check: ${dueCheckError.message}`);
+  const seenOptions = new Set<string>();
+  for (const row of (dueForRecheck ?? []) as {
+    element_id: string;
+    stage: "submission" | "voting" | "funding";
+    option_id: string;
+    value: Record<string, unknown>;
+    unit_price: number | null;
+    pricing_basis: string | null;
+  }[]) {
+    if (seenOptions.has(row.option_id)) continue;
+    seenOptions.add(row.option_id);
     try {
       const quote = await requoteOption(row.value);
+      // Can't recheck this vendor yet (Viator), or the vendor rejected it:
+      // leave last_price_check_at alone so the next run tries again.
+      if (!quote.ok) continue;
       const currency = String(row.value.currency ?? "").toUpperCase();
-      if (!quote.ok || (currency && quote.currency.toUpperCase() !== currency)) continue;
-      const { data: outcome, error } = await supabase.rpc("reprice_locked_element", {
-        p_element_id: row.element_id,
-        p_unit_price: Math.round(quote.unitPrice * 100) / 100,
-      });
-      if (error) summary.errors.push(`reprice ${row.element_id}: ${error.message}`);
-      else summary.repriced.push({ elementId: row.element_id, outcome: outcome as string });
+      if (currency && quote.currency.toUpperCase() !== currency) continue; // needs a human
+      const newPrice = Math.round(quote.unitPrice * 100) / 100;
+      const oldPrice = row.unit_price != null ? Number(row.unit_price) : null;
+
+      if (row.stage === "funding") {
+        const { data: outcome, error } = await supabase.rpc("reprice_locked_element", {
+          p_element_id: row.element_id,
+          p_unit_price: newPrice,
+        });
+        if (error) {
+          summary.errors.push(`reprice ${row.element_id}: ${error.message}`);
+          continue;
+        }
+        await supabase.rpc("mark_element_price_checked", { p_element_id: row.element_id });
+        summary.repriced.push({ elementId: row.element_id, outcome: outcome as string });
+        if (outcome === "over_cushion") {
+          await notifyPriceDrift({ supabase, elementId: row.element_id, stage: "funding", oldPrice, newPrice, currency: String(row.value.currency ?? "USD"), basis: row.pricing_basis, origin });
+        }
+      } else {
+        const { data: check, error } = await supabase.rpc("record_option_price_check", {
+          p_option_id: row.option_id,
+          p_unit_price: newPrice,
+        });
+        if (error) {
+          summary.errors.push(`price check ${row.element_id}: ${error.message}`);
+          continue;
+        }
+        const result = (Array.isArray(check) ? check[0] : check) as { drifted: boolean; previous_price: number | null } | null;
+        summary.repriced.push({ elementId: row.element_id, outcome: result?.drifted ? `${row.stage}_drifted` : `${row.stage}_checked` });
+        if (result?.drifted) {
+          await notifyPriceDrift({
+            supabase,
+            elementId: row.element_id,
+            stage: row.stage,
+            oldPrice: result.previous_price != null ? Number(result.previous_price) : oldPrice,
+            newPrice,
+            currency: String(row.value.currency ?? "USD"),
+            basis: row.pricing_basis,
+            origin,
+          });
+        }
+      }
     } catch (err) {
-      summary.errors.push(`requote ${row.element_id}: ${(err as Error).message}`);
+      summary.errors.push(`price check ${row.element_id}: ${(err as Error).message}`);
     }
   }
 

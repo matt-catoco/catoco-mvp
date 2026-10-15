@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailSendingEnabled, sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/html";
@@ -16,7 +17,8 @@ export type NotificationKind =
   | "funding_deadline_set"
   | "payment_retry_needed"
   | "nudge"
-  | "shares_recalculated";
+  | "shares_recalculated"
+  | "price_drift";
 
 /**
  * The one send path for all four core-loop triggers. Checks eligibility
@@ -272,5 +274,92 @@ export async function notifySharesRecalculated(opts: {
     }
   } catch (err) {
     console.error(`notifySharesRecalculated failed (${opts.fundingRequestId}):`, err);
+  }
+}
+
+/** A stable uuid for "this element moved to this price at this stage" —
+ * notification_log dedupes per (user, kind, subject), so one email per move. */
+function priceMoveSubjectId(elementId: string, stage: string, price: number): string {
+  const h = createHash("md5").update(`${elementId}:${stage}:${price.toFixed(2)}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
+/**
+ * Price drift (founder, 2026-10-14): the hourly recheck found a vendor price
+ * that moved — before lock (submission / voting, past the 1% floor) or on a
+ * locked element where it broke someone's authorization (over the cushion).
+ * Emails the organizer and co-organizers only. Gated by the trip's
+ * notify_price_drift setting (independent of the checkout cushion) and,
+ * through prepare_notification, each person's account email setting.
+ * Pass a service-role client. Best-effort; never throws.
+ */
+export async function notifyPriceDrift(opts: {
+  supabase: SupabaseClient;
+  elementId: string;
+  stage: "submission" | "voting" | "funding";
+  oldPrice: number | null;
+  newPrice: number;
+  currency: string;
+  basis: string | null;
+  origin: string;
+}): Promise<void> {
+  try {
+    const { data: el } = await opts.supabase
+      .from("trip_elements")
+      .select("trip_id, label, trips(name, organizer_id, notify_price_drift)")
+      .eq("id", opts.elementId)
+      .maybeSingle();
+    if (!el) return;
+    const trip = (Array.isArray(el.trips) ? el.trips[0] : el.trips) as
+      | { name: string; organizer_id: string; notify_price_drift: boolean | null }
+      | null;
+    if (!trip) return;
+
+    // Pre-lock: remember the price we've told them about (also when the
+    // trip has emails off, so turning them on doesn't replay old moves).
+    if (opts.stage !== "funding") {
+      await opts.supabase.from("trip_elements").update({ last_notified_price: opts.newPrice }).eq("id", opts.elementId);
+    }
+    if (trip.notify_price_drift === false) return;
+
+    const { data: coOrganizers } = await opts.supabase
+      .from("trip_participants")
+      .select("user_id")
+      .eq("trip_id", el.trip_id)
+      .eq("role", "co_organizer");
+    const recipients = [...new Set([trip.organizer_id, ...((coOrganizers ?? []) as { user_id: string }[]).map((c) => c.user_id)])];
+
+    const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: opts.currency || "USD" }).format(n);
+    const per = opts.basis === "per_person" ? " per person" : opts.basis === "per_night" ? " per night" : "";
+    const move = opts.oldPrice != null ? `${fmt(opts.oldPrice)} → ${fmt(opts.newPrice)}${per}` : `now ${fmt(opts.newPrice)}${per}`;
+    const label = escapeHtml(el.label as string);
+    const tripName = escapeHtml(trip.name);
+    const url = `${opts.origin}/trips/${el.trip_id}/elements/${opts.elementId}`;
+    const body =
+      opts.stage === "funding"
+        ? `<p>The price for <strong>${label}</strong> on <strong>${tripName}</strong> has gone up: <strong>${escapeHtml(move)}</strong>.</p>
+           <p>That's more than some people's authorizations cover, so they've been asked to recommit at the new share. Nothing has been charged.</p>
+           <p><a href="${url}">See who needs to recommit</a></p>`
+        : `<p>A price on <strong>${label}</strong> (<strong>${tripName}</strong>) has moved since it was submitted: <strong>${escapeHtml(move)}</strong>.</p>
+           <p>Review it before ${opts.stage === "voting" ? "voting locks it in" : "the group votes"}.</p>
+           <p><a href="${url}">Review the options</a></p>`;
+    const subjectId = priceMoveSubjectId(opts.elementId, opts.stage, opts.newPrice);
+
+    for (const userId of recipients) {
+      const { data: email } = await opts.supabase.rpc("get_user_email", { p_user_id: userId });
+      if (!email) continue;
+      await sendCoreLoopEmail({
+        supabase: opts.supabase,
+        userId,
+        email: email as string,
+        kind: "price_drift",
+        subjectId,
+        subject: `Price change: ${el.label} — ${trip.name}`,
+        html: body,
+        origin: opts.origin,
+      });
+    }
+  } catch (err) {
+    console.error(`notifyPriceDrift failed (${opts.elementId}):`, err);
   }
 }

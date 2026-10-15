@@ -71,6 +71,7 @@ export async function createTrip(
       deadline_alert_hours: [12, 24, 48].includes(permissions.deadlineAlertHours) ? permissions.deadlineAlertHours : 24,
       show_voters: permissions.showVoters === true,
       allow_checkout_cushion: permissions.checkoutCushion !== false,
+      notify_price_drift: permissions.notifyPriceDrift !== false,
     })
     .select("id")
     .single();

@@ -244,6 +244,16 @@ export function TripPermissionsFields({
               : "Everyone authorizes exactly their share. If the price rises, they'll be asked to recommit."
           }
         />
+        <Toggle
+          checked={v.notifyPriceDrift}
+          onChange={(x) => onChange({ ...v, notifyPriceDrift: x })}
+          title="Email me if a price changes"
+          detail={
+            v.notifyPriceDrift
+              ? "Prices from booking sites are rechecked automatically; you and co-organizers get an email when one moves. Works with or without a cushion."
+              : "Prices are still rechecked, but nobody is emailed when one moves."
+          }
+        />
         {v.checkoutCushion && (
         <label className="flex flex-col gap-1">
           <span className={labelClass}>Recommended cushion</span>

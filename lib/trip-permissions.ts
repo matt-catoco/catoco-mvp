@@ -29,6 +29,8 @@ export type TripPermissions = {
   showVoters: boolean;
   /** Participants may add their own price cushion when they commit (vendor-sourced prices only). */
   checkoutCushion: boolean;
+  /** Email organizers when a vendor price moves (independent of the cushion). */
+  notifyPriceDrift: boolean;
 };
 
 /** Same defaults as the trips table columns (20261002000000 / 20261004000000). */
@@ -49,6 +51,7 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   deadlineAlertHours: 24,
   showVoters: false,
   checkoutCushion: true,
+  notifyPriceDrift: true,
 };
 
 /** Above this the settings UI asks "are you sure?" — a typo guard, not a limit. */
