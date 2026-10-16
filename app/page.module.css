@@ -246,19 +246,22 @@
   color: var(--muted);
   margin-bottom: 18px;
 }
-/* Hero board: the real Trip Home cards, all six — three across, two on
-   narrow panels. Cards size to their content (a square this small can't
-   hold the footer); every card in a row matches the tallest. */
+/* Hero board: the real Trip Home cards, all six. Cards size to their
+   content; every card in a row matches the tallest. */
 .heroTiles {
   container-type: inline-size;
 }
+/* Wide rectangles (founder, 2026-10-16): two across in the desktop hero
+   panel, three across only where the panel is wide enough for three wide
+   cards (e.g. tablet, where the hero stacks). */
 .heroTiles > div {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr; /* every row as tall as the tallest card */
   gap: 10px;
 }
-@container (max-width: 380px) {
+@container (min-width: 560px) {
   .heroTiles > div {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 .heroTiles > div > * {
