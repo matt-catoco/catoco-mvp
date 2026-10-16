@@ -442,7 +442,7 @@ export default async function Home() {
                   <span
                     aria-hidden
                     className={`grid size-[22px] place-items-center rounded-full font-[family-name:var(--font-display)] text-[9.5px] font-bold ${
-                      p.committed ? "bg-brand-teal-wash text-brand-teal-deep" : "bg-[var(--line)] text-[var(--muted)]"
+                      p.committed ? "bg-brand-teal-wash text-brand-accent" : "bg-[var(--line)] text-[var(--muted)]"
                     }`}
                   >
                     {p.initials}

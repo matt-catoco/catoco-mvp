@@ -819,18 +819,9 @@
     --brand-surface: #112424;
     --brand-coral: #ff7a6b;
     --brand-accent: #2dd4bf;
-    /* Deep teal text on the dark teal wash (the "Locked" card) is too low
-       contrast; the bright teal reads on both. */
-    --brand-teal-deep: #2dd4bf;
   }
   .header {
     background: rgba(13, 32, 32, 0.88);
-  }
-  /* …except on the "Funded" card, which keeps its light paper fill — the
-     deep teal still reads there. */
-  .heroTiles > div > [class*="bg-[#FAFAF7]"],
-  .bandTiles > div > [class*="bg-[#FAFAF7]"] {
-    color: #0f8c7e;
   }
   /* Primary buttons go teal on ink (an ink button would vanish). */
   .btnPrimary,

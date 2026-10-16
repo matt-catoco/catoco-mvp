@@ -54,7 +54,7 @@ export function RangeCalendar({
           type="button"
           onClick={() => setViewMonth(new Date(year, month - 1, 1))}
           aria-label="Previous month"
-          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
+          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-accent"
         >
           ‹
         </button>
@@ -63,7 +63,7 @@ export function RangeCalendar({
           type="button"
           onClick={() => setViewMonth(new Date(year, month + 1, 1))}
           aria-label="Next month"
-          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
+          className="rounded-full px-2 py-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-accent"
         >
           ›
         </button>
@@ -90,7 +90,7 @@ export function RangeCalendar({
                 isEndpoint
                   ? "bg-brand-teal-deep text-white"
                   : inRange
-                    ? "bg-brand-teal-wash text-brand-teal-deep"
+                    ? "bg-brand-teal-wash text-brand-accent"
                     : disabled
                       ? "cursor-not-allowed text-brand-muted/40"
                       : "text-foreground hover:bg-brand-teal-wash"

@@ -101,7 +101,7 @@ export function AddElementModal({
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="rounded-full p-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
+                className="rounded-full p-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-accent"
               >
                 ✕
               </button>

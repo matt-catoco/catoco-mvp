@@ -28,7 +28,7 @@ export type TrackerGroup = { currency: string; rows: TrackerRow[]; failures: Tra
 
 const PILL: Record<TrackerStatus, { text: string; cls: string }> = {
   funded: { text: "Funded", cls: "border-brand-teal-deep text-brand-teal-deep" },
-  committed: { text: "Committed", cls: "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep" },
+  committed: { text: "Committed", cls: "border-dashed border-brand-accent bg-brand-teal-wash text-brand-accent" },
   failed: { text: "Failed", cls: "border-[#D4402F] text-[#D4402F]" },
 };
 

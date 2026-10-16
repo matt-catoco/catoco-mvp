@@ -320,7 +320,7 @@ export function AddElementForm({
   return (
     <div className="flex flex-col gap-5">
       {isChained && (
-        <p className="rounded-lg bg-brand-teal-wash px-3 py-2 text-xs text-brand-teal-deep">
+        <p className="rounded-lg bg-brand-teal-wash px-3 py-2 text-xs text-brand-accent">
           Bundling another element — scope, deadlines, currency, and pricing basis below are shared
           with the rest of the bundle and can't be changed here.
         </p>

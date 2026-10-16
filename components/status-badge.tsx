@@ -17,7 +17,7 @@ export function StatusBadge({
     state === "funded"
       ? "bg-brand-teal text-[#0D2020]"
       : state === "locked"
-        ? "bg-brand-teal-wash text-brand-teal-deep"
+        ? "bg-brand-teal-wash text-brand-accent"
         : "border border-brand-line text-brand-muted";
 
   return (

@@ -455,7 +455,7 @@ export function VendorSearchPanel({
   return (
     <div className="flex flex-col gap-3">
       {response && (
-        <span className="inline-block w-fit rounded-full bg-brand-teal-wash px-2.5 py-0.5 text-[11px] font-medium text-brand-teal-deep">
+        <span className="inline-block w-fit rounded-full bg-brand-teal-wash px-2.5 py-0.5 text-[11px] font-medium text-brand-accent">
           {response.status === "live" ? `Live via ${response.vendorLabel}` : response.vendorLabel}
         </span>
       )}
@@ -570,7 +570,7 @@ export function VendorSearchModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-full p-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-teal-deep"
+            className="rounded-full p-1 text-brand-muted transition-colors hover:bg-brand-teal-wash hover:text-brand-accent"
           >
             ✕
           </button>

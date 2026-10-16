@@ -70,7 +70,7 @@ function tileClasses(tier: ElementTier, onDark: boolean): string {
         ? "border-dashed border-white/35 text-white/85"
         : "border-dashed border-brand-line text-foreground";
     case "locked":
-      return "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep";
+      return "border-dashed border-brand-accent bg-brand-teal-wash text-brand-accent";
     case "funded":
       // A fixed paper surface, not `bg-background` — that token flips to
       // ink in dark mode, which collides with "ready"'s deliberately fixed

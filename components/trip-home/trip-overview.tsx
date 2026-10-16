@@ -83,7 +83,7 @@ export function TripOverview({
                   href={`/trips/${tripId}/settings`}
                   aria-label="Trip settings"
                   title="Trip settings"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-brand-line text-brand-muted transition-colors hover:border-brand-teal-deep hover:bg-brand-teal-wash hover:text-brand-teal-deep"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-brand-line text-brand-muted transition-colors hover:border-brand-accent hover:bg-brand-teal-wash hover:text-brand-accent"
                 >
                   <SettingsGearIcon />
                 </Link>

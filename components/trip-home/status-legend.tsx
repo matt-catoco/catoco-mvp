@@ -12,7 +12,7 @@ export const DOT_CLASSES: Record<ElementTier, string> = {
   // Matches the actual tile fill (element-tile.tsx) — fixed paper, not the
   // flipping `bg-background` token.
   funded: "border-brand-teal-deep bg-[#FAFAF7]",
-  locked: "border-brand-teal-deep bg-brand-teal-wash",
+  locked: "border-brand-accent bg-brand-teal-wash",
   open: "border-brand-line bg-background",
 };
 

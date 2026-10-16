@@ -17,7 +17,7 @@ const KANBAN_COLUMNS: { tier: ElementTier; title: string }[] = [
 
 const CARD_CLASSES: Record<ElementTier, string> = {
   open: "border-dashed border-brand-line",
-  locked: "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep",
+  locked: "border-dashed border-brand-accent bg-brand-teal-wash text-brand-accent",
   // Fixed paper, not `bg-background` — see element-tile.tsx's note: that
   // token flips to ink in dark mode and collides with `ready`'s own fixed
   // ink fill just below.

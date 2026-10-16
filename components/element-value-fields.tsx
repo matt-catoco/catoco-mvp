@@ -758,7 +758,7 @@ function DatesFields({
               }}
             />
           </label>
-          <p className="rounded-lg bg-brand-teal-wash px-3 py-2 text-xs text-brand-teal-deep">
+          <p className="rounded-lg bg-brand-teal-wash px-3 py-2 text-xs text-brand-accent">
             Submitting this will also create a second Dates element (in exact-dates mode, sized to
             this many nights) for the group to pin down actual calendar dates once this locks in.
           </p>

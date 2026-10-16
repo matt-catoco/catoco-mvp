@@ -5,20 +5,20 @@ import type { OverviewElement } from "./types";
 
 const CARD_CLASSES: Record<ElementTier, string> = {
   open: "border-dashed border-brand-line",
-  locked: "border-dashed border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep",
+  locked: "border-dashed border-brand-accent bg-brand-teal-wash text-brand-accent",
   // Fixed paper, not `bg-background` — see element-tile.tsx's note: that
   // token flips to ink in dark mode, which would read the same as an
   // untinted "open" card (no explicit background at all) instead of a
   // distinct, filled surface.
   funded: "border-brand-teal-deep bg-[#FAFAF7] text-brand-teal-deep",
-  ready: "border-brand-teal-deep bg-brand-teal-wash text-brand-teal-deep",
+  ready: "border-brand-accent bg-brand-teal-wash text-brand-accent",
 };
 
 const SYMBOL_CLASSES: Record<ElementTier, string> = {
   open: "bg-black/[.06] text-brand-muted dark:bg-white/[.08]",
-  locked: "bg-brand-teal-deep/15 text-brand-teal-deep",
-  funded: "bg-brand-teal-deep/15 text-brand-teal-deep",
-  ready: "bg-brand-teal-deep/15 text-brand-teal-deep",
+  locked: "bg-brand-teal-deep/15 text-brand-accent",
+  funded: "bg-brand-teal-deep/15 text-brand-accent",
+  ready: "bg-brand-teal-deep/15 text-brand-accent",
 };
 
 type Entry = { el: OverviewElement; occ: ScheduleOccurrence };
@@ -137,14 +137,14 @@ export function ViewItinerary({
       {(destinationName || spans.length > 0) && (
         <div className="flex flex-wrap gap-2">
           {destinationName && (
-            <span className="rounded-full bg-brand-teal-wash px-3.5 py-1.5 text-xs font-semibold text-brand-teal-deep">
+            <span className="rounded-full bg-brand-teal-wash px-3.5 py-1.5 text-xs font-semibold text-brand-accent">
               📍 {destinationName}
             </span>
           )}
           {spans.map((el) => (
             <span
               key={el.id}
-              className="rounded-full bg-brand-teal-wash px-3.5 py-1.5 text-xs font-semibold text-brand-teal-deep"
+              className="rounded-full bg-brand-teal-wash px-3.5 py-1.5 text-xs font-semibold text-brand-accent"
             >
               {el.symbol === "Ac" ? "🏠" : ""} {el.label} · {formatDayHeader(el.schedule!.span!.start).dateLabel}–
               {formatDayHeader(el.schedule!.span!.end).dateLabel}
