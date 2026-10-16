@@ -402,15 +402,15 @@ export default async function Home() {
           <div
             aria-label="Example of the Commit card"
             role="figure"
-            className="mx-auto flex w-full max-w-[460px] flex-col gap-3.5 rounded-[20px] border-[1.5px] border-brand-teal-deep bg-[#FAFAF7] p-[22px] text-[#0D2020]"
+            className="mx-auto flex w-full max-w-[460px] flex-col gap-3.5 rounded-[20px] border-[1.5px] border-brand-teal-deep bg-[var(--paper)] p-[22px] text-[var(--ink)]"
           >
             <div className="flex items-center gap-3">
-              <span className="grid size-10 place-items-center rounded-[11px] border border-brand-line bg-white font-[family-name:var(--font-display)] text-[15px] font-bold text-brand-teal-deep">
+              <span className="grid size-10 place-items-center rounded-[11px] border border-brand-line bg-[var(--white)] font-[family-name:var(--font-display)] text-[15px] font-bold text-brand-teal-deep">
                 Ac
               </span>
               <div>
                 <p className="font-[family-name:var(--font-display)] text-xl font-bold leading-tight">Accommodations</p>
-                <p className="text-[13px] text-[#6b6b64]">Casa Mare, Cagliari</p>
+                <p className="text-[13px] text-[var(--muted)]">Casa Mare, Cagliari</p>
               </div>
             </div>
             <span className="w-fit rounded-full border-[1.5px] border-brand-teal-deep px-2.5 py-0.5 text-xs font-semibold text-brand-teal-deep">
@@ -418,16 +418,16 @@ export default async function Home() {
             </span>
             <p className="flex items-baseline gap-1.5">
               <span className="font-[family-name:var(--font-display)] text-[34px] font-bold leading-none tracking-[-0.02em]">€312</span>
-              <span className="text-sm text-[#6b6b64]">your share</span>
+              <span className="text-sm text-[var(--muted)]">your share</span>
             </p>
             <span className={`${btnCommit} pointer-events-none`} aria-hidden>
               Commit €312
             </span>
-            <p className="-mt-1 text-center text-[12.5px] text-[#6b6b64]">Nothing charged until everyone is committed.</p>
+            <p className="-mt-1 text-center text-[12.5px] text-[var(--muted)]">Nothing charged until everyone is committed.</p>
             <HatchedBar pct={60} />
-            <div className="flex justify-between text-[13px] text-[#6b6b64]">
+            <div className="flex justify-between text-[13px] text-[var(--muted)]">
               <span>
-                <b className="text-[#0D2020]">3 of 5</b> committed
+                <b className="text-[var(--ink)]">3 of 5</b> committed
               </span>
               <span>€936 of €1,560</span>
             </div>
@@ -435,14 +435,14 @@ export default async function Home() {
               {COMMIT_PEOPLE.map((p) => (
                 <li
                   key={p.initials}
-                  className={`flex items-center gap-1.5 rounded-full border bg-white py-0.5 pl-[3px] pr-2.5 text-[12.5px] ${
-                    p.committed ? "border-brand-line" : "border-dashed border-brand-line text-[#6b6b64]"
+                  className={`flex items-center gap-1.5 rounded-full border bg-[var(--white)] py-0.5 pl-[3px] pr-2.5 text-[12.5px] ${
+                    p.committed ? "border-brand-line" : "border-dashed border-brand-line text-[var(--muted)]"
                   }`}
                 >
                   <span
                     aria-hidden
                     className={`grid size-[22px] place-items-center rounded-full font-[family-name:var(--font-display)] text-[9.5px] font-bold ${
-                      p.committed ? "bg-brand-teal-wash text-brand-teal-deep" : "bg-[#eceee8] text-[#6b6b64]"
+                      p.committed ? "bg-brand-teal-wash text-brand-teal-deep" : "bg-[var(--line)] text-[var(--muted)]"
                     }`}
                   >
                     {p.initials}
@@ -494,9 +494,9 @@ export default async function Home() {
             <div className={styles.insideCard}>
               <div className={styles.snip} aria-hidden>
                 <HatchedBar pct={80} />
-                <div className="flex justify-between text-[13px] text-[#6b6b64]">
+                <div className="flex justify-between text-[13px] text-[var(--muted)]">
                   <span>
-                    <b className="text-[#0D2020]">4 of 5</b> committed
+                    <b className="text-[var(--ink)]">4 of 5</b> committed
                   </span>
                   <span>€1,248 of €1,560</span>
                 </div>

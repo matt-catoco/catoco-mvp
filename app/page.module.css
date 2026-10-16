@@ -22,9 +22,10 @@
   --font-body: var(--font-inter), "Inter", sans-serif;
   --max: 1120px;
 
-  /* The homepage is always light: pin the app's theme tokens (read directly
-     by Tailwind's @theme inline utilities) so the real ElementTile and the
-     Commit card don't flip to dark values in system dark mode. */
+  /* The homepage defines its own palette (light here, dark below) and sets
+     the app's theme tokens — read directly by Tailwind's @theme inline
+     utilities — to match it, so the real ElementTile and the Commit card
+     follow the page rather than drifting from it. */
   --background: #fafaf7;
   --foreground: #0d2020;
   --brand-line: #dedcd1;
@@ -793,5 +794,68 @@
 @media (max-width: 520px) {
   .steps {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* ---------- DARK MODE ----------
+   Follows the device setting, like the rest of the app (founder,
+   2026-10-16). Same move as globals.css: ink and paper swap, surfaces and
+   lines take the app's dark values, teal stays the accent. */
+@media (prefers-color-scheme: dark) {
+  .page {
+    --ink: #fafaf7;
+    --paper: #0d2020;
+    --white: #112424;
+    --line: #2c4543;
+    --muted: #8fa6a3;
+    --teal-wash: #12332f;
+    --teal-deep: #2dd4bf;
+
+    --background: #0d2020;
+    --foreground: #fafaf7;
+    --brand-line: #2c4543;
+    --brand-muted: #8fa6a3;
+    --brand-teal-wash: #12332f;
+    --brand-surface: #112424;
+    --brand-coral: #ff7a6b;
+    --brand-accent: #2dd4bf;
+    /* Deep teal text on the dark teal wash (the "Locked" card) is too low
+       contrast; the bright teal reads on both. */
+    --brand-teal-deep: #2dd4bf;
+  }
+  .header {
+    background: rgba(13, 32, 32, 0.88);
+  }
+  /* …except on the "Funded" card, which keeps its light paper fill — the
+     deep teal still reads there. */
+  .heroTiles > div > [class*="bg-[#FAFAF7]"],
+  .bandTiles > div > [class*="bg-[#FAFAF7]"] {
+    color: #0f8c7e;
+  }
+  /* Primary buttons go teal on ink (an ink button would vanish). */
+  .btnPrimary,
+  .heroActions .btnPrimary {
+    background: var(--teal);
+    color: #0d2020;
+  }
+  .btnPrimary:hover,
+  .heroActions .btnPrimary:hover {
+    background: #5eead4;
+  }
+  /* The elements band stays a distinct, deeper ink panel. */
+  .elements {
+    background: #081616;
+    color: #fafaf7;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .elements .sectionHead h2,
+  .elements .sectionHead p.tagline {
+    color: #fafaf7;
+  }
+  .tfNote {
+    background: #3a2d0f;
+    border-color: #6b5218;
+    color: #f5d9a0;
   }
 }
