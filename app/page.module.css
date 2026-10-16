@@ -246,24 +246,29 @@
   color: var(--muted);
   margin-bottom: 18px;
 }
-/* Hero board: the real Trip Home cards, a fixed 2x2 (founder mockup). */
+/* Hero board: the real Trip Home cards, all six — three across, two on
+   narrow panels. Cards size to their content (a square this small can't
+   hold the footer); every card in a row matches the tallest. */
 .heroTiles {
-  max-width: 350px;
-  margin-inline: auto;
+  container-type: inline-size;
 }
 .heroTiles > div {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+@container (max-width: 380px) {
+  .heroTiles > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .heroTiles > div > * {
-  aspect-ratio: 1;
+  aspect-ratio: auto;
   min-height: 0;
   padding: 10px;
   gap: 5px;
 }
-/* Square tiles this small need the mockup's tighter type, or the name and
-   status get squeezed out: rows keep their height, badge 28px, title 14px,
-   status 11px, footer 10px. */
+/* The mockup's tighter type, so the name and status keep their rows:
+   badge 28px, title 14px, status 11px, footer 10px. */
 .heroTiles > div > * > * {
   flex-shrink: 0;
 }
@@ -278,19 +283,10 @@
 }
 .heroTiles > div > * > span:nth-child(3) {
   font-size: 11px;
-  flex-shrink: 1;
-  min-height: 0;
 }
 .heroTiles > div > * > span:nth-child(4) {
   font-size: 10px;
   padding-top: 4px;
-}
-/* Phones: the panel is too narrow for a square tile to hold every row, so
-   tiles grow with their content instead of clipping it. */
-@media (max-width: 620px) {
-  .heroTiles > div > * {
-    aspect-ratio: auto;
-  }
 }
 .legend {
   display: flex;

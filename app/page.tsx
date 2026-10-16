@@ -23,8 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 // per-element inputs run through the real describeElementStatus() instead of
 // hand-typed label strings, so the homepage can't drift from the product's
 // vocabulary. Home page alignment (founder mockup "Home Landing Revamp",
-// 2026-10-15): the hero shows 4 cards (its own 01–04), the dark elements band
-// all 6 (01–06), with the real alert icons and footers.
+// 2026-10-15): all six elements, with the real alert icons and footers.
 type DemoElementSpec = {
   key: ElementType;
   state: ElementState;
@@ -143,8 +142,10 @@ function demoTiles(keys: string[], statusLines?: 2 | 3) {
   });
 }
 
-const HERO_TILES = demoTiles(["dates", "accommodation", "travel", "experience"], 3);
+// Hero and elements band show the same six (founder, 2026-10-16: the 2x2
+// hero read oddly).
 const DEMO_TILES = demoTiles(["dates", "destination", "accommodation", "travel", "experience", "dining"]);
+const HERO_TILES = demoTiles(["dates", "destination", "accommodation", "travel", "experience", "dining"], 3);
 
 // Homepage legend: least to most done (the shared StatusLegend reads the
 // other way round for Table/Kanban).
