@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ViewTable } from "./view-table";
-import { ViewItinerary } from "./view-itinerary";
 import { ViewCalendar } from "./view-calendar";
 import { ViewKanban } from "./view-kanban";
 import type { OverviewElement } from "./types";
 
-type ViewKey = "table" | "itinerary" | "calendar" | "kanban";
+type ViewKey = "table" | "calendar" | "kanban";
 
-const VIEWS: { key: ViewKey; label: string }[] = [
+// Founder, 2026-10-17: three views. Calendar holds the day view and the
+// itinerary; Kanban is for organizers and co-organizers only.
+const VIEWS: { key: ViewKey; label: string; managersOnly?: boolean }[] = [
   { key: "table", label: "Table" },
-  { key: "itinerary", label: "Itinerary" },
   { key: "calendar", label: "Calendar" },
-  { key: "kanban", label: "Kanban" },
+  { key: "kanban", label: "Kanban", managersOnly: true },
 ];
 
 function SettingsGearIcon() {
@@ -41,7 +41,7 @@ function SettingsGearIcon() {
 /**
  * Trip Home's shared shell (2026-09-xx "Trip overview — view options"): one
  * header — trip name, settings gear, Add element/Participants, the view
- * pills — persists across all four ways of looking at the same element
+ * pills — persists across every way of looking at the same element
  * list, which is fetched and pre-computed (tier, schedule) exactly once by
  * the server page and just handed here. Switching views is local state, not
  * navigation — every view's data is already in hand, so there's nothing to
@@ -55,7 +55,6 @@ export function TripOverview({
   addElementModal,
   elements,
   tripDates,
-  destinationName,
   tracker,
 }: {
   tripId: string;
@@ -65,7 +64,6 @@ export function TripOverview({
   addElementModal: ReactNode;
   elements: OverviewElement[];
   tripDates: { start: string; end: string } | null;
-  destinationName: string | null;
   /** "Your payments" tracker(s), rendered under the header */
   tracker?: ReactNode;
 }) {
@@ -113,11 +111,12 @@ export function TripOverview({
         {tracker}
 
         {elements.length > 0 && (
-          <div className="flex w-fit gap-1 rounded-full border border-brand-line bg-black/[.02] p-1 dark:bg-white/[.03]">
-            {VIEWS.map(({ key, label }) => (
+          <div role="group" aria-label="View" className="flex w-fit gap-1 rounded-full border border-brand-line bg-black/[.02] p-1 dark:bg-white/[.03]">
+            {VIEWS.filter((v) => canManage || !v.managersOnly).map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
+                aria-pressed={view === key}
                 onClick={() => setView(key)}
                 className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition-colors ${
                   view === key
@@ -138,12 +137,12 @@ export function TripOverview({
         </p>
       ) : view === "table" ? (
         <ViewTable elements={elements} />
-      ) : view === "itinerary" ? (
-        <ViewItinerary elements={elements} tripDates={tripDates} destinationName={destinationName} />
       ) : view === "calendar" ? (
-        <ViewCalendar elements={elements} tripDates={tripDates} destinationName={destinationName} />
-      ) : (
+        <ViewCalendar elements={elements} tripDates={tripDates} />
+      ) : view === "kanban" && canManage ? (
         <ViewKanban elements={elements} />
+      ) : (
+        <ViewTable elements={elements} />
       )}
     </div>
   );

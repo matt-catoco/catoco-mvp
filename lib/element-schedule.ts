@@ -32,11 +32,15 @@
 // only ever applies once it's actually locked, so this keeps one
 // consistent pre-lock rule instead of a type-specific story per type.
 
+import { readDetails } from "./option-details";
 import type { ElementState, ElementType } from "./trip-elements";
 
 export type ScheduleOccurrence = {
   date: string; // ISO YYYY-MM-DD
-  time: string | null; // HH:MM, only ever set for a locked Dining option
+  time: string | null; // HH:MM start, when the locked option carries one
+  /** HH:MM end — only a flight's arrival carries one today; the calendar
+   * gives everything else a default length. */
+  endTime?: string | null;
   label: string; // "" for single-touchpoint types, "Check-in"/"Check-out"/"Departure"/"Return" otherwise
 };
 
@@ -52,6 +56,15 @@ export type ElementSchedule = {
 function trimmed(value: unknown): string | null {
   const s = String(value ?? "").trim();
   return s || null;
+}
+
+/** "15:00" out of "15:00", "3:00 PM" or "from 15:00" — else null. */
+function clockTime(value: unknown): string | null {
+  const m = String(value ?? "").match(/(d{1,2}):(d{2})s*([AaPp][Mm])?/);
+  if (!m) return null;
+  let h = Number(m[1]);
+  if (m[3]) h = (h % 12) + (/p/i.test(m[3]) ? 12 : 0);
+  return h < 24 ? `${String(h).padStart(2, "0")}:${m[2]}` : null;
 }
 
 /**
@@ -81,10 +94,11 @@ export function getElementSchedule(
       const end = trimmed(dates.end_date);
       if (!start) return null;
       if (end && end !== start) {
+        const details = readDetails(lockedValue);
         return {
           occurrences: [
-            { date: start, time: null, label: "Check-in" },
-            { date: end, time: null, label: "Check-out" },
+            { date: start, time: clockTime(details?.checkin), label: "Check-in" },
+            { date: end, time: clockTime(details?.checkout), label: "Check-out" },
           ],
           span: { start, end },
           isProposed: false,
@@ -99,7 +113,12 @@ export function getElementSchedule(
       // depart_time only exists for Flight results (see mock.ts/normalizeOptionValue) —
       // every other mode stays undated-by-time, same as before.
       const occurrences: ScheduleOccurrence[] = [
-        { date: depart, time: trimmed(lockedValue.depart_time), label: ret ? "Departure" : "" },
+        {
+          date: depart,
+          time: clockTime(lockedValue.depart_time),
+          endTime: clockTime(lockedValue.arrival_time),
+          label: ret ? "Departure" : "",
+        },
       ];
       if (ret && ret !== depart) occurrences.push({ date: ret, time: null, label: "Return" });
       return { occurrences, span: null, isProposed: false };
@@ -111,7 +130,7 @@ export function getElementSchedule(
       const start = trimmed(lockedValue.date) ?? metaDate;
       if (!start) return null;
       return {
-        occurrences: [{ date: start, time: trimmed(lockedValue.dining_time), label: "" }],
+        occurrences: [{ date: start, time: clockTime(lockedValue.dining_time), label: "" }],
         span: null,
         isProposed: false,
       };
@@ -124,7 +143,7 @@ export function getElementSchedule(
       const start = trimmed(lockedValue.date) ?? metaDate;
       if (!start) return null;
       return {
-        occurrences: [{ date: start, time: trimmed(lockedValue.time), label: "" }],
+        occurrences: [{ date: start, time: clockTime(lockedValue.time), label: "" }],
         span: null,
         isProposed: false,
       };

@@ -8,6 +8,7 @@ import {
   describeDates,
   formatCurrency,
   formatDate,
+  nightsBetween,
   summarizeOptionValue,
   type AccommodationSubtype,
   type ElementType,
@@ -67,6 +68,8 @@ export function keyFactsLine(type: ElementType, value: Record<string, unknown>):
       const start = typeof dates.start_date === "string" ? dates.start_date.trim() : "";
       const end = typeof dates.end_date === "string" ? dates.end_date.trim() : "";
       if (start) parts.push(end ? `${formatDate(start)} → ${formatDate(end)}` : formatDate(start));
+      const nights = start && end ? nightsBetween(start, end) : null;
+      if (nights) parts.push(`${nights} night${nights === 1 ? "" : "s"}`);
       if (value.travelers && typeof value.travelers === "object") {
         parts.push(formatTravelersShort(value.travelers as TravelersBreakdown));
       }
@@ -120,14 +123,17 @@ export function priceWithBasis(value: Record<string, unknown>): { amount: string
 export function compareFields(type: ElementType, value: Record<string, unknown>): { key: string; label: string; value: string | null }[] {
   const str = (k: string) => (typeof value[k] === "string" ? (value[k] as string).trim() : "");
   const when = (date: string, time: string) => (date ? (time ? `${formatDate(date)} · ${time}` : formatDate(date)) : time || null);
+  const guests =
+    value.travelers && typeof value.travelers === "object" ? formatTravelersShort(value.travelers as TravelersBreakdown) : null;
   switch (type) {
     case "travel": {
       const mode = str("mode");
       const depart = str("depart_date") || str("pickup_datetime");
       const ret = str("return_date") || str("dropoff_datetime");
       return [
-        { key: "mode", label: "Mode", value: mode ? (TRAVEL_MODE_LABELS[mode as TravelMode] ?? mode) : null },
         { key: "dates", label: "Dates", value: depart ? (ret && ret !== depart ? `${formatDate(depart)} → ${formatDate(ret)}` : formatDate(depart)) : null },
+        { key: "guests", label: "Guests", value: guests },
+        { key: "mode", label: "Type", value: mode ? (TRAVEL_MODE_LABELS[mode as TravelMode] ?? mode) : null },
         { key: "trip", label: "Trip", value: depart && mode !== "rental_car" ? (value.round_trip === false ? "One-way" : "Round trip") : null },
       ];
     }
@@ -136,17 +142,21 @@ export function compareFields(type: ElementType, value: Record<string, unknown>)
       const dates = (value.dates ?? {}) as Record<string, unknown>;
       const start = typeof dates.start_date === "string" ? dates.start_date.trim() : "";
       const end = typeof dates.end_date === "string" ? dates.end_date.trim() : "";
+      const nights = start && end ? nightsBetween(start, end) : null;
+      const range = start ? (end ? `${formatDate(start)} → ${formatDate(end)}` : formatDate(start)) : null;
       return [
+        { key: "stay", label: "Dates", value: range && nights ? `${range} · ${nights} night${nights === 1 ? "" : "s"}` : range },
+        { key: "guests", label: "Guests", value: guests },
         { key: "type", label: "Type", value: subtype ? (ACCOMMODATION_SUBTYPE_LABELS[subtype as AccommodationSubtype] ?? subtype) : null },
-        { key: "stay", label: "Stay", value: start ? (end ? `${formatDate(start)} → ${formatDate(end)}` : formatDate(start)) : null },
         { key: "location", label: "Location", value: str("location_name") || null },
       ];
     }
     case "experience": {
       const subtype = str("experience_subtype");
       return [
-        { key: "category", label: "Category", value: subtype ? (EXPERIENCE_SUBTYPE_LABELS[subtype as ExperienceSubtype] ?? subtype) : null },
-        { key: "when", label: "When", value: when(str("date"), str("time")) },
+        { key: "when", label: "Dates", value: when(str("date"), str("time")) },
+        { key: "guests", label: "Guests", value: guests },
+        { key: "category", label: "Type", value: subtype ? (EXPERIENCE_SUBTYPE_LABELS[subtype as ExperienceSubtype] ?? subtype) : null },
         { key: "location", label: "Location", value: str("location_name") || null },
       ];
     }

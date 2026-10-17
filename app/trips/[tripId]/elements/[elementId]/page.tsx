@@ -1127,7 +1127,8 @@ export default async function ElementDetailPage({
       .map((m) => ({ userId: m.userId, displayName: m.userId === user.id ? "You" : m.displayName }));
 
     body = (
-      <div className="flex w-full max-w-xl flex-col gap-3.5 text-left">
+      // Voting: the Trip Home column width (672px), per the voting mockup.
+      <div className="flex w-full max-w-2xl flex-col gap-3.5 text-left">
         <section className="flex flex-col gap-3 rounded-[18px] border-[1.5px] border-dashed border-brand-teal bg-brand-surface p-4 sm:px-[18px]">
           <ElementHeader
             tripId={tripId}
@@ -1209,6 +1210,7 @@ export default async function ElementDetailPage({
                 canManage={Boolean(canManage)}
                 canLockAny={creatorCanLock}
                 readOnly={stillSubmitting || iOptedOut}
+                tripNights={tripContext.dates?.nights ?? null}
                 hideHeader
               />
             ) : (

@@ -406,7 +406,6 @@ export default async function TripLandingPage({
         }
         elements={overviewElements}
         tripDates={tripDates}
-        destinationName={tripContext.destination?.name ?? null}
         tracker={<PaymentsTracker groups={[...trackers.values()]} />}
       />
     </div>
