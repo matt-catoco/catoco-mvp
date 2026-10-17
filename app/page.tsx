@@ -75,7 +75,7 @@ const DEMO: Record<string, DemoElementSpec> = {
       clock: "9h",
       clockAria: "Funding closes in 9h",
       notCommitted: true,
-      capacity: "4 ✓",
+      capacity: { count: 4 },
       myStatus: { text: "Waiting on you", done: false },
     },
   },
@@ -101,7 +101,7 @@ const DEMO: Record<string, DemoElementSpec> = {
     alerts: {
       clock: "5h",
       clockAria: "Voting closes in 5h",
-      capacity: "3 ✓",
+      capacity: { count: 3 },
       myStatus: { text: "Yet to vote", done: false },
     },
   },
@@ -118,7 +118,7 @@ const DEMO: Record<string, DemoElementSpec> = {
     // spells the deadline out.
     alerts: {
       deadlineText: "Submissions close in 2d",
-      capacity: "2 ✓",
+      capacity: { count: 2 },
       myStatus: { text: "Submitted", done: true },
     },
   },

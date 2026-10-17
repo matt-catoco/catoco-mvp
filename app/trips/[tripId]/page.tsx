@@ -66,8 +66,8 @@ function tileAlerts(a: AlertRow | undefined, showSpots: boolean): TileAlerts | u
   const now = Date.now();
   const capacity =
     a.phase !== "done" && a.in_count > 0
-      ? // "5 ✓" — how many are in (founder wording, 2026-10-10; was "5 in")
-        `${a.in_count} ✓${showSpots && a.spots != null ? ` · ${a.spots} spot${a.spots === 1 ? "" : "s"}` : ""}`
+      ? // How many are in — shown as a person icon + the number (founder, 2026-10-17)
+        { count: a.in_count, spots: showSpots ? a.spots : null }
       : undefined;
   if (a.phase === "done") return capacity ? { capacity } : undefined;
   const ms = a.deadline ? new Date(a.deadline).getTime() - now : null;

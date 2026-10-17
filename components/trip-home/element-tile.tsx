@@ -16,8 +16,27 @@ export type TileAlerts = {
   notCommitted?: boolean;
   deadlineText?: string;
   myStatus?: { text: string; done: boolean };
-  capacity?: string;
+  /** How many are in (a person icon + the number), and the element's spots when shown. */
+  capacity?: { count: number; spots?: number | null };
 };
+
+/** A small person icon and the count (founder, 2026-10-17; was "4 ✓"). */
+function Capacity({ count, spots }: { count: number; spots?: number | null }) {
+  const label = `${count} ${count === 1 ? "person" : "people"} in`;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="inline-flex items-center gap-0.5" title={label}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="7.5" r="4.5" />
+          <path d="M3.5 21c0-4.4 3.8-7.5 8.5-7.5s8.5 3.1 8.5 7.5z" />
+        </svg>
+        <span aria-hidden>{count}</span>
+        <span className="sr-only">{label}</span>
+      </span>
+      {spots != null && <span>· {spots} spot{spots === 1 ? "" : "s"}</span>}
+    </span>
+  );
+}
 
 export type ElementTileProps = {
   symbol: string;
@@ -157,7 +176,14 @@ export function ElementTile({
   // the footer doesn't repeat it as text (founder, 2026-10-15).
   const showDeadlineText = !alerts?.clock;
   const deadlineText = showDeadlineText ? alerts?.deadlineText : undefined;
-  const footerLeft = alerts ? [deadlineText, alerts.capacity].filter(Boolean).join(" · ") : "";
+  const capacity = alerts?.capacity && <Capacity {...alerts.capacity} />;
+  const footerLeft = (deadlineText || capacity) && (
+    <>
+      {deadlineText}
+      {deadlineText && capacity ? " · " : ""}
+      {capacity}
+    </>
+  );
 
   const inner: ReactNode = card ? (
     <>
@@ -203,7 +229,7 @@ export function ElementTile({
               {myStatus}
             </span>
           )}
-          {alerts.capacity && <span className="opacity-70">{alerts.capacity}</span>}
+          {capacity && <span className="opacity-70">{capacity}</span>}
         </span>
       )}
       {alertIcons && <span className="absolute right-3 top-3 flex items-center gap-1.5">{alertIcons}</span>}
