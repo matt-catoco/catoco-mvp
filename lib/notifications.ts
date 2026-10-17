@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailSendingEnabled, sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/html";
 import { platformFee } from "@/lib/platform-fee";
+import { createServiceClient } from "@/lib/supabase/service";
 
 // Cross-cutting: needs to be importable from a server action (page-load
 // invite trigger, funding-resolve trigger) and the cron route handler alike,
@@ -52,7 +53,9 @@ export async function sendCoreLoopEmail(opts: {
     return;
   }
   try {
-    const { data, error } = await opts.supabase.rpc("prepare_notification", {
+    // Service role only: prepare_notification returns the recipient's
+    // unsubscribe token, so signed-in users can't call it (2026-10-17).
+    const { data, error } = await createServiceClient().rpc("prepare_notification", {
       p_user_id: opts.userId,
       p_kind: opts.kind,
       p_subject_id: opts.subjectId,
@@ -285,9 +288,10 @@ function priceMoveSubjectId(elementId: string, stage: string, price: number): st
 }
 
 /**
- * Price drift (founder, 2026-10-14): the hourly recheck found a vendor price
- * that moved — before lock (submission / voting, past the 1% floor) or on a
- * locked element where it broke someone's authorization (over the cushion).
+ * Price drift (founder, 2026-10-14; threshold 2026-10-17): the hourly
+ * recheck found a vendor price that moved by more than the recommended
+ * cushion (1% when the trip's cushion is off) since the organizer was last
+ * told — before lock (submission / voting) or on a locked element.
  * Emails the organizer and co-organizers only. Gated by the trip's
  * notify_price_drift setting (independent of the checkout cushion) and,
  * through prepare_notification, each person's account email setting.
@@ -301,6 +305,8 @@ export async function notifyPriceDrift(opts: {
   newPrice: number;
   currency: string;
   basis: string | null;
+  /** Funding stage: the move broke someone's authorization. */
+  overCushion?: boolean;
   origin: string;
 }): Promise<void> {
   try {
@@ -337,9 +343,13 @@ export async function notifyPriceDrift(opts: {
     const url = `${opts.origin}/trips/${el.trip_id}/elements/${opts.elementId}`;
     const body =
       opts.stage === "funding"
-        ? `<p>The price for <strong>${label}</strong> on <strong>${tripName}</strong> has gone up: <strong>${escapeHtml(move)}</strong>.</p>
+        ? opts.overCushion
+          ? `<p>The price for <strong>${label}</strong> on <strong>${tripName}</strong> has gone up: <strong>${escapeHtml(move)}</strong>.</p>
            <p>That's more than some people's authorizations cover, so they've been asked to recommit at the new share. Nothing has been charged.</p>
            <p><a href="${url}">See who needs to recommit</a></p>`
+          : `<p>The price for <strong>${label}</strong> on <strong>${tripName}</strong> has moved by more than the recommended cushion: <strong>${escapeHtml(move)}</strong>.</p>
+           <p>Everyone's authorization still covers the new share, so nobody needs to recommit. Nothing has been charged.</p>
+           <p><a href="${url}">Review the element</a></p>`
         : `<p>A price on <strong>${label}</strong> (<strong>${tripName}</strong>) has moved since it was submitted: <strong>${escapeHtml(move)}</strong>.</p>
            <p>Review it before ${opts.stage === "voting" ? "voting locks it in" : "the group votes"}.</p>
            <p><a href="${url}">Review the options</a></p>`;

@@ -159,8 +159,25 @@ export async function runFundingChargeJob(origin: string): Promise<ChargeJobSumm
         }
         await supabase.rpc("mark_element_price_checked", { p_element_id: row.element_id });
         summary.repriced.push({ elementId: row.element_id, outcome: outcome as string });
-        if (outcome === "over_cushion") {
-          await notifyPriceDrift({ supabase, elementId: row.element_id, stage: "funding", oldPrice, newPrice, currency: String(row.value.currency ?? "USD"), basis: row.pricing_basis, origin });
+        // Email only past the recommended cushion, measured from the price
+        // last emailed about (or the locked price) so small moves add up.
+        const { data: drift } = await supabase.rpc("check_locked_price_drift", {
+          p_element_id: row.element_id,
+          p_unit_price: newPrice,
+        });
+        const d = (Array.isArray(drift) ? drift[0] : drift) as { drifted: boolean; baseline: number | null } | null;
+        if (d?.drifted) {
+          await notifyPriceDrift({
+            supabase,
+            elementId: row.element_id,
+            stage: "funding",
+            oldPrice: d.baseline != null ? Number(d.baseline) : oldPrice,
+            newPrice,
+            currency: String(row.value.currency ?? "USD"),
+            basis: row.pricing_basis,
+            overCushion: outcome === "over_cushion",
+            origin,
+          });
         }
       } else {
         const { data: check, error } = await supabase.rpc("record_option_price_check", {
