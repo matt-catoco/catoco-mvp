@@ -119,6 +119,8 @@ export function ElementScopePanel({
   canManage,
   bundled,
   members,
+  inCount: totalIn,
+  guestListHidden = false,
 }: {
   tripId: string;
   elementId: string;
@@ -126,13 +128,17 @@ export function ElementScopePanel({
   canManage: boolean;
   bundled: boolean;
   members: ScopeMember[];
+  /** Everyone in, including people this viewer can't see. */
+  inCount?: number;
+  /** The trip hides participants from each other: this viewer only sees their own row. */
+  guestListHidden?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const me = members.find((m) => m.userId === currentUserId);
-  const inCount = members.filter((m) => m.optedIn).length;
+  const inCount = totalIn ?? members.filter((m) => m.optedIn).length;
 
   function toggle(userId: string, next: boolean) {
     setError(null);
@@ -161,6 +167,9 @@ export function ElementScopePanel({
         <span className="text-xs font-medium text-black dark:text-zinc-50">Who&apos;s invited</span>
         <span className="text-[11px] text-brand-muted">{inCount} in</span>
       </div>
+      {guestListHidden && (
+        <p className="mt-1 text-[11px] text-brand-muted">The guest list is hidden by the organizer.</p>
+      )}
       {me && me.optedIn === false && (
         <p className="mt-1 text-xs text-brand-muted">
           You&apos;ve opted out — you won&apos;t vote on or pay for this unless you opt back in.

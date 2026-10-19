@@ -1182,6 +1182,10 @@ export default async function ElementDetailPage({
             canManage={Boolean(canManage)}
             bundled={element.bundle_group_id !== null}
             members={scopeMembers}
+            // Element members can read every scope row, so the count is real
+            // even when the names are hidden.
+            inCount={(scopeRows ?? []).filter((r) => r.opted_in).length}
+            guestListHidden={!canManage && trip.view_all_participants === false}
           />
   
   
