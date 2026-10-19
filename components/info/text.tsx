@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 /**
  * Renders a catalog string, turning [[placeholder]] markers into a visibly
@@ -39,10 +40,13 @@ export function PageHeading({
   eyebrow,
   title,
   lede,
+  ledeLink,
 }: {
   eyebrow: string;
   title: string;
   lede?: string;
+  /** Optional inline link that ends the lede, e.g. "Contact us". */
+  ledeLink?: { label: string; href: string };
 }) {
   return (
     <header className="mb-10">
@@ -53,6 +57,15 @@ export function PageHeading({
       {lede ? (
         <p className="mt-4 max-w-2xl text-lg text-brand-muted">
           <T>{lede}</T>
+          {ledeLink ? (
+            <>
+              {" "}
+              <Link href={ledeLink.href} className="font-medium text-brand-teal-deep hover:underline">
+                {ledeLink.label}
+              </Link>
+              .
+            </>
+          ) : null}
         </p>
       ) : null}
     </header>

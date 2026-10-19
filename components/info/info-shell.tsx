@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/logo-mark";
 import { site } from "@/content/pages/en";
+import { legalLine } from "@/content/company";
 import { infoLinkVisible } from "@/components/info/visibility";
 
 /**
@@ -81,6 +82,9 @@ export function InfoFooter() {
       </div>
       <p className="mx-auto w-full max-w-5xl px-6 pb-10 text-xs text-brand-muted">
         © {new Date().getFullYear()} {site.footer.rights}
+      </p>
+      <p className="mx-auto w-full max-w-5xl px-6 pb-10 text-xs text-brand-muted">
+        {legalLine.en}
       </p>
     </footer>
   );

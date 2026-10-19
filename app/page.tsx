@@ -3,6 +3,7 @@ import Link from "next/link";
 import styles from "./page.module.css";
 import { TallyEmbedScript } from "./tally-embed-script";
 import { LogoMark } from "@/components/logo-mark";
+import { legalLine } from "@/content/company";
 import { ElementGrid } from "@/components/trip-home/element-grid";
 import type { TileAlerts } from "@/components/trip-home/element-tile";
 import { DOT_CLASSES } from "@/components/trip-home/status-legend";
@@ -609,11 +610,13 @@ export default async function Home() {
             <div className={styles.footLinks}>
               <a href="#how">How it works</a>
               <a href="#elements">The elements</a>
+              <Link href="/about">About</Link>
               <Link href="/contact">Contact</Link>
               <a href="mailto:hello@catoco.co">hello@catoco.co</a>
             </div>
           </div>
           <p className={styles.footCopy}>© 2026 Catoco.</p>
+          <p className={styles.footCopy} style={{ marginTop: 6 }}>{legalLine.en}</p>
         </div>
       </footer>
 

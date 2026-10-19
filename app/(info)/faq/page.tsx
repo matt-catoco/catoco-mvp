@@ -16,7 +16,7 @@ export default function FaqPage() {
   return (
     <article>
       <Banner>{site.draftBanner}</Banner>
-      <PageHeading eyebrow={faq.eyebrow} title={faq.title} lede={faq.lede} />
+      <PageHeading eyebrow={faq.eyebrow} title={faq.title} lede={faq.lede} ledeLink={faq.ledeLink} />
       <div className="max-w-2xl space-y-12">
         {faq.groups.map((g) => (
           <section key={g.heading}>

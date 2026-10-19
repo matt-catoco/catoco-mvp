@@ -16,6 +16,8 @@
 export type Section = { heading: string; body: string[] };
 export type Faq = { q: string; a: string };
 
+import { COMPANY } from "../company";
+
 export const site = {
   name: "Catoco",
   tagline: "Plan it together. Vote together. Fund it together. Go.",
@@ -36,8 +38,8 @@ export const site = {
         { href: "/sign-in", label: "Sign in" },
       ],
       company: [
+        { href: "/about", label: "About" },
         { href: "/contact", label: "Contact" },
-        { href: "/company", label: "Company details" },
       ],
       legal: [
         { href: "/terms", label: "Terms of service" },
@@ -106,44 +108,22 @@ export const showcase = {
 export const about = {
   metaTitle: "About Catoco",
   metaDescription:
-    "Catoco turns your group chat's next trip idea into a real, funded, booked trip.",
+    "Catoco is a group travel platform where friends plan a trip together, vote on the choices and fund them together.",
   eyebrow: "About",
-  title: "Group trips shouldn't live in a group chat",
+  title: "About us",
   lede:
-    "Catoco is where a group plans a trip together: everyone votes on the details, everyone chips in, and nobody gets stuck holding the bill.",
-  sections: [
-    {
-      heading: "The problem",
-      body: [
-        "Someone says \"we should all go to Porto.\" Forty messages later there are three half-decided Airbnbs, a spreadsheet nobody updates, and one person quietly fronting the deposit.",
-      ],
-    },
-    {
-      heading: "How Catoco works",
-      body: [
-        "A trip is made of elements. Each element is one small decision with its own status: a place to stay, a dinner, an airport transfer. Instead of one giant plan nobody can track, the group sees exactly where every piece stands.",
-        "Everyone ranks the options, the top choice locks in, the cost is split across the people it is for, and the element moves to booked.",
-      ],
-    },
-    {
-      heading: "What we believe",
-      body: [
-        "Planning should feel like progress, not admin.",
-        "Nobody should pay more than their share, or chase anyone for it.",
-        "A trip is only real once it is funded and booked, so that is where Catoco is headed.",
-      ],
-    },
-    {
-      heading: "Meet the founder",
-      body: [
-        "Matt Savit, founder of Catoco.",
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-        "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-      ],
-    },
-  ] as Section[],
-  cta: { label: "See how it works", href: "/tutorials" },
-  ctaSecondary: { label: "Talk to us", href: "/contact" },
+    "Catoco is a group travel platform where friends plan a trip together, vote on the choices and fund them together. Nobody fronts the money: everyone commits their share, and it is only charged once the whole group is in. Catoco is run by Catalyst to Commit B.V., a Dutch company.",
+  // The founder story is not ready; when it is, add it as a section below
+  // the lede (founder, 2026-10-19).
+  detailsHeading: "Company details",
+  rows: [
+    { label: "Doing business as", value: COMPANY.brand },
+    { label: "Legal entity", value: COMPANY.entity },
+    { label: "KvK", value: COMPANY.kvk },
+    { label: "VAT", value: COMPANY.vat },
+    { label: "Contact", value: COMPANY.email },
+    { label: "Managing director", value: COMPANY.managingDirector },
+  ],
 };
 
 export const contact = {
@@ -191,7 +171,8 @@ export const faq = {
   metaDescription: "Answers to common questions about planning and funding trips on Catoco.",
   eyebrow: "Help",
   title: "Help and frequently asked questions",
-  lede: "The basics of how Catoco works, from your first Trip to your final payment. Can't find your answer? Contact us.",
+  lede: "The basics of how Catoco works, from your first Trip to your final payment. Can't find your answer?",
+  ledeLink: { label: "Contact us", href: "/contact" },
   groups: [
     {
       heading: "The basics",
@@ -325,23 +306,6 @@ export const tutorials = {
   cta: { label: "Have a question?", href: "/faq" },
 };
 
-export const company = {
-  metaTitle: "Company details",
-  metaDescription: "Legal and registration details for Catoco.",
-  eyebrow: "Company",
-  title: "Company details",
-  lede: "The legal information you are entitled to know about who runs Catoco.",
-  rows: [
-    { label: "Trading name", value: "Catoco" },
-    { label: "Legal entity", value: "Catalyst to Commit B.V." },
-    { label: "Chamber of Commerce (KVK) number", value: "[[KVK number]]" },
-    { label: "VAT (BTW) number", value: "[[VAT / BTW number]]" },
-    { label: "Email", value: "support@catoco.co" },
-    { label: "Managing director", value: "Matt Savit" },
-  ],
-  note: "Details will be completed once the company is registered.",
-};
-
 export const terms = {
   metaTitle: "Terms of service",
   metaDescription: "The terms that apply when you use Catoco.",
@@ -351,7 +315,7 @@ export const terms = {
   sections: [
     {
       heading: "1. Who we are",
-      body: ["These terms apply to your use of Catoco, run by Catalyst to Commit B.V. (KVK [[KVK number]]) (\"Catoco\", \"we\"). By using Catoco you agree to them."],
+      body: [`These terms apply to your use of Catoco, run by ${COMPANY.entity} (KvK ${COMPANY.kvk}) ("Catoco", "we"). By using Catoco you agree to them.`],
     },
     {
       heading: "2. What Catoco does",

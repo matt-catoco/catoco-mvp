@@ -5,7 +5,7 @@
  * them even if it happens to be configured as a production-type deployment).
  */
 // Live everywhere, even where the rest of the info pages are hidden.
-const ALWAYS_PUBLIC = new Set(["/", "/contact", "/sign-in"]);
+const ALWAYS_PUBLIC = new Set(["/", "/about", "/contact", "/sign-in"]);
 
 /** Whether a link to this path should show here (hides links to hidden pages). */
 export function infoLinkVisible(href: string): boolean {
