@@ -136,20 +136,48 @@ export function TripPermissionsFields({
               : "Only you and co-organizers can share the invite link."
           }
         />
-        <Toggle
-          checked={v.allowOverMax}
-          onChange={(x) => onChange({ ...v, allowOverMax: x })}
-          title="Allow joining past the max"
-          detail={
-            v.allowOverMax
-              ? "More people than the max can join. Anything with limited spots (e.g. a ski house for 8) goes to the first to commit; the rest are waitlisted."
-              : "Once the trip reaches its max (you included), the invite link shows it's full."
-          }
-        />
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm text-black dark:text-zinc-50">Group size</span>
+          <span className="flex items-end gap-3">
+            {(["minParticipants", "maxParticipants"] as const).map((k) => (
+              <label key={k} className="flex flex-col gap-1">
+                <span className={labelClass}>{k === "minParticipants" ? "Minimum" : "Maximum"}</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  placeholder="No limit"
+                  className={`h-10 w-28 ${fieldClass}`}
+                  value={v[k] ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value.trim();
+                    onChange({ ...v, [k]: raw === "" ? null : Number(raw) });
+                  }}
+                />
+              </label>
+            ))}
+          </span>
+          <span className="text-xs text-brand-muted">
+            Everyone travelling, you included. Leave blank for no limit. The minimum is a guide; the maximum caps the invite link.
+          </span>
+        </div>
+        {v.maxParticipants !== null && (
+          <Toggle
+            checked={v.allowOverMax}
+            onChange={(x) => onChange({ ...v, allowOverMax: x })}
+            title={`Allow more than ${v.maxParticipants} to join`}
+            detail={
+              v.allowOverMax
+                ? `The invite link stays open past ${v.maxParticipants}. Anything with limited spots (like a ski house for 8) goes to the first to commit; the rest are waitlisted.`
+                : `Once ${v.maxParticipants} people (you included) have joined, the invite link says the trip is full.`
+            }
+          />
+        )}
       </section>
 
       <section className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
-        <span className="text-xs font-medium text-black dark:text-zinc-50">Timing</span>
+        <span className="text-xs font-medium text-black dark:text-zinc-50">Deadlines</span>
         {timingNote && <p className="text-xs text-brand-muted">{timingNote}</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-3">
           <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
@@ -245,7 +273,7 @@ export function TripPermissionsFields({
       </section>
 
       <section className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
-        <span className="text-xs font-medium text-black dark:text-zinc-50">Money</span>
+        <span className="text-xs font-medium text-black dark:text-zinc-50">Funding</span>
         <Toggle
           checked={v.checkoutCushion}
           onChange={(x) => onChange({ ...v, checkoutCushion: x })}
@@ -262,7 +290,7 @@ export function TripPermissionsFields({
           title="Email me if a price changes"
           detail={
             v.notifyPriceDrift
-              ? "Prices from booking sites are rechecked automatically; you and co-organizers get an email when one moves. Works with or without a cushion."
+              ? "Prices from booking sites are rechecked automatically: once when submissions close, weekly while voting (daily in its last week), and daily while funding (hourly in the last 48 hours). You and co-organizers get an email when a price moves by more than the recommended cushion."
               : "Prices are still rechecked, but nobody is emailed when one moves."
           }
         />

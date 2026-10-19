@@ -809,6 +809,8 @@ export async function updateTripPermissions(
     fundingDeadlineDays: number;
     allowOverMax: boolean;
     allowParticipantInvites: boolean;
+    minParticipants: number | null;
+    maxParticipants: number | null;
     cushionKind: "percent" | "amount";
     cushionValue: number;
     retryHours: number;
@@ -832,6 +834,12 @@ export async function updateTripPermissions(
     p_allow_participant_invites: input.allowParticipantInvites,
   });
   if (error) return { error: toUserFacingError(error) };
+  const { error: sizeError } = await supabase.rpc("set_participant_capacity", {
+    p_trip_id: tripId,
+    p_min: input.minParticipants,
+    p_max: input.maxParticipants,
+  });
+  if (sizeError) return { error: toUserFacingError(sizeError) };
   const { error: cushionError } = await supabase.rpc("update_trip_cushion", {
     p_trip_id: tripId,
     p_kind: input.cushionKind,

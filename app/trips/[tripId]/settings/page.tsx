@@ -33,7 +33,7 @@ export default async function TripSettingsPage({
   const { data: trip } = await supabase
     .from("trips")
     .select(
-      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days, allow_over_max, allow_participant_invites, price_cushion_kind, price_cushion_value, payment_retry_hours, voting_deadline_days, view_all_participants, view_element_participants, deadline_alert_hours, show_voters, allow_checkout_cushion, notify_price_drift",
+      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days, allow_over_max, allow_participant_invites, min_participants, max_participants, price_cushion_kind, price_cushion_value, payment_retry_hours, voting_deadline_days, view_all_participants, view_element_participants, deadline_alert_hours, show_voters, allow_checkout_cushion, notify_price_drift",
     )
     .eq("id", tripId)
     .maybeSingle();
@@ -66,6 +66,8 @@ export default async function TripSettingsPage({
             fundingDeadlineDays: trip.funding_deadline_days,
             allowOverMax: trip.allow_over_max,
             allowParticipantInvites: trip.allow_participant_invites,
+            minParticipants: trip.min_participants,
+            maxParticipants: trip.max_participants,
             cushionKind: trip.price_cushion_kind === "amount" ? "amount" : "percent",
             cushionValue: Number(trip.price_cushion_value),
             retryHours: trip.payment_retry_hours,

@@ -55,6 +55,8 @@ export async function createTrip(
       funding_deadline_days: fundingDays,
       allow_over_max: permissions.allowOverMax === true,
       allow_participant_invites: permissions.allowParticipantInvites === true,
+      min_participants: Number.isInteger(permissions.minParticipants) ? permissions.minParticipants : null,
+      max_participants: Number.isInteger(permissions.maxParticipants) ? permissions.maxParticipants : null,
       price_cushion_kind: permissions.cushionKind === "amount" ? "amount" : "percent",
       price_cushion_value: Number.isFinite(permissions.cushionValue) ? permissions.cushionValue : 10,
       payment_retry_hours:

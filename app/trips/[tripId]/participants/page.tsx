@@ -145,8 +145,13 @@ export default async function ParticipantsPage({
             <p className="mt-1 text-xs text-zinc-500">
               Max counts everyone travelling, you included.{" "}
               {trip.allow_over_max
-                ? "Joining past the max is on (Trip settings): more people can join, and anything with limited spots goes to the first to commit."
-                : "Once it's reached, the invite link shows the trip is full (change this in Trip settings)."}
+                ? "Joining past the max is on: more people can join, and anything with limited spots goes to the first to commit."
+                : "Once it's reached, the invite link shows the trip is full."}{" "}
+              It's also in{" "}
+              <Link href={`/trips/${tripId}/settings`} className="underline">
+                Trip settings
+              </Link>
+              .
             </p>
             <div className="mt-3">
               <CapacityForm

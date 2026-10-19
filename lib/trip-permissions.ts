@@ -13,6 +13,9 @@ export type TripPermissions = {
   allowOverMax: boolean;
   /** Participants see the invite link too. */
   allowParticipantInvites: boolean;
+  /** Group size, everyone travelling (organizer included). null = no limit. */
+  minParticipants: number | null;
+  maxParticipants: number | null;
   /** Price cushion: a percent of each share, or a fixed amount per person. */
   cushionKind: "percent" | "amount";
   cushionValue: number;
@@ -43,6 +46,8 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   fundingDeadlineDays: 14,
   allowOverMax: false,
   allowParticipantInvites: false,
+  minParticipants: null,
+  maxParticipants: null,
   cushionKind: "percent",
   cushionValue: 10,
   retryHours: 24,
@@ -70,6 +75,11 @@ export function tripPermissionsError(v: TripPermissions): string | null {
   }
   if (v.votingDeadlineDays !== null && (!Number.isInteger(v.votingDeadlineDays) || v.votingDeadlineDays < 1 || v.votingDeadlineDays > 90)) {
     return "Voting deadline default must be 1–90 days.";
+  }
+  const size = (n: number | null) => n === null || (Number.isInteger(n) && n >= 1 && n <= 500);
+  if (!size(v.minParticipants) || !size(v.maxParticipants)) return "Group size must be a whole number of people.";
+  if (v.minParticipants !== null && v.maxParticipants !== null && v.maxParticipants < v.minParticipants) {
+    return "The maximum group size can't be below the minimum.";
   }
   if (![12, 24, 48].includes(v.deadlineAlertHours)) return "Deadline alert must be 12, 24 or 48 hours.";
   if (!Number.isInteger(v.retryHours) || v.retryHours < 1 || v.retryHours > 144) {
