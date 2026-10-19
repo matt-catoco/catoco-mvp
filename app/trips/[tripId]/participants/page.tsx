@@ -147,7 +147,7 @@ export default async function ParticipantsPage({
               {trip.allow_over_max
                 ? "Joining past the max is on: more people can join, and anything with limited spots goes to the first to commit."
                 : "Once it's reached, the invite link shows the trip is full."}{" "}
-              It's also in{" "}
+              It&apos;s also in{" "}
               <Link href={`/trips/${tripId}/settings`} className="underline">
                 Trip settings
               </Link>
