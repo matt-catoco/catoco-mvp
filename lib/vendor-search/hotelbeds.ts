@@ -89,7 +89,11 @@ async function hbFetch<T>(suite: HotelbedsSuite, path: string, init: { method?: 
       // Never log the response body wholesale; the status says enough.
       throw new HotelbedsUnavailableError(`Hotelbeds ${suite} refused the request (${res.status}) — quota or access`);
     }
-    if (!res.ok) throw new Error(`Hotelbeds ${suite} ${path.split("?")[0]} failed (${res.status})`);
+    if (!res.ok) {
+      // Hotelbeds error bodies are plain validation messages (no secrets) — keep a snippet for diagnosis.
+      const detail = (await res.text().catch(() => "")).replace(/s+/g, " ").slice(0, 240);
+      throw new Error(`Hotelbeds ${suite} ${path.split("?")[0].split("/").slice(0, 4).join("/")} failed (${res.status})${detail ? `: ${detail}` : ""}`);
+    }
     const json = (await res.json()) as T;
     remember(cacheKey, json, init.ttl);
     return json;

@@ -151,6 +151,9 @@ async function aggregateHotels(params: VendorSearchParams): Promise<VendorSearch
  * place → nearest airport); To = a Hotelbeds hotel code, else the geocoded
  * hotel/address as GPS. No source or no match → an honest empty state.
  */
+/** Staging/preview only: say which step came back empty (production keeps the plain message). */
+const showDiagnostics = () => process.env.VERCEL_ENV !== "production";
+
 async function transferSearch(params: VendorSearchParams): Promise<VendorSearchResponse> {
   if (!hotelbedsConfigured("transfers")) {
     return { status: "mock", vendorLabel: "Transfers search isn't set up here yet", results: [] };
@@ -170,12 +173,23 @@ async function transferSearch(params: VendorSearchParams): Promise<VendorSearchR
     if (!coords) return { status: "live", vendorLabel: "Hotelbeds", results: [], notice: "We couldn't find that hotel or address." };
     to = { type: "GPS", code: `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}` };
   }
+  const searched = `from ${iata.toUpperCase()} to ${to.type === "GPS" ? `coordinates ${to.code}` : `hotel ${to.code}`}`;
   try {
-    return await hotelbedsTransferSearch(params, { type: "IATA", code: iata.toUpperCase() }, to);
+    const res = await hotelbedsTransferSearch(params, { type: "IATA", code: iata.toUpperCase() }, to);
+    if (res.results.length === 0) {
+      res.notice = showDiagnostics()
+        ? `Hotelbeds returned no transfers (searched ${searched} on ${params.startDate}). The test system may not cover this route — try BCN or PMI to a hotel there.`
+        : "No transfers found for that route and time.";
+    }
+    return res;
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[transfer search] ${searched}: ${msg}`);
     if (err instanceof HotelbedsUnavailableError) {
-      console.warn(`[transfer search] Hotelbeds unavailable: ${err.message}`);
       return { status: "live", vendorLabel: "Hotelbeds", results: [], notice: "Transfer prices aren't available right now — try again later." };
+    }
+    if (showDiagnostics()) {
+      return { status: "live", vendorLabel: "Hotelbeds", results: [], notice: `Transfer search failed (searched ${searched}): ${msg}` };
     }
     throw err;
   }
