@@ -61,13 +61,15 @@ function failureMessage(reason: string | null, deadline: string | null): string 
 const PHASE_TODO = { submission: "Yet to submit", voting: "Yet to vote", funding: "Waiting on you" } as const;
 const PHASE_DONE = { submission: "Submitted", voting: "Voted", funding: "Committed" } as const;
 
-function tileAlerts(a: AlertRow | undefined, showSpots: boolean): TileAlerts | undefined {
+function tileAlerts(a: AlertRow | undefined): TileAlerts | undefined {
   if (!a) return undefined;
   const now = Date.now();
   const capacity =
     a.phase !== "done" && a.in_count > 0
       ? // How many are in — shown as a person icon + the number (founder, 2026-10-17)
-        { count: a.in_count, spots: showSpots ? a.spots : null }
+        // An element's spots always show — they're what creates its waitlist,
+        // whatever the trip's own maximum (founder, 2026-10-19).
+        { count: a.in_count, spots: a.spots }
       : undefined;
   if (a.phase === "done") return capacity ? { capacity } : undefined;
   const ms = a.deadline ? new Date(a.deadline).getTime() - now : null;
@@ -148,7 +150,7 @@ export default async function TripLandingPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, voting_deadline_days, allow_over_max")
+    .select("id, name, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, voting_deadline_days")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -333,7 +335,7 @@ export default async function TripLandingPage({
       detail: info.detail,
       href: `/trips/${tripId}/elements/${row.id}`,
       schedule: getElementSchedule(row.type, row.state, row.metadata, lockedValue),
-      alerts: tileAlerts(alertsByElement.get(row.id), Boolean(trip.allow_over_max)),
+      alerts: tileAlerts(alertsByElement.get(row.id)),
     };
   });
 

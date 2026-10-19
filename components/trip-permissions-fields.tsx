@@ -160,6 +160,7 @@ export function TripPermissionsFields({
           </span>
           <span className="text-xs text-brand-muted">
             Everyone travelling, you included. Leave blank for no limit. The minimum is a guide; the maximum caps the invite link.
+            Spots on an element (a dinner for 6) are separate: invite more people than it has room for and the extras are waitlisted.
           </span>
         </div>
         {v.maxParticipants !== null && (
