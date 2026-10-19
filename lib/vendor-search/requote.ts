@@ -2,6 +2,7 @@ import "server-only";
 import type { TravelersBreakdown } from "@/lib/trip-elements";
 import { duffelSearch } from "./duffel";
 import { verifyLiteapiHotel } from "./liteapi";
+import { HotelbedsUnavailableError, verifyHotelbedsActivity, verifyHotelbedsHotel } from "./hotelbeds";
 
 export type Requote =
   | { ok: true; unitPrice: number; currency: string }
@@ -32,6 +33,30 @@ export async function requoteOption(value: Record<string, unknown>): Promise<Req
     );
     if (!stay) return { ok: false, reason: "The hotel no longer has availability for these dates." };
     return { ok: true, unitPrice: stay.perNightPrice, currency: stay.currency };
+  }
+
+  if (source === "hotelbeds" || source === "hotelbeds_activities") {
+    try {
+      if (source === "hotelbeds") {
+        const dates = (value.dates ?? {}) as { start_date?: string; end_date?: string };
+        const stay = await verifyHotelbedsHotel(
+          String(value.vendor_offer_id ?? ""),
+          String(dates.start_date ?? ""),
+          String(dates.end_date ?? ""),
+          travelers,
+          value.vendor_rate as { room_code?: string; board_code?: string } | undefined,
+        );
+        if (!stay) return { ok: false, reason: "The hotel no longer has availability for these dates." };
+        return { ok: true, unitPrice: stay.perNightPrice, currency: stay.currency };
+      }
+      const act = await verifyHotelbedsActivity(String(value.vendor_offer_id ?? ""), String(value.date ?? ""), travelers);
+      if (!act) return { ok: false, reason: "The activity isn't available on this date anymore." };
+      return { ok: true, unitPrice: act.perPersonPrice, currency: act.currency };
+    } catch (err) {
+      // Test quota used up: not a price change — the next run tries again.
+      if (err instanceof HotelbedsUnavailableError) return { ok: false, reason: "Hotelbeds can't be reached right now — try again later." };
+      throw err;
+    }
   }
 
   if (source === "duffel") {

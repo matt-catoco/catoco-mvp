@@ -9,6 +9,7 @@
 
 export type ProviderKey =
   | "liteapi"
+  | "hotelbeds"
   | "duffel"
   | "duffel_stays"
   | "viator"
@@ -49,6 +50,24 @@ export type ProviderCapabilities = {
 const UNVERIFIED = "from provider docs, 2026-10-10, unverified";
 
 export const PROVIDERS: Record<ProviderKey, ProviderCapabilities> = {
+  // Founder, 2026-10-19: search and price only. B2B distributor — no consumer
+  // checkout. Seller of record, net vs commissionable, payment model and
+  // display rules are open questions to Hotelbeds; fulfillment_mode stays
+  // unset until they answer.
+  hotelbeds: {
+    label: "Hotelbeds (hotels, activities, transfers)",
+    supports_booking_api: "unknown",
+    accepts_external_card: "unknown",
+    requires_approval: true,
+    payment_timing_options: ["pay_now"],
+    cardholder_name_rule: "not stated",
+    seller_of_record: "unknown",
+    mcp_available: "no",
+    notes:
+      "Search and price only (test environment, ~50 requests/day). No booking calls wired. Awaiting answers on seller of record, net vs commissionable rates, payment, display rules, certification and content caching.",
+    linkCoverage: "none",
+    verified: "founder brief 2026-10-19, unverified with Hotelbeds",
+  },
   liteapi: {
     label: "LiteAPI (hotels)",
     supports_booking_api: true,
@@ -173,6 +192,7 @@ export function providerForOption(value: Record<string, unknown>): ProviderKey {
   const src = typeof value.vendor_source === "string" ? value.vendor_source : "";
   const link = typeof value.booking_link === "string" ? value.booking_link : "";
   if (src === "liteapi") return "liteapi";
+  if (src === "hotelbeds" || src === "hotelbeds_activities") return "hotelbeds";
   if (src === "duffel") return "duffel";
   if (src === "duffel_stays") return "duffel_stays";
   if (/viator\.com/i.test(link)) return "viator";

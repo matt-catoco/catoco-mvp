@@ -367,7 +367,14 @@ export default async function ElementDetailPage({
                 ? "/day"
                 : "/night"
               : "",
-        vendorLabel: vendor === "duffel" ? "Duffel" : vendor === "liteapi" ? "LiteAPI" : null,
+        vendorLabel:
+          vendor === "duffel"
+            ? "Duffel"
+            : vendor === "liteapi"
+              ? "LiteAPI"
+              : vendor === "hotelbeds" || vendor === "hotelbeds_activities"
+                ? "Hotelbeds"
+                : null,
         cushionLabel: checkoutCushion
           ? cushionLabel(
               element.cushion_kind ?? cushionTrip?.price_cushion_kind,

@@ -11,6 +11,12 @@ import {
   duffelStaysSearch,
 } from "./duffel";
 import { geocodePlace } from "./geo";
+import {
+  HotelbedsUnavailableError,
+  hotelbedsActivitySearch,
+  hotelbedsConfigured,
+  hotelbedsHotelSearch,
+} from "./hotelbeds";
 
 // One dispatch point, routing by (elementType, searchSubtype) to whichever
 // vendor module actually owns that search today — never by element type
@@ -21,8 +27,10 @@ import { geocodePlace } from "./geo";
 // only adding a case here and a new vendor module next to viator.ts.
 export async function searchVendor(params: VendorSearchParams): Promise<VendorSearchResponse> {
   switch (params.elementType) {
+    // Experiences: Viator, plus Hotelbeds Activities when configured
+    // (founder, 2026-10-19) — one merged list, each card labelled by source.
     case "experience":
-      return viatorSearch(params);
+      return aggregateExperiences(params);
 
     // Flight → Duffel (test mode). Rental Car/Train/Bus have no confirmed
     // live vendor and stay on mock — Omio's Travelpayouts feed was checked
@@ -97,6 +105,7 @@ async function aggregateHotels(params: VendorSearchParams): Promise<VendorSearch
   if (process.env.DUFFEL_STAYS_ENABLED === "true" && duffelConfigured()) {
     sources.push({ name: "Duffel Stays", search: duffelStaysSearch });
   }
+  if (hotelbedsConfigured("hotels")) sources.push({ name: "Hotelbeds", search: hotelbedsHotelSearch });
   if (sources.length === 0) return mockSearch(params, "Mock data — no hotel source configured");
 
   const coords = await geocodePlace(params.location ?? "");
@@ -108,6 +117,9 @@ async function aggregateHotels(params: VendorSearchParams): Promise<VendorSearch
   settled.forEach((r, i) => {
     if (r.status === "fulfilled") {
       live.push({ ...r.value, results: r.value.results.map((x) => ({ ...x, source: x.source ?? sources[i].name })) });
+    } else if (r.reason instanceof HotelbedsUnavailableError) {
+      // Test quota used up / access refused: drop out quietly, others still show.
+      console.warn(`[hotel search] ${sources[i].name} unavailable: ${r.reason.message}`);
     } else if (!(r.reason instanceof DuffelNotEnabledError)) {
       console.error(`[hotel search] ${sources[i].name} failed`, r.reason);
       errors.push(r.reason);
@@ -128,6 +140,44 @@ async function aggregateHotels(params: VendorSearchParams): Promise<VendorSearch
     (a, b) => (a.currency ?? "").localeCompare(b.currency ?? "") || (a.price ?? 0) - (b.price ?? 0),
   );
   return { status: "live", vendorLabel: live.map((l) => l.vendorLabel).join(" + "), results };
+}
+
+/**
+ * Experiences from Viator and Hotelbeds Activities, merged into one list,
+ * Viator first-class as before. Hotelbeds needs coordinates and a date; it
+ * drops out quietly when unconfigured, out of quota or erroring.
+ */
+async function aggregateExperiences(params: VendorSearchParams): Promise<VendorSearchResponse> {
+  if (!hotelbedsConfigured("activities")) return viatorSearch(params);
+  const [viator, hotelbeds] = await Promise.allSettled([
+    viatorSearch(params),
+    (async () => {
+      const coords = await geocodePlace(params.location ?? "");
+      return coords ? hotelbedsActivitySearch(params, coords) : null;
+    })(),
+  ]);
+  const parts: VendorSearchResponse[] = [];
+  if (viator.status === "fulfilled" && viator.value.status === "live") {
+    parts.push({ ...viator.value, results: viator.value.results.map((r) => ({ ...r, source: r.source ?? "Viator" })) });
+  } else if (viator.status === "rejected") {
+    console.error("[experience search] Viator failed", viator.reason);
+  }
+  if (hotelbeds.status === "fulfilled" && hotelbeds.value) parts.push(hotelbeds.value);
+  else if (hotelbeds.status === "rejected") {
+    const r = hotelbeds.reason;
+    if (r instanceof HotelbedsUnavailableError) console.warn(`[experience search] Hotelbeds unavailable: ${r.message}`);
+    else console.error("[experience search] Hotelbeds failed", r);
+  }
+  if (parts.length === 0) {
+    if (viator.status === "rejected") throw viator.reason;
+    return viator.status === "fulfilled" ? viator.value : { status: "mock", vendorLabel: "Not available", results: [] };
+  }
+  return {
+    status: "live",
+    vendorLabel: parts.map((p) => p.vendorLabel).join(" + "),
+    results: parts.flatMap((p) => p.results),
+    notice: parts.find((p) => p.notice)?.notice,
+  };
 }
 
 function vendorLabelFor(params: VendorSearchParams): string {

@@ -7,6 +7,8 @@ import {
   extractPricing,
   isDuffelFlight,
   isLiteapiStay,
+  isHotelbedsStay,
+  isHotelbedsActivity,
   type TravelersBreakdown,
   normalizeOptionValue,
   validateOptionValue,
@@ -16,6 +18,7 @@ import {
 import { fetchLinkPreview } from "@/lib/link-preview";
 import { verifyDuffelOffer } from "@/lib/vendor-search/duffel";
 import { verifyLiteapiHotel } from "@/lib/vendor-search/liteapi";
+import { HotelbedsUnavailableError, verifyHotelbedsActivity, verifyHotelbedsHotel } from "@/lib/vendor-search/hotelbeds";
 import { pickUnsplashPhoto, placeQueries, type UnsplashPick } from "@/lib/unsplash";
 import { fetchOptionDetails } from "@/lib/option-details-fetch";
 import { sendCoreLoopEmail } from "@/lib/notifications";
@@ -97,6 +100,41 @@ async function confirmVendorOffer(
       return { error: "That hotel no longer has availability for these dates — search again, or add a booking link instead." };
     }
     return { value: { ...rawValue, price: stay.perNightPrice, currency: stay.currency, pricing_basis: "per_night" } };
+  }
+
+  // Hotelbeds (search/price only, 2026-10-19): the quote is re-checked
+  // here (incl. /checkrates for RECHECK rates) and the price comes from
+  // Hotelbeds, not the browser. Out of test quota → ask to retry later.
+  if (type === "accommodation" && isHotelbedsStay(rawValue)) {
+    const dates = (rawValue.dates ?? {}) as { start_date?: string; end_date?: string };
+    try {
+      const stay = await verifyHotelbedsHotel(
+        String(rawValue.vendor_offer_id),
+        String(dates.start_date ?? ""),
+        String(dates.end_date ?? ""),
+        rawValue.travelers as TravelersBreakdown | undefined,
+        rawValue.vendor_rate as { room_code?: string; board_code?: string } | undefined,
+      );
+      if (!stay) return { error: "That hotel no longer has availability for these dates — search again, or add a booking link instead." };
+      return { value: { ...rawValue, price: stay.perNightPrice, currency: stay.currency, pricing_basis: "per_night" } };
+    } catch (err) {
+      if (err instanceof HotelbedsUnavailableError) return { error: "Hotelbeds can't confirm prices right now — try again later, or add a booking link instead." };
+      throw err;
+    }
+  }
+  if (type === "experience" && isHotelbedsActivity(rawValue)) {
+    try {
+      const act = await verifyHotelbedsActivity(
+        String(rawValue.vendor_offer_id),
+        String(rawValue.date ?? ""),
+        rawValue.travelers as TravelersBreakdown | undefined,
+      );
+      if (!act) return { error: "That activity isn't available on this date anymore — search again, or add a booking link instead." };
+      return { value: { ...rawValue, price: act.perPersonPrice, currency: act.currency, pricing_basis: "per_person" } };
+    } catch (err) {
+      if (err instanceof HotelbedsUnavailableError) return { error: "Hotelbeds can't confirm prices right now — try again later, or add a booking link instead." };
+      throw err;
+    }
   }
 
   if (type !== "travel" || !isDuffelFlight(rawValue)) {

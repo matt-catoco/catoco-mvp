@@ -547,8 +547,10 @@ export type PlaceValue = LinkPreview & {
   booking_link?: string;
   // Accommodations picked from a live LiteAPI search: the hotel id stands
   // in for a booking link (re-verified + re-priced server-side on save).
-  vendor_source?: "liteapi";
+  vendor_source?: "liteapi" | "hotelbeds" | "hotelbeds_activities";
   vendor_offer_id?: string;
+  /** Hotelbeds: the quoted room/board/rate behind the price (rateKeys expire; kept for the re-check). */
+  vendor_rate?: Record<string, unknown>;
   // Free-text reference note, same optional field Travel already has for
   // manually-entered options — a place to jot down a discount code, a
   // reservation name, or anything else worth remembering that isn't a
@@ -818,6 +820,20 @@ export function isLiteapiStay(value: Record<string, unknown>): boolean {
   );
 }
 
+/** A stay picked from a live Hotelbeds search — the hotel code stands in for a link (B2B, no public page). */
+export function isHotelbedsStay(value: Record<string, unknown>): boolean {
+  return value.vendor_source === "hotelbeds" && typeof value.vendor_offer_id === "string" && /^d{1,10}$/.test(value.vendor_offer_id);
+}
+
+/** An experience picked from a live Hotelbeds Activities search — the activity code stands in for a link. */
+export function isHotelbedsActivity(value: Record<string, unknown>): boolean {
+  return (
+    value.vendor_source === "hotelbeds_activities" &&
+    typeof value.vendor_offer_id === "string" &&
+    value.vendor_offer_id.trim() !== ""
+  );
+}
+
 function bookingLinkError(value: Record<string, unknown>): string | null {
   const raw = String(value.booking_link ?? "").trim();
   if (!raw) return "Add a booking link";
@@ -899,13 +915,15 @@ export function validateOptionValue(
       }
       // Same as Duffel flights: a live LiteAPI result has no public page;
       // its hotel id stands in, re-verified (and re-priced) server-side.
-      if (isLiteapiStay(value)) return priceError(value);
+      if (isLiteapiStay(value) || isHotelbedsStay(value)) return priceError(value);
       return bookingLinkError(value) ?? priceError(value, { optional: str("subtype") === "other" });
     }
     case "experience": {
       if (!str("name")) return "Enter a name";
       if (!(EXPERIENCE_SUBTYPES as readonly string[]).includes(str("experience_subtype")))
         return "Pick a category";
+      // Hotelbeds Activities has no public page either; re-verified server-side.
+      if (isHotelbedsActivity(value)) return priceError(value);
       return bookingLinkError(value) ?? priceError(value);
     }
     case "dining": {
@@ -1036,6 +1054,14 @@ export function normalizeOptionValue(
         out.currency = str("currency") || "USD";
         out.pricing_basis = str("pricing_basis");
       }
+      if (isHotelbedsStay(value)) {
+        out.vendor_source = "hotelbeds";
+        out.vendor_offer_id = str("vendor_offer_id");
+        if (value.vendor_rate && typeof value.vendor_rate === "object") out.vendor_rate = value.vendor_rate as Record<string, unknown>;
+        if (str("title")) out.title = str("title");
+        if (str("description")) out.description = str("description");
+        if (str("thumbnail_url")) out.thumbnail_url = str("thumbnail_url");
+      }
       if (isLiteapiStay(value)) {
         out.vendor_source = "liteapi";
         out.vendor_offer_id = str("vendor_offer_id");
@@ -1076,6 +1102,13 @@ export function normalizeOptionValue(
         out.price = Number(value.price);
         out.currency = str("currency") || "USD";
         out.pricing_basis = str("pricing_basis");
+      }
+      if (isHotelbedsActivity(value)) {
+        out.vendor_source = "hotelbeds_activities";
+        out.vendor_offer_id = str("vendor_offer_id");
+        if (str("title")) out.title = str("title");
+        if (str("description")) out.description = str("description");
+        if (str("thumbnail_url")) out.thumbnail_url = str("thumbnail_url");
       }
       return out;
     }
