@@ -33,7 +33,7 @@ export default async function TripSettingsPage({
   const { data: trip } = await supabase
     .from("trips")
     .select(
-      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days, allow_over_max, allow_participant_invites, price_cushion_kind, price_cushion_value, payment_retry_hours, voting_deadline_days, view_all_participants, deadline_alert_hours, show_voters, allow_checkout_cushion, notify_price_drift",
+      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days, allow_over_max, allow_participant_invites, price_cushion_kind, price_cushion_value, payment_retry_hours, voting_deadline_days, view_all_participants, view_element_participants, deadline_alert_hours, show_voters, allow_checkout_cushion, notify_price_drift",
     )
     .eq("id", tripId)
     .maybeSingle();
@@ -72,6 +72,7 @@ export default async function TripSettingsPage({
             // Trips made before the voting default existed: a week of voting.
             votingDeadlineDays: trip.voting_deadline_days ?? 7,
             viewAllParticipants: trip.view_all_participants,
+            viewElementParticipants: trip.view_element_participants !== false,
             deadlineAlertHours: trip.deadline_alert_hours,
             showVoters: Boolean(trip.show_voters),
             checkoutCushion: trip.allow_checkout_cushion !== false,

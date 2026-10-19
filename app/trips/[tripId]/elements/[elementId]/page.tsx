@@ -221,7 +221,7 @@ export default async function ElementDetailPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, view_all_participants")
+    .select("id, name, organizer_id")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -1065,28 +1065,33 @@ export default async function ElementDetailPage({
     );
     const myRanking = (myVotes ?? []).map((v) => v.option_id);
 
-    // "Who's invited": scope rows joined to the roster. Organizers see
-    // everyone, including trip members who aren't in scope at all (so they
-    // can add them); participants see the other invitees only when the trip
-    // lets participants see each other (founder, 2026-10-19), else just
-    // themselves.
-    const [{ data: scopeRows }, { data: scopeRoster }] = await Promise.all([
+    // "Who's invited" (founder, 2026-10-19). Organizers see the whole
+    // roster, including trip members who aren't in scope (so they can add
+    // them). Participants get get_element_invitees(): everyone when the
+    // trip shows its list, the people on this element when "see who's on
+    // the same element" is on, else only themselves.
+    const [{ data: scopeRows }, { data: scopeRoster }, { data: invitees }] = await Promise.all([
       supabase
         .from("element_participants")
         .select("participant_id, opted_in")
         .eq("element_id", element.id)
         .returns<{ participant_id: string; opted_in: boolean }[]>(),
-      supabase.rpc("get_trip_roster", { p_trip_id: tripId }),
+      canManage ? supabase.rpc("get_trip_roster", { p_trip_id: tripId }) : Promise.resolve({ data: null }),
+      canManage ? Promise.resolve({ data: null }) : supabase.rpc("get_element_invitees", { p_element_id: element.id }),
     ]);
     const optedInById = new Map((scopeRows ?? []).map((r) => [r.participant_id, r.opted_in]));
-    const scopeMembers: ScopeMember[] = ((scopeRoster ?? []) as RosterRow[])
-      .filter((r) => canManage || r.user_id === user.id || trip.view_all_participants !== false)
-      .map((r) => ({
-        userId: r.user_id,
-        displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
-        optedIn: optedInById.has(r.user_id) ? optedInById.get(r.user_id)! : null,
-      }))
-      .filter((m) => canManage || m.optedIn !== null);
+    const scopeMembers: ScopeMember[] = canManage
+      ? ((scopeRoster ?? []) as RosterRow[]).map((r) => ({
+          userId: r.user_id,
+          displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
+          optedIn: optedInById.has(r.user_id) ? optedInById.get(r.user_id)! : null,
+        }))
+      : ((invitees ?? []) as { user_id: string; display_name: string | null; opted_in: boolean }[]).map((r) => ({
+          userId: r.user_id,
+          displayName: r.display_name?.trim() || "Member",
+          optedIn: r.opted_in,
+        }));
+    const guestListHidden = !canManage && !scopeMembers.some((m) => m.userId !== user.id);
     const iOptedOut = optedInById.get(user.id) === false;
 
     // Lock it in: organizers/co-organizers, or whoever added the element
@@ -1185,7 +1190,8 @@ export default async function ElementDetailPage({
             // Element members can read every scope row, so the count is real
             // even when the names are hidden.
             inCount={(scopeRows ?? []).filter((r) => r.opted_in).length}
-            guestListHidden={!canManage && trip.view_all_participants === false}
+            // Only themselves visible while others are in: say the list is hidden.
+            guestListHidden={guestListHidden && (scopeRows ?? []).filter((r) => r.opted_in).length > 1}
           />
   
   

@@ -23,6 +23,8 @@ export type TripPermissions = {
   votingDeadlineDays: number | null;
   /** Participants see each other's names (off: only their own + the organizer's). */
   viewAllParticipants: boolean;
+  /** With the trip list hidden: participants still see who else is on the elements they're part of. */
+  viewElementParticipants: boolean;
   /** Element cards show a deadline clock inside this many hours. */
   deadlineAlertHours: 12 | 24 | 48;
   /** Voting tiles show who voted, as display-name initials (never names or emails). Off: counts only. */
@@ -48,6 +50,7 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   // when submissions close, so voting always gets its own week.
   votingDeadlineDays: 7,
   viewAllParticipants: true,
+  viewElementParticipants: true,
   deadlineAlertHours: 24,
   showVoters: false,
   checkoutCushion: true,

@@ -68,6 +68,7 @@ export async function createTrip(
           ? permissions.votingDeadlineDays
           : null,
       view_all_participants: permissions.viewAllParticipants !== false,
+      view_element_participants: permissions.viewElementParticipants !== false,
       deadline_alert_hours: [12, 24, 48].includes(permissions.deadlineAlertHours) ? permissions.deadlineAlertHours : 24,
       show_voters: permissions.showVoters === true,
       allow_checkout_cushion: permissions.checkoutCushion !== false,

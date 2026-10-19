@@ -104,6 +104,18 @@ export function TripPermissionsFields({
               : "Participants see only their own name and yours — others appear without names. You and co-organizers always see everyone."
           }
         />
+        {!v.viewAllParticipants && (
+          <Toggle
+            checked={v.viewElementParticipants}
+            onChange={(x) => onChange({ ...v, viewElementParticipants: x })}
+            title="Participants can see who's on the same element"
+            detail={
+              v.viewElementParticipants
+                ? "Each person sees the others invited to the elements they're part of — a dinner group or a sub-group flight — but not the whole trip."
+                : "Participants see only themselves on each element, with a note that the guest list is hidden."
+            }
+          />
+        )}
         <Toggle
           checked={v.showVoters}
           onChange={(x) => onChange({ ...v, showVoters: x })}

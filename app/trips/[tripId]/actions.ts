@@ -814,6 +814,7 @@ export async function updateTripPermissions(
     retryHours: number;
     votingDeadlineDays: number | null;
     viewAllParticipants: boolean;
+    viewElementParticipants: boolean;
     deadlineAlertHours: number;
     showVoters: boolean;
     checkoutCushion: boolean;
@@ -850,6 +851,7 @@ export async function updateTripPermissions(
     p_show_voters: input.showVoters,
     p_allow_checkout_cushion: input.checkoutCushion,
     p_notify_price_drift: input.notifyPriceDrift,
+    p_view_element_participants: input.viewElementParticipants,
   });
   if (advancedError) return { error: toUserFacingError(advancedError) };
   revalidatePath(`/trips/${tripId}`);
