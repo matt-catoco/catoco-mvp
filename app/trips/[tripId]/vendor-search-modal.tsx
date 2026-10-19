@@ -163,6 +163,147 @@ function PillRow<T extends string>({
  * manual Value form when locking a searchable type in at creation, and
  * treats a pick as the locked value for that create_element() call.
  */
+// ---- Flight result filters (founder, 2026-10-20) -------------------------------
+// Display-only narrowing of one search's results, using the structured
+// details Duffel returns (result.flight). Nothing is re-fetched.
+
+type TimeWindow = "any" | "early" | "morning" | "afternoon" | "evening";
+const TIME_WINDOWS: { key: TimeWindow; label: string; from: number; to: number }[] = [
+  { key: "any", label: "Any time", from: 0, to: 24 },
+  { key: "early", label: "Before 6am", from: 0, to: 6 },
+  { key: "morning", label: "Morning", from: 6, to: 12 },
+  { key: "afternoon", label: "Afternoon", from: 12, to: 18 },
+  { key: "evening", label: "Evening", from: 18, to: 24 },
+];
+const inWindow = (hhmm: string, w: TimeWindow) => {
+  if (w === "any" || !hhmm) return true;
+  const h = Number(hhmm.slice(0, 2));
+  const win = TIME_WINDOWS.find((t) => t.key === w)!;
+  return h >= win.from && h < win.to;
+};
+type FlightFilter = {
+  stops: "any" | "0" | "1";
+  airlines: string[];
+  depart: TimeWindow;
+  arrive: TimeWindow;
+  sort: "price" | "duration" | "depart";
+};
+const NO_FLIGHT_FILTER: FlightFilter = { stops: "any", airlines: [], depart: "any", arrive: "any", sort: "price" };
+
+function applyFlightFilter(results: VendorSearchResult[], f: FlightFilter): VendorSearchResult[] {
+  const legsOk = (r: VendorSearchResult) => {
+    const legs = [r.flight!.outbound, ...(r.flight!.inbound ? [r.flight!.inbound] : [])];
+    return f.stops === "any" || legs.every((l) => l.stops <= Number(f.stops));
+  };
+  const out = results.filter(
+    (r) =>
+      !r.flight ||
+      (legsOk(r) &&
+        (f.airlines.length === 0 || f.airlines.includes(r.flight.airline)) &&
+        inWindow(r.flight.outbound.depart, f.depart) &&
+        inWindow(r.flight.outbound.arrive, f.arrive)),
+  );
+  const total = (r: VendorSearchResult) =>
+    (r.flight?.outbound.durationMinutes ?? 9e9) + (r.flight?.inbound?.durationMinutes ?? 0);
+  return out.sort((a, b) =>
+    f.sort === "duration"
+      ? total(a) - total(b)
+      : f.sort === "depart"
+        ? (a.flight?.outbound.depart ?? "99").localeCompare(b.flight?.outbound.depart ?? "99")
+        : (a.price ?? 0) - (b.price ?? 0),
+  );
+}
+
+function FlightFilters({
+  results,
+  value,
+  onChange,
+}: {
+  results: VendorSearchResult[];
+  value: FlightFilter;
+  onChange: (f: FlightFilter) => void;
+}) {
+  // Airlines with their lowest price, cheapest first.
+  const airlines = new Map<string, number>();
+  for (const r of results) {
+    if (!r.flight) continue;
+    const prev = airlines.get(r.flight.airline);
+    if (prev === undefined || (r.price ?? 0) < prev) airlines.set(r.flight.airline, r.price ?? 0);
+  }
+  const currency = results.find((r) => r.currency)?.currency ?? "USD";
+  const chip = (on: boolean) =>
+    `rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+      on ? "border-brand-accent bg-brand-teal-wash text-brand-accent" : "border-brand-line text-brand-muted hover:text-foreground"
+    }`;
+  const row = "flex flex-wrap items-center gap-1.5";
+  const label = "w-16 flex-none text-[11px] font-semibold text-brand-muted";
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-brand-line p-2.5" role="group" aria-label="Filter flights">
+      <div className={row}>
+        <span className={label}>Stops</span>
+        {(
+          [
+            ["any", "Any"],
+            ["0", "Nonstop"],
+            ["1", "1 stop or fewer"],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} type="button" aria-pressed={value.stops === k} onClick={() => onChange({ ...value, stops: k })} className={chip(value.stops === k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {airlines.size > 1 && (
+        <div className={row}>
+          <span className={label}>Airlines</span>
+          {[...airlines.entries()]
+            .sort((a, b) => a[1] - b[1])
+            .map(([name, from]) => {
+              const on = value.airlines.includes(name);
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    onChange({ ...value, airlines: on ? value.airlines.filter((a) => a !== name) : [...value.airlines, name] })
+                  }
+                  className={chip(on)}
+                >
+                  {name} · {priceLabel({ price: from, currency, pricing_basis: "", mode: "flight" })}
+                </button>
+              );
+            })}
+        </div>
+      )}
+      {(["depart", "arrive"] as const).map((k) => (
+        <div key={k} className={row}>
+          <span className={label}>{k === "depart" ? "Departs" : "Arrives"}</span>
+          {TIME_WINDOWS.map((w) => (
+            <button key={w.key} type="button" aria-pressed={value[k] === w.key} onClick={() => onChange({ ...value, [k]: w.key })} className={chip(value[k] === w.key)}>
+              {w.label}
+            </button>
+          ))}
+        </div>
+      ))}
+      <div className={row}>
+        <span className={label}>Sort</span>
+        {(
+          [
+            ["price", "Cheapest"],
+            ["duration", "Fastest"],
+            ["depart", "Earliest"],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} type="button" aria-pressed={value.sort === k} onClick={() => onChange({ ...value, sort: k })} className={chip(value.sort === k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function VendorSearchPanel({
   elementType,
   tripContext,
@@ -200,6 +341,8 @@ export function VendorSearchPanel({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [response, setResponse] = useState<VendorSearchResponse | null>(null);
+  const [flightFilter, setFlightFilter] = useState<FlightFilter>(NO_FLIGHT_FILTER);
+  const [shownCount, setShownCount] = useState(20);
 
   function buildParams(): VendorSearchParams {
     return {
@@ -275,6 +418,8 @@ export function VendorSearchPanel({
         return;
       }
       setResponse(data as VendorSearchResponse);
+      setFlightFilter(NO_FLIGHT_FILTER);
+      setShownCount(20);
       setStatus("done");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Search failed");
@@ -510,6 +655,9 @@ export function VendorSearchPanel({
     );
   })();
 
+  const isFlightResults = subtype === "flight" && Boolean(response?.results.some((r) => r.flight));
+  const filtered = response ? (isFlightResults ? applyFlightFilter(response.results, flightFilter) : response.results) : [];
+
   return (
     <div className="flex flex-col gap-3">
       {response && (
@@ -546,11 +694,29 @@ export function VendorSearchPanel({
             </p>
           ) : (
             <>
+            {isFlightResults && (
+              <>
+                <FlightFilters results={response.results} value={flightFilter} onChange={(f) => { setFlightFilter(f); setShownCount(20); }} />
+                <p className="text-[11px] text-brand-muted" role="status">
+                  {filtered.length === response.results.length
+                    ? `${filtered.length} flights`
+                    : `${filtered.length} of ${response.results.length} flights`}
+                </p>
+              </>
+            )}
             <p className="text-[11px] text-brand-muted">
               Prices are live quotes, not guaranteed until booked — they can move before the group pays
               (covered up to the trip&apos;s price cushion).
             </p>
-            {response.results.map((r) => (
+            {isFlightResults && filtered.length === 0 && (
+              <p className="rounded-lg bg-black/[.03] px-3 py-2 text-xs text-zinc-500 dark:bg-white/[.05]">
+                No flights match these filters.{" "}
+                <button type="button" className="underline" onClick={() => setFlightFilter(NO_FLIGHT_FILTER)}>
+                  Clear filters
+                </button>
+              </p>
+            )}
+            {filtered.slice(0, shownCount).map((r) => (
               <div
                 key={r.id}
                 className="flex items-center justify-between gap-3 rounded-lg border border-brand-line p-2.5 text-sm"
@@ -579,6 +745,15 @@ export function VendorSearchPanel({
                 </button>
               </div>
             ))}
+            {filtered.length > shownCount && (
+              <button
+                type="button"
+                onClick={() => setShownCount((n) => n + 20)}
+                className={`self-center px-3 py-1.5 text-xs ${btnSecondary}`}
+              >
+                Show more ({filtered.length - shownCount} more)
+              </button>
+            )}
             </>
           )}
         </div>

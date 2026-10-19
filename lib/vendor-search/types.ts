@@ -39,6 +39,28 @@ export type VendorSearchResult = {
   // SQL-side mirror, and every subtype's shape differs too much for one
   // fixed interface to cover cleanly.
   extra?: Record<string, unknown>;
+  /** Flights only: structured details for the search window's filters and
+   * sorting. Display-only — never stored on the option. */
+  flight?: FlightFacets;
+};
+
+export type FlightLegFacets = {
+  /** "08:10" local departure / arrival */
+  depart: string;
+  arrive: string;
+  /** Arrives N calendar days after it leaves (overnight flights). */
+  arriveDayOffset: number;
+  stops: number;
+  /** Connection airports, in order. */
+  via: string[];
+  durationMinutes: number | null;
+};
+
+export type FlightFacets = {
+  airline: string;
+  airlineCode?: string;
+  outbound: FlightLegFacets;
+  inbound?: FlightLegFacets;
 };
 
 export type VendorSearchStatus = "live" | "mock";

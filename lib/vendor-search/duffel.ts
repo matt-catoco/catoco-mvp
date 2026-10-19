@@ -1,6 +1,6 @@
 import "server-only";
 import type { TravelersBreakdown } from "@/lib/trip-elements";
-import type { VendorSearchParams, VendorSearchResponse, VendorSearchResult } from "./types";
+import type { FlightLegFacets, VendorSearchParams, VendorSearchResponse, VendorSearchResult } from "./types";
 import { airportSuggestions } from "./airports";
 
 // Duffel (Flights). TEST token today (duffel_test_…); the same
@@ -17,6 +17,9 @@ import { airportSuggestions } from "./airports";
 // 3-letter code is resolved through GET /places/suggestions first.
 const DUFFEL_BASE = "https://api.duffel.com";
 const MAX_RESULTS = 12;
+// Flights: enough offers for the search window's filters to be useful
+// (stops, airline, times); the window shows the cheapest first.
+const MAX_FLIGHT_RESULTS = 60;
 
 function headers(apiKey: string): HeadersInit {
   return {
@@ -85,6 +88,39 @@ function formatDuration(iso?: string | null): string {
 
 const stopsLabel = (n: number) => (n === 0 ? "Nonstop" : n === 1 ? "1 stop" : `${n} stops`);
 
+function durationMinutes(iso?: string | null): number | null {
+  if (!iso) return null;
+  const m = /P(?:(d+)D)?T?(?:(d+)H)?(?:(d+)M)?/.exec(iso);
+  return m ? (Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0)) * 60 + Number(m[3] ?? 0) : null;
+}
+
+function legFacets(slice?: DuffelSlice): FlightLegFacets | undefined {
+  const segs = slice?.segments ?? [];
+  if (segs.length === 0) return undefined;
+  const first = segs[0];
+  const last = segs[segs.length - 1];
+  const day = (iso?: string) => (iso ? Date.parse(iso.slice(0, 10)) : NaN);
+  const offset = Math.round((day(last.arriving_at) - day(first.departing_at)) / 864e5);
+  return {
+    depart: hhmm(first.departing_at),
+    arrive: hhmm(last.arriving_at),
+    arriveDayOffset: Number.isFinite(offset) && offset > 0 ? offset : 0,
+    stops: segs.length - 1,
+    via: segs.slice(0, -1).map((s) => s.destination?.iata_code ?? "").filter(Boolean),
+    durationMinutes: durationMinutes(slice?.duration),
+  };
+}
+
+function legLine(l: FlightLegFacets, duration: string): string {
+  return [
+    l.depart && l.arrive ? `${l.depart} → ${l.arrive}${l.arriveDayOffset ? ` (+${l.arriveDayOffset})` : ""}` : "",
+    l.stops === 0 ? "Nonstop" : `${stopsLabel(l.stops)}${l.via.length ? ` via ${l.via.join(", ")}` : ""}`,
+    duration,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export async function duffelSearch(params: VendorSearchParams): Promise<VendorSearchResponse> {
   const apiKey = process.env.DUFFEL_API_KEY;
   if (!apiKey) {
@@ -134,9 +170,11 @@ export async function duffelSearch(params: VendorSearchParams): Promise<VendorSe
   const results: VendorSearchResult[] = offers
     .slice()
     .sort((a, b) => Number(a.total_amount) - Number(b.total_amount))
-    .slice(0, MAX_RESULTS)
+    .slice(0, MAX_FLIGHT_RESULTS)
     .map((o) => {
       const out = o.slices?.[0];
+      const outbound = legFacets(out);
+      const inbound = roundTrip ? legFacets(o.slices?.[1]) : undefined;
       const segs = out?.segments ?? [];
       const first = segs[0];
       const last = segs[segs.length - 1];
@@ -153,9 +191,21 @@ export async function duffelSearch(params: VendorSearchParams): Promise<VendorSe
       return {
         id: o.id,
         title: `${airline} — ${origin} → ${destination}`,
-        description: [flightNumber, departTime && arrivalTime ? `${departTime} → ${arrivalTime}` : "", stopsLabel(Math.max(0, segs.length - 1)), duration]
+        description: [
+          flightNumber,
+          outbound ? `${inbound ? "Out " : ""}${legLine(outbound, duration)}` : "",
+          inbound ? `Back ${legLine(inbound, formatDuration(o.slices?.[1]?.duration))}` : "",
+        ]
           .filter(Boolean)
           .join(" · "),
+        flight: outbound
+          ? {
+              airline,
+              airlineCode: o.owner?.iata_code ?? first?.marketing_carrier?.iata_code,
+              outbound,
+              ...(inbound ? { inbound } : {}),
+            }
+          : undefined,
         // No public booking page exists for a Duffel offer — the offer ID
         // below is the reference instead (validateOptionValue exempts
         // vendor-sourced flights from the link requirement, and submitOption
