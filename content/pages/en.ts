@@ -111,10 +111,43 @@ export const about = {
     "Catoco is a group travel platform where friends plan a trip together, vote on the choices and fund them together.",
   eyebrow: "About",
   title: "About us",
-  lede:
-    "Catoco is a group travel platform where friends plan a trip together, vote on the choices and fund them together. Nobody fronts the money: everyone commits their share, and it is only charged once the whole group is in. Catoco is run by Catalyst to Commit B.V., a Dutch company.",
-  // The founder story is not ready; when it is, add it as a section below
-  // the lede (founder, 2026-10-19).
+  lede: "Catoco started where most group trips start: in a group chat, with a trip that is always about to happen.",
+  // The story (founder, 2026-10-19): the pain of organizing, waiting on
+  // others, the money friction, and how differently everyone travels. Same
+  // section layout the earlier draft used; the founder bio is still to come.
+  sections: [
+    {
+      heading: "We have been the organizer",
+      body: [
+        "Someone says \"we should all go to Porto,\" and everyone loves the idea. Then the work lands on one or two people: finding the options, keeping track of who said what, and trying to turn forty messages into an actual plan. We have been those people, more than once.",
+      ],
+    },
+    {
+      heading: "Waiting on everyone",
+      body: [
+        "The hardest part is rarely the planning. It is the waiting. Waiting to hear which dates work, which place people prefer, whether they are really in. Prices climb while the poll sits half answered, and the organizer carries the quiet anxiety of a trip that might not happen at all.",
+      ],
+    },
+    {
+      heading: "The money conversation",
+      body: [
+        "Then comes the money. One person fronts the deposit and spends weeks politely chasing everyone else for their share. When plans change or someone drops out, it gets harder: who covers the gap, who gets a refund, and how do you ask without it feeling personal? Friendships should not have to absorb that.",
+      ],
+    },
+    {
+      heading: "Everyone travels differently",
+      body: [
+        "Every group is a mix. One friend wants the cheapest option, another wants comfort, someone only cares about the food. Those differences are what make a trip with friends worth taking, but without a fair way to decide, the loudest voice or the most patient organizer ends up choosing for everyone.",
+      ],
+    },
+    {
+      heading: "So we built Catoco",
+      body: [
+        "On Catoco every decision gets its own place. The group puts options forward, votes, and locks in what most people want. Nobody fronts the money: everyone commits their share, and it is only charged once the whole group is in. If someone drops out, the plan adjusts in the open, not in awkward messages.",
+        "The trip goes from \"we should\" to \"we went,\" and the organizer gets to enjoy it too.",
+      ],
+    },
+  ] as Section[],
   detailsHeading: "Company details",
   rows: [
     { label: "Doing business as", value: COMPANY.brand },
