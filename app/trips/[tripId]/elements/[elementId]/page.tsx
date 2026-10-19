@@ -372,7 +372,7 @@ export default async function ElementDetailPage({
             ? "Duffel"
             : vendor === "liteapi"
               ? "LiteAPI"
-              : vendor === "hotelbeds" || vendor === "hotelbeds_activities"
+              : vendor === "hotelbeds" || vendor === "hotelbeds_activities" || vendor === "hotelbeds_transfers"
                 ? "Hotelbeds"
                 : null,
         cushionLabel: checkoutCushion

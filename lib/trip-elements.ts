@@ -232,13 +232,14 @@ export type LinkPreview = {
 // ---- §5 Travel: fixed Mode enum, not free text/autocomplete — clean enum
 // values for vendor-API routing later (Travelpayouts for flights, etc.);
 // free text would reintroduce the "Flights/Fights/flight/plane" mess.
-export const TRAVEL_MODES = ["flight", "train", "bus", "rental_car", "ferry", "other"] as const;
+export const TRAVEL_MODES = ["flight", "train", "bus", "rental_car", "transfer", "ferry", "other"] as const;
 export type TravelMode = (typeof TRAVEL_MODES)[number];
 export const TRAVEL_MODE_LABELS: Record<TravelMode, string> = {
   flight: "Flight",
   train: "Train",
   bus: "Bus",
   rental_car: "Rental car",
+  transfer: "Transfer",
   ferry: "Ferry",
   other: "Other",
 };
@@ -280,9 +281,11 @@ export type TravelValue = LinkPreview & {
   // Set only on a flight picked from a live Duffel search: the offer it came
   // from stands in for a booking link (Duffel offers have no public page).
   // Offers expire (~minutes); this is provenance, not a held fare.
-  vendor_source?: "duffel";
+  vendor_source?: "duffel" | "hotelbeds_transfers";
   vendor_offer_id?: string;
   vendor_offer_expires_at?: string;
+  /** Hotelbeds transfer: route codes + transfer type/vehicle/category behind the quote. */
+  vendor_rate?: Record<string, unknown>;
   travelers?: TravelersBreakdown;
   pickup_location?: string;
   pickup_datetime?: string;
@@ -437,7 +440,7 @@ export const EXPERIENCE_SUBTYPE_LABELS: Record<ExperienceSubtype, string> = {
 //
 // Travel doesn't need its own search-subtype enum — TRAVEL_MODES already is
 // one (flight/rental_car/train/bus have a search scene; ferry/other don't).
-export const TRAVEL_SEARCH_MODES: TravelMode[] = ["flight", "rental_car", "train", "bus"];
+export const TRAVEL_SEARCH_MODES: TravelMode[] = ["flight", "rental_car", "transfer", "train", "bus"];
 
 export const ACCOMMODATION_SEARCH_SUBTYPES = [
   "hotel",
@@ -825,6 +828,17 @@ export function isHotelbedsStay(value: Record<string, unknown>): boolean {
   return value.vendor_source === "hotelbeds" && typeof value.vendor_offer_id === "string" && /^d{1,10}$/.test(value.vendor_offer_id);
 }
 
+/** A transfer picked from a live Hotelbeds search — route + vehicle stand in for a link. */
+export function isHotelbedsTransfer(value: Record<string, unknown>): boolean {
+  return (
+    String(value.mode ?? "") === "transfer" &&
+    value.vendor_source === "hotelbeds_transfers" &&
+    typeof value.vendor_offer_id === "string" &&
+    value.vendor_offer_id.trim() !== "" &&
+    Boolean(value.vendor_rate && typeof value.vendor_rate === "object")
+  );
+}
+
 /** An experience picked from a live Hotelbeds Activities search — the activity code stands in for a link. */
 export function isHotelbedsActivity(value: Record<string, unknown>): boolean {
   return (
@@ -901,7 +915,7 @@ export function validateOptionValue(
       // of a link (Duffel offers have no public booking page). This only
       // relaxes the client-side check — submitOption() verifies the offer
       // with Duffel and takes the price from it before anything is stored.
-      if (isDuffelFlight(value)) return priceError(value);
+      if (isDuffelFlight(value) || isHotelbedsTransfer(value)) return priceError(value);
       return bookingLinkError(value) ?? priceError(value, { optional: str("mode") === "other" });
     }
     case "accommodation": {
@@ -1011,6 +1025,17 @@ export function normalizeOptionValue(
           // the search result's own.
           if (str("title")) out.title = str("title");
           if (str("description")) out.description = str("description");
+        }
+      }
+      if (str("mode") === "transfer") {
+        if (str("depart_time")) out.depart_time = str("depart_time");
+        if (isHotelbedsTransfer(value)) {
+          out.vendor_source = "hotelbeds_transfers";
+          out.vendor_offer_id = str("vendor_offer_id");
+          out.vendor_rate = value.vendor_rate as Record<string, unknown>;
+          if (str("title")) out.title = str("title");
+          if (str("description")) out.description = str("description");
+          if (str("thumbnail_url")) out.thumbnail_url = str("thumbnail_url");
         }
       }
       if (str("mode") === "rental_car") {

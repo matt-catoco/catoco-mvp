@@ -410,3 +410,148 @@ export async function verifyHotelbedsActivity(
   const price = a ? adultFrom(a) : null;
   return a && price !== null ? { perPersonPrice: round2(price), currency: a.currency ?? "EUR" } : null;
 }
+
+// ---- Transfers ---------------------------------------------------------------
+// Travel mode "transfer" (founder, 2026-10-19). Airport (IATA) → hotel or
+// address (GPS from the geocoded "To"), or a Hotelbeds hotel code (ATLAS)
+// when one is given. Priced as one total for the whole group ("flat").
+
+type HbTransferService = {
+  id?: number;
+  direction?: string;
+  transferType?: string; // PRIVATE | SHARED
+  vehicle?: { code?: string; name?: string };
+  category?: { code?: string; name?: string };
+  pickupInformation?: { date?: string; time?: string };
+  minPaxCapacity?: number;
+  maxPaxCapacity?: number;
+  content?: { images?: { url?: string; type?: string }[] };
+  price?: { totalAmount?: number; currencyId?: string };
+  rateKey?: string;
+  cancellationPolicies?: { amount?: number; from?: string }[];
+};
+
+export type TransferPoint = { type: "IATA" | "ATLAS" | "GPS"; code: string };
+
+function transferPaxes(travelers?: TravelersBreakdown) {
+  return {
+    adults: Math.max(1, travelers?.adults ?? 1),
+    children: (travelers?.children_ages ?? []).length,
+    infants: (travelers?.infants_ages ?? []).length,
+  };
+}
+
+const toTitle = (s?: string) => (s ? s.charAt(0) + s.slice(1).toLowerCase() : "");
+
+async function transferAvailability(
+  from: TransferPoint,
+  to: TransferPoint,
+  outbound: string,
+  inbound: string | null,
+  travelers?: TravelersBreakdown,
+): Promise<HbTransferService[]> {
+  const p = transferPaxes(travelers);
+  const seg = (x: TransferPoint) => `${x.type}/${encodeURIComponent(x.code)}`;
+  const path =
+    `/transfer-api/1.0/availability/en/from/${seg(from)}/to/${seg(to)}/${outbound}` +
+    `${inbound ? `/${inbound}` : ""}/${p.adults}/${p.children}/${p.infants}`;
+  const json = await hbFetch<{ services?: HbTransferService[] }>("transfers", path, { ttl: AVAILABILITY_TTL_MS });
+  return json.services ?? [];
+}
+
+/** "14:30" → "2027-09-16T14:30:00"; no time → midday. */
+const transferMoment = (date: string, time?: string) => `${date}T${/^\d{1,2}:\d{2}/.test(time ?? "") ? (time as string).slice(0, 5).padStart(5, "0") : "12:00"}:00`;
+
+export async function hotelbedsTransferSearch(
+  params: VendorSearchParams,
+  from: TransferPoint,
+  to: TransferPoint,
+): Promise<VendorSearchResponse> {
+  if (!params.startDate) return { status: "live", vendorLabel: hotelbedsLabel(), results: [] };
+  const outbound = transferMoment(params.startDate, params.time);
+  const inbound = params.endDate ? transferMoment(params.endDate) : null;
+  const services = await transferAvailability(from, to, outbound, inbound, params.travelers);
+  const results: VendorSearchResult[] = services
+    .filter((s) => typeof s.price?.totalAmount === "number" && s.price.totalAmount > 0)
+    .sort((a, b) => (a.price!.totalAmount ?? 0) - (b.price!.totalAmount ?? 0))
+    .slice(0, MAX_RESULTS)
+    .map((s, i) => {
+      const image = s.content?.images?.find((im) => /LARGE/i.test(im.type ?? "")) ?? s.content?.images?.[0];
+      const cancel = s.cancellationPolicies?.[0];
+      return {
+        id: `hotelbeds-transfer-${i}-${s.vehicle?.code ?? ""}-${s.category?.code ?? ""}`,
+        source: "Hotelbeds",
+        title: [toTitle(s.transferType), s.vehicle?.name].filter(Boolean).join(" · ") || "Transfer",
+        description: [
+          s.category?.name,
+          s.direction ? toTitle(s.direction) : "",
+          s.maxPaxCapacity ? `up to ${s.maxPaxCapacity} people` : "",
+          s.pickupInformation?.time ? `pickup ${s.pickupInformation.time.slice(0, 5)}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        thumbnail_url: image?.url,
+        booking_link: "",
+        price: round2(s.price!.totalAmount!),
+        currency: s.price?.currencyId ?? "EUR",
+        // One price for the whole group, split across the people it's for.
+        pricing_basis: "flat" as const,
+        extra: {
+          depart_date: params.startDate,
+          ...(params.endDate ? { return_date: params.endDate } : {}),
+          depart_time: (s.pickupInformation?.time ?? outbound.slice(11)).slice(0, 5),
+          travelers: params.travelers,
+          vendor_source: "hotelbeds_transfers",
+          vendor_offer_id: [s.transferType, s.vehicle?.code, s.category?.code].filter(Boolean).join("|") || "transfer",
+          vendor_rate: {
+            from,
+            to,
+            transfer_type: s.transferType,
+            vehicle_code: s.vehicle?.code,
+            category_code: s.category?.code,
+            rate_key: s.rateKey,
+            quoted_total: s.price?.totalAmount,
+          },
+          note: [
+            cancel?.from ? `Cancellation charges from ${String(cancel.from).slice(0, 10)}` : "",
+            "Quoted by Hotelbeds — booked by the organizer, not through Catoco",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        },
+      };
+    });
+  return { status: "live", vendorLabel: hotelbedsLabel(), results };
+}
+
+/** Re-quote a transfer: same route, time and party; the same transfer type + vehicle + category. */
+export async function verifyHotelbedsTransfer(value: Record<string, unknown>): Promise<{ total: number; currency: string } | null> {
+  if (!hotelbedsConfigured("transfers")) return null;
+  const rate = (value.vendor_rate ?? {}) as {
+    from?: TransferPoint;
+    to?: TransferPoint;
+    transfer_type?: string;
+    vehicle_code?: string;
+    category_code?: string;
+  };
+  const okPoint = (p?: TransferPoint): p is TransferPoint =>
+    Boolean(p && ["IATA", "ATLAS", "GPS"].includes(p.type) && typeof p.code === "string" && /^[A-Za-z0-9.,-]{2,40}$/.test(p.code));
+  const date = String(value.depart_date ?? "");
+  if (!okPoint(rate.from) || !okPoint(rate.to) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const ret = String(value.return_date ?? "");
+  const services = await transferAvailability(
+    rate.from,
+    rate.to,
+    transferMoment(date, String(value.depart_time ?? "")),
+    /^\d{4}-\d{2}-\d{2}$/.test(ret) ? transferMoment(ret) : null,
+    value.travelers as TravelersBreakdown | undefined,
+  );
+  const match = services.find(
+    (s) =>
+      s.transferType === rate.transfer_type &&
+      s.vehicle?.code === rate.vehicle_code &&
+      (!rate.category_code || s.category?.code === rate.category_code) &&
+      typeof s.price?.totalAmount === "number",
+  );
+  return match ? { total: round2(match.price!.totalAmount!), currency: match.price?.currencyId ?? "EUR" } : null;
+}

@@ -2,7 +2,7 @@ import "server-only";
 import type { TravelersBreakdown } from "@/lib/trip-elements";
 import { duffelSearch } from "./duffel";
 import { verifyLiteapiHotel } from "./liteapi";
-import { HotelbedsUnavailableError, verifyHotelbedsActivity, verifyHotelbedsHotel } from "./hotelbeds";
+import { HotelbedsUnavailableError, verifyHotelbedsActivity, verifyHotelbedsHotel, verifyHotelbedsTransfer } from "./hotelbeds";
 
 export type Requote =
   | { ok: true; unitPrice: number; currency: string }
@@ -35,8 +35,13 @@ export async function requoteOption(value: Record<string, unknown>): Promise<Req
     return { ok: true, unitPrice: stay.perNightPrice, currency: stay.currency };
   }
 
-  if (source === "hotelbeds" || source === "hotelbeds_activities") {
+  if (source === "hotelbeds" || source === "hotelbeds_activities" || source === "hotelbeds_transfers") {
     try {
+      if (source === "hotelbeds_transfers") {
+        const t = await verifyHotelbedsTransfer(value);
+        if (!t) return { ok: false, reason: "That transfer isn't available anymore." };
+        return { ok: true, unitPrice: t.total, currency: t.currency };
+      }
       if (source === "hotelbeds") {
         const dates = (value.dates ?? {}) as { start_date?: string; end_date?: string };
         const stay = await verifyHotelbedsHotel(

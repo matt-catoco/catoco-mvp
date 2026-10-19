@@ -192,7 +192,7 @@ export function providerForOption(value: Record<string, unknown>): ProviderKey {
   const src = typeof value.vendor_source === "string" ? value.vendor_source : "";
   const link = typeof value.booking_link === "string" ? value.booking_link : "";
   if (src === "liteapi") return "liteapi";
-  if (src === "hotelbeds" || src === "hotelbeds_activities") return "hotelbeds";
+  if (src === "hotelbeds" || src === "hotelbeds_activities" || src === "hotelbeds_transfers") return "hotelbeds";
   if (src === "duffel") return "duffel";
   if (src === "duffel_stays") return "duffel_stays";
   if (/viator\.com/i.test(link)) return "viator";

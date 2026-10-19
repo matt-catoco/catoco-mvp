@@ -9,6 +9,7 @@ import {
   isLiteapiStay,
   isHotelbedsStay,
   isHotelbedsActivity,
+  isHotelbedsTransfer,
   type TravelersBreakdown,
   normalizeOptionValue,
   validateOptionValue,
@@ -18,7 +19,12 @@ import {
 import { fetchLinkPreview } from "@/lib/link-preview";
 import { verifyDuffelOffer } from "@/lib/vendor-search/duffel";
 import { verifyLiteapiHotel } from "@/lib/vendor-search/liteapi";
-import { HotelbedsUnavailableError, verifyHotelbedsActivity, verifyHotelbedsHotel } from "@/lib/vendor-search/hotelbeds";
+import {
+  HotelbedsUnavailableError,
+  verifyHotelbedsActivity,
+  verifyHotelbedsHotel,
+  verifyHotelbedsTransfer,
+} from "@/lib/vendor-search/hotelbeds";
 import { pickUnsplashPhoto, placeQueries, type UnsplashPick } from "@/lib/unsplash";
 import { fetchOptionDetails } from "@/lib/option-details-fetch";
 import { sendCoreLoopEmail } from "@/lib/notifications";
@@ -131,6 +137,17 @@ async function confirmVendorOffer(
       );
       if (!act) return { error: "That activity isn't available on this date anymore — search again, or add a booking link instead." };
       return { value: { ...rawValue, price: act.perPersonPrice, currency: act.currency, pricing_basis: "per_person" } };
+    } catch (err) {
+      if (err instanceof HotelbedsUnavailableError) return { error: "Hotelbeds can't confirm prices right now — try again later, or add a booking link instead." };
+      throw err;
+    }
+  }
+
+  if (type === "travel" && isHotelbedsTransfer(rawValue)) {
+    try {
+      const transfer = await verifyHotelbedsTransfer(rawValue);
+      if (!transfer) return { error: "That transfer isn't available anymore — search again, or add a booking link instead." };
+      return { value: { ...rawValue, price: transfer.total, currency: transfer.currency, pricing_basis: "flat" } };
     } catch (err) {
       if (err instanceof HotelbedsUnavailableError) return { error: "Hotelbeds can't confirm prices right now — try again later, or add a booking link instead." };
       throw err;

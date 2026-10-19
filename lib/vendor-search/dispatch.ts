@@ -16,7 +16,10 @@ import {
   hotelbedsActivitySearch,
   hotelbedsConfigured,
   hotelbedsHotelSearch,
+  hotelbedsTransferSearch,
+  type TransferPoint,
 } from "./hotelbeds";
+import { airportSuggestions } from "./airports";
 
 // One dispatch point, routing by (elementType, searchSubtype) to whichever
 // vendor module actually owns that search today — never by element type
@@ -38,6 +41,7 @@ export async function searchVendor(params: VendorSearchParams): Promise<VendorSe
     // live fares); its real-time API is approval-gated.
     case "travel":
       if (params.searchSubtype === "flight") return duffelSearch(params);
+      if (params.searchSubtype === "transfer") return transferSearch(params);
       if (params.searchSubtype === "rental_car") {
         return duffelOrMock(params, "DUFFEL_CARS_ENABLED", "Duffel Cars", duffelCarsSearch);
       }
@@ -140,6 +144,41 @@ async function aggregateHotels(params: VendorSearchParams): Promise<VendorSearch
     (a, b) => (a.currency ?? "").localeCompare(b.currency ?? "") || (a.price ?? 0) - (b.price ?? 0),
   );
   return { status: "live", vendorLabel: live.map((l) => l.vendorLabel).join(" + "), results };
+}
+
+/**
+ * Transfers (founder, 2026-10-19): Hotelbeds only. From = an airport (code or
+ * place → nearest airport); To = a Hotelbeds hotel code, else the geocoded
+ * hotel/address as GPS. No source or no match → an honest empty state.
+ */
+async function transferSearch(params: VendorSearchParams): Promise<VendorSearchResponse> {
+  if (!hotelbedsConfigured("transfers")) {
+    return { status: "mock", vendorLabel: "Transfers search isn't set up here yet", results: [] };
+  }
+  const fromText = (params.location ?? "").trim();
+  const toText = (params.destination ?? "").trim();
+  let iata: string | undefined = /^[A-Za-z]{3}$/.test(fromText) ? fromText.toUpperCase() : undefined;
+  if (!iata && fromText) {
+    const suggestions = await airportSuggestions(fromText);
+    iata = (suggestions.find((s) => s.kind === "airport") ?? suggestions[0])?.code;
+  }
+  if (!iata) return { status: "live", vendorLabel: "Hotelbeds", results: [], notice: "Pick the airport you're arriving at." };
+  let to: TransferPoint;
+  if (/^d{1,10}$/.test(toText)) to = { type: "ATLAS", code: toText };
+  else {
+    const coords = await geocodePlace(toText);
+    if (!coords) return { status: "live", vendorLabel: "Hotelbeds", results: [], notice: "We couldn't find that hotel or address." };
+    to = { type: "GPS", code: `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}` };
+  }
+  try {
+    return await hotelbedsTransferSearch(params, { type: "IATA", code: iata.toUpperCase() }, to);
+  } catch (err) {
+    if (err instanceof HotelbedsUnavailableError) {
+      console.warn(`[transfer search] Hotelbeds unavailable: ${err.message}`);
+      return { status: "live", vendorLabel: "Hotelbeds", results: [], notice: "Transfer prices aren't available right now — try again later." };
+    }
+    throw err;
+  }
 }
 
 /**

@@ -213,7 +213,7 @@ export function VendorSearchPanel({
       time: time || undefined,
       partySize: elementType === "dining" ? partySize : undefined,
       travelers:
-        (elementType === "travel" && subtype === "flight") ||
+        (elementType === "travel" && (subtype === "flight" || subtype === "transfer")) ||
         elementType === "accommodation" ||
         elementType === "experience"
           ? travelers
@@ -227,6 +227,13 @@ export function VendorSearchPanel({
   // don't block anything on their own -- this is the actual gate.
   function validateSearch(): string | null {
     if (elementType === "travel") {
+      if (subtype === "transfer") {
+        if (!location.trim()) return "Pick the airport you're arriving at";
+        if (!destination.trim()) return "Enter the hotel or address";
+        if (!startDate) return "Pick the transfer date";
+        if (roundTrip && !endDate) return "Pick the return date";
+        return null;
+      }
       if (subtype === "rental_car") {
         if (!location.trim()) return "Enter a pickup location";
         if (!startDate) return "Pick a pickup date";
@@ -313,6 +320,43 @@ export function VendorSearchPanel({
                 onChange={setTransmission}
               />
             </div>
+          </>
+        );
+      }
+      if (subtype === "transfer") {
+        return (
+          <>
+            <div key="transfer-places" className="flex gap-3">
+              <AirportPicker placeholder="From — arrival airport" value={location} onChange={setLocation} />
+              <input className={field} placeholder="To — hotel or address" value={destination} onChange={(e) => setDestination(e.target.value)} />
+            </div>
+            <PillRow
+              value={roundTrip ? "round_trip" : "one_way"}
+              options={["round_trip", "one_way"] as const}
+              labels={{ round_trip: "Return too", one_way: "One-way" }}
+              onChange={(v) => setRoundTrip(v === "round_trip")}
+            />
+            <div className="flex gap-3">
+              <div className="min-w-0 flex-1">
+                <DateRangeField
+                  startLabel="Transfer date"
+                  endLabel="Return"
+                  required
+                  single={!roundTrip}
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={(s, e) => {
+                    setStartDate(s);
+                    setEndDate(e);
+                  }}
+                />
+              </div>
+              <label className="flex w-32 flex-none flex-col gap-1">
+                <span className={labelClass}>Arrival time</span>
+                <input type="time" className={field} value={time} onChange={(e) => setTime(e.target.value)} />
+              </label>
+            </div>
+            <TravelersField value={travelers} onChange={setTravelers} />
           </>
         );
       }
