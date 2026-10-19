@@ -9,7 +9,7 @@ export const COMPANY = {
   entity: "Catalyst to Commit B.V.",
   brand: "Catoco",
   kvk: "42189338",
-  vat: "NL8701060004",
+  vat: "NL870106004B01",
   managingDirector: "Matt Savit",
   email: "hello@catoco.co",
 } as const;
