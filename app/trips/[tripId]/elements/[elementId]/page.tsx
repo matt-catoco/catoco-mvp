@@ -221,7 +221,7 @@ export default async function ElementDetailPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id")
+    .select("id, name, organizer_id, view_all_participants")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -1065,9 +1065,11 @@ export default async function ElementDetailPage({
     );
     const myRanking = (myVotes ?? []).map((v) => v.option_id);
 
-    // "Who's in": scope rows (RLS shows organizers every row, a participant
-    // their own) joined to the roster. Organizers also see trip members who
-    // aren't in scope at all, so they can add them.
+    // "Who's invited": scope rows joined to the roster. Organizers see
+    // everyone, including trip members who aren't in scope at all (so they
+    // can add them); participants see the other invitees only when the trip
+    // lets participants see each other (founder, 2026-10-19), else just
+    // themselves.
     const [{ data: scopeRows }, { data: scopeRoster }] = await Promise.all([
       supabase
         .from("element_participants")
@@ -1078,7 +1080,7 @@ export default async function ElementDetailPage({
     ]);
     const optedInById = new Map((scopeRows ?? []).map((r) => [r.participant_id, r.opted_in]));
     const scopeMembers: ScopeMember[] = ((scopeRoster ?? []) as RosterRow[])
-      .filter((r) => canManage || r.user_id === user.id)
+      .filter((r) => canManage || r.user_id === user.id || trip.view_all_participants !== false)
       .map((r) => ({
         userId: r.user_id,
         displayName: r.display_name?.trim() || (r.is_organizer ? "Organizer" : "Member"),
@@ -1122,9 +1124,6 @@ export default async function ElementDetailPage({
     const topVotes = byVotes[0] ? (votesByOption.get(byVotes[0].id) ?? 0) : 0;
     const leader =
       topVotes > 0 && (!byVotes[1] || (votesByOption.get(byVotes[1].id) ?? 0) < topVotes) ? byVotes[0] : null;
-    const leaderParticipants = scopeMembers
-      .filter((m) => m.optedIn === true)
-      .map((m) => ({ userId: m.userId, displayName: m.userId === user.id ? "You" : m.displayName }));
 
     body = (
       // Voting: the Trip Home column width (672px), per the voting mockup.
@@ -1230,7 +1229,9 @@ export default async function ElementDetailPage({
               <BookingSnapshot
                 type={element.type}
                 value={leader.value}
-                participants={leaderParticipants}
+                // "Who's invited" above already lists the people (founder, 2026-10-19).
+                participants={[]}
+                hidePeople
                 details={readDetails(leader.value)}
               />
             </div>

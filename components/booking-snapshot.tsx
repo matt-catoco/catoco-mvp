@@ -107,6 +107,7 @@ export function BookingSnapshot({
   image,
   details: refDetails,
   photoControl,
+  hidePeople = false,
 }: {
   type: ElementType;
   value: Record<string, unknown>;
@@ -119,6 +120,8 @@ export function BookingSnapshot({
   details?: OptionDetails | null;
   /** "Change photo" control, overlaid on the photo (organizer/creator). */
   photoControl?: ReactNode;
+  /** Leave out "Who this is for" — the open element's "Who's invited" panel covers it. */
+  hidePeople?: boolean;
 }) {
   const str = (k: string) => {
     const v = value[k];
@@ -347,6 +350,7 @@ export function BookingSnapshot({
           </a>
         )}
 
+        {!hidePeople && (
         <div className="border-t border-brand-line pt-3">
           <p className="text-[11px] font-medium uppercase tracking-wide text-brand-muted">
             Who this is for {participants.length > 0 && `(${participants.length})`}
@@ -361,6 +365,7 @@ export function BookingSnapshot({
             </p>
           )}
         </div>
+        )}
       </div>
     </div>
   );

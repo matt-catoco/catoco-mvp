@@ -106,7 +106,8 @@ export function RemoveParticipantButton({ tripId, userId, name }: { tripId: stri
 export type ScopeMember = { userId: string; displayName: string; optedIn: boolean | null };
 
 /**
- * "Who's in" for an OPEN element: your own opt-out/back-in, and (organizer
+ * "Who's invited" for an OPEN element (submission and voting; once it
+ * funds, the card shows "Who's committed" instead): your own opt-out/back-in, and (organizer
  * / co-organizer) per-person toggles. optedIn null = not in scope at all
  * (only shown to organizers, who can add them). Bundled elements move as a
  * whole bundle — the RPC enforces that; the copy says so.
@@ -150,13 +151,14 @@ export function ElementScopePanel({
     });
   }
 
-  const visible = canManage ? members : members.filter((m) => m.userId === currentUserId);
+  // The page already trims the list to what this viewer may see.
+  const visible = members;
   if (visible.length === 0) return null;
 
   return (
     <div className="mt-3 rounded-lg border border-brand-line p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-black dark:text-zinc-50">Who&apos;s in</span>
+        <span className="text-xs font-medium text-black dark:text-zinc-50">Who&apos;s invited</span>
         <span className="text-[11px] text-brand-muted">{inCount} in</span>
       </div>
       {me && me.optedIn === false && (
@@ -171,6 +173,7 @@ export function ElementScopePanel({
               <span className={m.optedIn ? "" : "line-through"}>{m.userId === currentUserId ? "You" : m.displayName}</span>
               {m.optedIn === false && <span className="ml-1.5 text-[11px]">· not participating</span>}
             </span>
+            {(canManage || m.userId === currentUserId) && (
             <button
               type="button"
               disabled={pending}
@@ -189,6 +192,7 @@ export function ElementScopePanel({
                       : "Put back in"
                     : "Add"}
             </button>
+            )}
           </li>
         ))}
       </ul>
