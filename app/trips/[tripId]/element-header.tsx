@@ -74,6 +74,7 @@ export function ElementHeader({
   nudge,
   finalNudge,
   dialogs,
+  chipAction,
 }: {
   tripId: string;
   elementId: string;
@@ -95,6 +96,8 @@ export function ElementHeader({
   finalNudge?: { fundingRequestId: string } | null;
   /** extra menu items that open a dialog */
   dialogs?: HeaderDialog[];
+  /** a control on the status row, right-aligned opposite the chip (e.g. Opt out) */
+  chipAction?: ReactNode;
 }) {
   const router = useRouter();
   const [openDialog, setOpenDialog] = useState<string | null>(null);
@@ -280,7 +283,7 @@ export function ElementHeader({
           )}
         </div>
       </div>
-      {(chip || nudgeMsg || statusIcons) && (
+      {(chip || nudgeMsg || statusIcons || chipAction) && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-2 sm:hidden">{statusIcons}</span>
           {chip && (
@@ -297,6 +300,7 @@ export function ElementHeader({
               {nudgeMsg}
             </span>
           )}
+          {chipAction && <span className="ml-auto">{chipAction}</span>}
         </div>
       )}
       {(dialogs ?? []).map(

@@ -1,4 +1,4 @@
-import { isStockPhoto } from "@/lib/option-details";
+import { isStockPhoto, readDetails } from "@/lib/option-details";
 import {
   ACCOMMODATION_SUBTYPE_LABELS,
   EXPERIENCE_SUBTYPE_LABELS,
@@ -122,7 +122,8 @@ export function priceWithBasis(value: Record<string, unknown>): { amount: string
  */
 export function compareFields(type: ElementType, value: Record<string, unknown>): { key: string; label: string; value: string | null }[] {
   const str = (k: string) => (typeof value[k] === "string" ? (value[k] as string).trim() : "");
-  const when = (date: string, time: string) => (date ? (time ? `${formatDate(date)} · ${time}` : formatDate(date)) : time || null);
+  // Time gets its own row (founder, 2026-10-19): it's what decides a flight or a tour.
+  const day = (date: string) => (date ? formatDate(date) : null);
   const guests =
     value.travelers && typeof value.travelers === "object" ? formatTravelersShort(value.travelers as TravelersBreakdown) : null;
   switch (type) {
@@ -132,6 +133,11 @@ export function compareFields(type: ElementType, value: Record<string, unknown>)
       const ret = str("return_date") || str("dropoff_datetime");
       return [
         { key: "dates", label: "Dates", value: depart ? (ret && ret !== depart ? `${formatDate(depart)} → ${formatDate(ret)}` : formatDate(depart)) : null },
+        {
+          key: "time",
+          label: "Time",
+          value: str("depart_time") ? (str("arrival_time") ? `${str("depart_time")} → ${str("arrival_time")}` : str("depart_time")) : null,
+        },
         { key: "guests", label: "Guests", value: guests },
         { key: "mode", label: "Type", value: mode ? (TRAVEL_MODE_LABELS[mode as TravelMode] ?? mode) : null },
         { key: "trip", label: "Trip", value: depart && mode !== "rental_car" ? (value.round_trip === false ? "One-way" : "Round trip") : null },
@@ -146,6 +152,14 @@ export function compareFields(type: ElementType, value: Record<string, unknown>)
       const range = start ? (end ? `${formatDate(start)} → ${formatDate(end)}` : formatDate(start)) : null;
       return [
         { key: "stay", label: "Dates", value: range && nights ? `${range} · ${nights} night${nights === 1 ? "" : "s"}` : range },
+        {
+          key: "time",
+          label: "Check-in / out",
+          value:
+            [readDetails(value)?.checkin && `In ${readDetails(value)?.checkin}`, readDetails(value)?.checkout && `out ${readDetails(value)?.checkout}`]
+              .filter(Boolean)
+              .join(" · ") || null,
+        },
         { key: "guests", label: "Guests", value: guests },
         { key: "type", label: "Type", value: subtype ? (ACCOMMODATION_SUBTYPE_LABELS[subtype as AccommodationSubtype] ?? subtype) : null },
         { key: "location", label: "Location", value: str("location_name") || null },
@@ -154,7 +168,8 @@ export function compareFields(type: ElementType, value: Record<string, unknown>)
     case "experience": {
       const subtype = str("experience_subtype");
       return [
-        { key: "when", label: "Dates", value: when(str("date"), str("time")) },
+        { key: "when", label: "Date", value: day(str("date")) },
+        { key: "time", label: "Time", value: str("time") || null },
         { key: "guests", label: "Guests", value: guests },
         { key: "category", label: "Type", value: subtype ? (EXPERIENCE_SUBTYPE_LABELS[subtype as ExperienceSubtype] ?? subtype) : null },
         { key: "location", label: "Location", value: str("location_name") || null },
@@ -163,7 +178,8 @@ export function compareFields(type: ElementType, value: Record<string, unknown>)
     case "dining":
       return [
         { key: "cuisine", label: "Cuisine", value: str("cuisine") || null },
-        { key: "meal", label: "Meal", value: when(str("date"), str("dining_time")) },
+        { key: "meal", label: "Date", value: day(str("date")) },
+        { key: "time", label: "Time", value: str("dining_time") || null },
         { key: "price_tier", label: "Price range", value: str("price_tier") || null },
         { key: "location", label: "Location", value: str("location_name") || null },
       ];

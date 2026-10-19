@@ -44,7 +44,7 @@ import { TravelerDetailsReveal, TravelerDetailsStatus, TravelerGate, TravelerReq
 import { elementRequirement, hasCompleteDetails, requirementAppliesTo, travelerDetailsProgress } from "@/lib/traveler-details";
 import { decryptJson, travelerCryptoConfigured } from "@/lib/traveler-crypto";
 import type { TravelerDetails, TravelerRequirement } from "@/lib/traveler-fields";
-import { ElementScopePanel, type ScopeMember } from "../../participation-controls";
+import { ElementScopePanel, OptOutButton, type ScopeMember } from "../../participation-controls";
 import { getTripContext } from "../../trip-context";
 import { ChangePhoto } from "../../change-photo";
 import { ensureElementEnrichment, type StoredEnrichment } from "@/lib/element-enrichment";
@@ -1167,6 +1167,11 @@ export default async function ElementDetailPage({
             }
             deadlineAction={canManage ? "edit" : null}
             nudge={canManage && nudgeTargets.length > 0 ? { count: nudgeTargets.length, phaseLabel: nudgePhase } : null}
+            chipAction={
+              optedInById.has(user.id) ? (
+                <OptOutButton tripId={tripId} elementId={element.id} optedIn={optedInById.get(user.id) === true} />
+              ) : null
+            }
           />
           <MetadataLine type={element.type} metadata={element.metadata} />
           {element.tie_notified && (

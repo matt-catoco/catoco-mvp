@@ -103,6 +103,46 @@ export function RemoveParticipantButton({ tripId, userId, name }: { tripId: stri
   );
 }
 
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (parts[0] ?? "?").slice(0, 2).toUpperCase();
+}
+
+/** Your own Opt out / Opt back in, on the element's status row (founder, 2026-10-19). */
+export function OptOutButton({ tripId, elementId, optedIn }: { tripId: string; elementId: string; optedIn: boolean }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <span className="flex items-center gap-2">
+      {error && (
+        <span role="alert" className="text-[11px] text-red-500">
+          {error}
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => {
+          setError(null);
+          startTransition(async () => {
+            const res = await setElementOptIn(tripId, elementId, !optedIn);
+            if (res.error) {
+              setError(res.error);
+              return;
+            }
+            router.refresh();
+          });
+        }}
+        className="rounded-full border-[1.5px] border-brand-line px-2.5 py-0.5 text-xs font-semibold text-foreground transition-colors hover:border-brand-accent hover:text-brand-accent disabled:opacity-50 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+      >
+        {pending ? "Saving…" : optedIn ? "Opt out" : "Opt back in"}
+      </button>
+    </span>
+  );
+}
+
 export type ScopeMember = { userId: string; displayName: string; optedIn: boolean | null };
 
 /**
@@ -137,6 +177,7 @@ export function ElementScopePanel({
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const me = members.find((m) => m.userId === currentUserId);
   const inCount = totalIn ?? members.filter((m) => m.optedIn).length;
 
@@ -161,6 +202,54 @@ export function ElementScopePanel({
   const visible = members;
   if (visible.length === 0) return null;
 
+  // Compact (founder, 2026-10-19): initials avatars like everywhere else,
+  // full name on hover/focus. In first, then opted out; organizers also get
+  // the trip members who aren't invited yet, dashed, to add them.
+  const invited = visible.filter((m) => m.optedIn !== null).sort((a, b) => Number(b.optedIn) - Number(a.optedIn));
+  const notInvited = canManage ? visible.filter((m) => m.optedIn === null) : [];
+  const selected = visible.find((m) => m.userId === selectedId) ?? null;
+  const nameOf = (m: ScopeMember) => (m.userId === currentUserId ? "You" : m.displayName);
+  const actionLabel = (m: ScopeMember) =>
+    m.optedIn
+      ? m.userId === currentUserId
+        ? "Opt out"
+        : "Take out"
+      : m.optedIn === false
+        ? m.userId === currentUserId
+          ? "Opt back in"
+          : "Put back in"
+        : "Add";
+
+  const avatar = (m: ScopeMember) => {
+    const status = m.optedIn ? "in" : m.optedIn === false ? "not participating" : "not invited";
+    const label = `${m.userId === currentUserId ? `${m.displayName} (you)` : m.displayName} · ${status}`;
+    const look = m.optedIn
+      ? "bg-brand-teal-wash text-brand-accent"
+      : m.optedIn === false
+        ? "bg-brand-line/50 text-brand-muted line-through"
+        : "border border-dashed border-brand-line text-brand-muted";
+    const mine = m.userId === currentUserId ? "ring-2 ring-brand-accent" : "";
+    const cls = `grid size-7 place-items-center rounded-full font-[family-name:var(--font-display)] text-[10px] font-bold ${look} ${mine} outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-1`;
+    return canManage ? (
+      <li key={m.userId}>
+        <button
+          type="button"
+          title={label}
+          aria-label={label}
+          aria-pressed={selectedId === m.userId}
+          onClick={() => setSelectedId((id) => (id === m.userId ? null : m.userId))}
+          className={`${cls} ${selectedId === m.userId ? "outline-2 outline-offset-2 outline-brand-accent" : ""}`}
+        >
+          {m.optedIn === null ? "+" : initialsOf(m.displayName)}
+        </button>
+      </li>
+    ) : (
+      <li key={m.userId} title={label} aria-label={label} tabIndex={0} role="img" className={cls}>
+        {initialsOf(m.displayName)}
+      </li>
+    );
+  };
+
   return (
     <div className="mt-3 rounded-lg border border-brand-line p-3">
       <div className="flex items-center justify-between">
@@ -175,36 +264,38 @@ export function ElementScopePanel({
           You&apos;ve opted out — you won&apos;t vote on or pay for this unless you opt back in.
         </p>
       )}
-      <ul className="mt-2 flex flex-col gap-1.5">
-        {visible.map((m) => (
-          <li key={m.userId} className="flex items-center justify-between gap-2 text-xs">
-            <span className={m.optedIn ? "" : "text-brand-muted"}>
-              <span className={m.optedIn ? "" : "line-through"}>{m.userId === currentUserId ? "You" : m.displayName}</span>
-              {m.optedIn === false && <span className="ml-1.5 text-[11px]">· not participating</span>}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <ul className="flex flex-wrap gap-1.5" aria-label="Invited">
+          {invited.map(avatar)}
+        </ul>
+        {notInvited.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5 border-l border-brand-line pl-3" aria-label="Not invited yet">
+            {notInvited.map(avatar)}
+          </ul>
+        )}
+      </div>
+      {canManage && selected && (
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-black/[.03] px-2.5 py-1.5 text-xs dark:bg-white/[.05]">
+          <span className="min-w-0 truncate">
+            <b className="font-semibold">{nameOf(selected)}</b>
+            <span className="text-brand-muted">
+              {" "}
+              · {selected.optedIn ? "in" : selected.optedIn === false ? "not participating" : "not invited"}
             </span>
-            {(canManage || m.userId === currentUserId) && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => toggle(m.userId, !m.optedIn)}
-              className={`h-7 px-2.5 text-[11px] ${btnSecondary}`}
-            >
-              {busyId === m.userId
-                ? "Saving…"
-                : m.optedIn
-                  ? m.userId === currentUserId
-                    ? "Not me — opt out"
-                    : "Take out"
-                  : m.optedIn === false
-                    ? m.userId === currentUserId
-                      ? "Opt back in"
-                      : "Put back in"
-                    : "Add"}
-            </button>
-            )}
-          </li>
-        ))}
-      </ul>
+          </span>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => toggle(selected.userId, !selected.optedIn)}
+            className={`h-7 flex-none px-2.5 text-[11px] ${btnSecondary}`}
+          >
+            {busyId === selected.userId ? "Saving…" : actionLabel(selected)}
+          </button>
+        </div>
+      )}
+      {canManage && !selected && (
+        <p className="mt-1.5 text-[11px] text-brand-muted">Tap someone to take them out or add them.</p>
+      )}
       <p className="mt-2 text-[11px] text-brand-muted">
         {bundled ? "Part of a bundle — this applies to every element in it. " : ""}
         Only while it&apos;s open; once it locks, the cost split is fixed.
