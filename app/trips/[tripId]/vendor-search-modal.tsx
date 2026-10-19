@@ -326,9 +326,23 @@ export function VendorSearchPanel({
       if (subtype === "transfer") {
         return (
           <>
-            <div key="transfer-places" className="flex gap-3">
-              <AirportPicker placeholder="From — arrival airport" value={location} onChange={setLocation} />
-              <input className={field} placeholder="To — hotel or address" value={destination} onChange={(e) => setDestination(e.target.value)} />
+            {/* Stacked and labelled: side by side, the airport picker got squeezed to nothing. */}
+            <div key="transfer-places" className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <span className={labelClass}>Pickup — arrival airport</span>
+                <div className="flex">
+                  <AirportPicker placeholder="Airport or city, e.g. SVQ or Sevilla" value={location} onChange={setLocation} />
+                </div>
+              </div>
+              <label className="flex flex-col gap-1">
+                <span className={labelClass}>Drop-off — hotel or address</span>
+                <input
+                  className={field}
+                  placeholder="Hotel name or street address"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                />
+              </label>
             </div>
             <PillRow
               value={roundTrip ? "round_trip" : "one_way"}
