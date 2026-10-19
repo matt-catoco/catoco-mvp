@@ -7,13 +7,22 @@ import "server-only";
  * Returns null when there's no token or no match — callers treat that as
  * "no results", never an error.
  */
-export async function geocodePlace(query: string): Promise<{ lat: number; lng: number; name: string } | null> {
+export async function geocodePlace(
+  query: string,
+  opts: {
+    /** Prefer matches near here ("Barcelona" near BCN is Spain, not Venezuela). */
+    near?: { lat: number; lng: number };
+    /** Also match street addresses (transfers drop off at an address or hotel). */
+    addresses?: boolean;
+  } = {},
+): Promise<{ lat: number; lng: number; name: string } | null> {
   const token = process.env.MAPBOX_TOKEN;
   const q = query.trim();
   if (!token || !q) return null;
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json`);
   url.searchParams.set("access_token", token);
-  url.searchParams.set("types", "country,region,district,place,locality,neighborhood,poi");
+  url.searchParams.set("types", `country,region,district,place,locality,neighborhood,poi${opts.addresses ? ",address" : ""}`);
+  if (opts.near) url.searchParams.set("proximity", `${opts.near.lng},${opts.near.lat}`);
   url.searchParams.set("limit", "1");
   const res = await fetch(url);
   if (!res.ok) return null;

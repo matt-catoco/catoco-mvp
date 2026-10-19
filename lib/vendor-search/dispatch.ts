@@ -19,7 +19,7 @@ import {
   hotelbedsTransferSearch,
   type TransferPoint,
 } from "./hotelbeds";
-import { airportSuggestions } from "./airports";
+import { airportCoordinates, airportSuggestions, km } from "./airports";
 
 // One dispatch point, routing by (elementType, searchSubtype) to whichever
 // vendor module actually owns that search today — never by element type
@@ -169,8 +169,18 @@ async function transferSearch(params: VendorSearchParams): Promise<VendorSearchR
   let to: TransferPoint;
   if (/^d{1,10}$/.test(toText)) to = { type: "ATLAS", code: toText };
   else {
-    const coords = await geocodePlace(toText);
+    // Look the drop-off up NEAR the airport: "Barcelona" from BCN is Spain.
+    const airport = await airportCoordinates(iata);
+    const coords = await geocodePlace(toText, { near: airport ?? undefined, addresses: true });
     if (!coords) return { status: "live", vendorLabel: "Hotelbeds", results: [], notice: "We couldn't find that hotel or address." };
+    if (airport && km(airport.lat, airport.lng, coords.lat, coords.lng) > 250) {
+      return {
+        status: "live",
+        vendorLabel: "Hotelbeds",
+        results: [],
+        notice: `That address (${coords.name}) is a long way from ${iata.toUpperCase()} — add the city to it, or check the airport.`,
+      };
+    }
     to = { type: "GPS", code: `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}` };
   }
   const searched = `from ${iata.toUpperCase()} to ${to.type === "GPS" ? `coordinates ${to.code}` : `hotel ${to.code}`}`;

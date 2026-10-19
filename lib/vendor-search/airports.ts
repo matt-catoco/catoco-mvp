@@ -47,7 +47,23 @@ async function suggestions(apiKey: string, params: Record<string, string>): Prom
   return ((await res.json())?.data ?? []) as DuffelPlace[];
 }
 
-function km(aLat: number, aLng: number, bLat: number, bLng: number): number {
+/** Where an airport (IATA code) is, from Duffel's place data. Null when unknown or Duffel isn't set up. */
+export async function airportCoordinates(iata: string): Promise<{ lat: number; lng: number } | null> {
+  const apiKey = process.env.DUFFEL_API_KEY;
+  const code = iata.trim().toUpperCase();
+  if (!apiKey || !/^[A-Z]{3}$/.test(code)) return null;
+  try {
+    const places = await suggestions(apiKey, { query: code });
+    const p =
+      places.find((x) => x.type === "airport" && x.iata_code === code) ??
+      places.find((x) => x.iata_code === code || x.iata_city_code === code);
+    return p && typeof p.latitude === "number" && typeof p.longitude === "number" ? { lat: p.latitude, lng: p.longitude } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function km(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const r = (d: number) => (d * Math.PI) / 180;
   const h =
     Math.sin(r(bLat - aLat) / 2) ** 2 + Math.cos(r(aLat)) * Math.cos(r(bLat)) * Math.sin(r(bLng - aLng) / 2) ** 2;
