@@ -33,7 +33,7 @@ export default async function TripSettingsPage({
   const { data: trip } = await supabase
     .from("trips")
     .select(
-      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days, allow_over_max, allow_participant_invites, min_participants, max_participants, price_cushion_kind, price_cushion_value, payment_retry_hours, voting_deadline_days, view_all_participants, view_element_participants, deadline_alert_hours, show_voters, allow_checkout_cushion, notify_price_drift",
+      "id, name, icon, icon_attribution, organizer_id, allow_participant_elements, allow_participant_subgroups, submission_deadline_days, funding_deadline_days, allow_element_waitlist, allow_participant_invites, min_participants, max_participants, price_cushion_kind, price_cushion_value, payment_retry_hours, voting_deadline_days, view_all_participants, view_element_participants, deadline_alert_hours, show_voters, allow_checkout_cushion, notify_price_drift",
     )
     .eq("id", tripId)
     .maybeSingle();
@@ -64,7 +64,7 @@ export default async function TripSettingsPage({
             allowParticipantSubgroups: trip.allow_participant_subgroups,
             submissionDeadlineDays: trip.submission_deadline_days,
             fundingDeadlineDays: trip.funding_deadline_days,
-            allowOverMax: trip.allow_over_max,
+            allowElementWaitlist: trip.allow_element_waitlist !== false,
             allowParticipantInvites: trip.allow_participant_invites,
             minParticipants: trip.min_participants,
             maxParticipants: trip.max_participants,

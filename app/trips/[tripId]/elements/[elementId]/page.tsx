@@ -1092,6 +1092,16 @@ export default async function ElementDetailPage({
           optedIn: r.opted_in,
         }));
     const guestListHidden = !canManage && !scopeMembers.some((m) => m.userId !== user.id);
+    // Waitlists off (trip setting, 2026-10-19): a full element takes nobody else in.
+    const [{ data: waitlistRow }, { data: spotsLimit }] = await Promise.all([
+      supabase.from("trips").select("allow_element_waitlist").eq("id", tripId).maybeSingle(),
+      supabase.rpc("element_spots", { p_element_id: element.id }),
+    ]);
+    const scopeInCount = (scopeRows ?? []).filter((r) => r.opted_in).length;
+    const fullSpots =
+      waitlistRow?.allow_element_waitlist === false && typeof spotsLimit === "number" && scopeInCount >= spotsLimit
+        ? spotsLimit
+        : null;
     const iOptedOut = optedInById.get(user.id) === false;
 
     // Lock it in: organizers/co-organizers, or whoever added the element
@@ -1169,7 +1179,12 @@ export default async function ElementDetailPage({
             nudge={canManage && nudgeTargets.length > 0 ? { count: nudgeTargets.length, phaseLabel: nudgePhase } : null}
             chipAction={
               optedInById.has(user.id) ? (
-                <OptOutButton tripId={tripId} elementId={element.id} optedIn={optedInById.get(user.id) === true} />
+                <OptOutButton
+                  tripId={tripId}
+                  elementId={element.id}
+                  optedIn={optedInById.get(user.id) === true}
+                  full={fullSpots !== null}
+                />
               ) : null
             }
           />
@@ -1194,7 +1209,8 @@ export default async function ElementDetailPage({
             members={scopeMembers}
             // Element members can read every scope row, so the count is real
             // even when the names are hidden.
-            inCount={(scopeRows ?? []).filter((r) => r.opted_in).length}
+            inCount={scopeInCount}
+            fullSpots={fullSpots}
             // Only themselves visible while others are in: say the list is hidden.
             guestListHidden={guestListHidden && (scopeRows ?? []).filter((r) => r.opted_in).length > 1}
           />

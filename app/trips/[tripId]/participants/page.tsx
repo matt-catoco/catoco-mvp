@@ -43,7 +43,7 @@ export default async function ParticipantsPage({
 
   const { data: trip } = await supabase
     .from("trips")
-    .select("id, name, organizer_id, invites_sent, min_participants, max_participants, allow_over_max, allow_participant_invites, view_all_participants")
+    .select("id, name, organizer_id, invites_sent, min_participants, max_participants, allow_participant_invites, view_all_participants")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -144,9 +144,7 @@ export default async function ParticipantsPage({
             <h2 className="text-sm font-semibold text-black dark:text-zinc-50">Group size</h2>
             <p className="mt-1 text-xs text-zinc-500">
               Max counts everyone travelling, you included.{" "}
-              {trip.allow_over_max
-                ? "Joining past the max is on: more people can join, and anything with limited spots goes to the first to commit."
-                : "Once it's reached, the invite link shows the trip is full."}{" "}
+              Once it&apos;s reached, the invite link shows the trip is full.{" "}
               It&apos;s also in{" "}
               <Link href={`/trips/${tripId}/settings`} className="underline">
                 Trip settings

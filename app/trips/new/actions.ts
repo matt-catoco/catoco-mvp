@@ -53,7 +53,7 @@ export async function createTrip(
       allow_participant_subgroups: allowElements && permissions.allowParticipantSubgroups === true,
       submission_deadline_days: submissionDays,
       funding_deadline_days: fundingDays,
-      allow_over_max: permissions.allowOverMax === true,
+      allow_element_waitlist: permissions.allowElementWaitlist !== false,
       allow_participant_invites: permissions.allowParticipantInvites === true,
       min_participants: Number.isInteger(permissions.minParticipants) ? permissions.minParticipants : null,
       max_participants: Number.isInteger(permissions.maxParticipants) ? permissions.maxParticipants : null,

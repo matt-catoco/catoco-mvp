@@ -110,7 +110,18 @@ function initialsOf(name: string): string {
 }
 
 /** Your own Opt out / Opt back in, on the element's status row (founder, 2026-10-19). */
-export function OptOutButton({ tripId, elementId, optedIn }: { tripId: string; elementId: string; optedIn: boolean }) {
+export function OptOutButton({
+  tripId,
+  elementId,
+  optedIn,
+  full = false,
+}: {
+  tripId: string;
+  elementId: string;
+  optedIn: boolean;
+  /** Waitlists are off and every spot is taken: you can't opt back in. */
+  full?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +134,8 @@ export function OptOutButton({ tripId, elementId, optedIn }: { tripId: string; e
       )}
       <button
         type="button"
-        disabled={pending}
+        disabled={pending || (!optedIn && full)}
+        title={!optedIn && full ? "Every spot is taken, and this trip doesn't use waitlists" : undefined}
         onClick={() => {
           setError(null);
           startTransition(async () => {
@@ -137,7 +149,7 @@ export function OptOutButton({ tripId, elementId, optedIn }: { tripId: string; e
         }}
         className="rounded-full border-[1.5px] border-brand-line px-2.5 py-0.5 text-xs font-semibold text-foreground transition-colors hover:border-brand-accent hover:text-brand-accent disabled:opacity-50 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
       >
-        {pending ? "Saving…" : optedIn ? "Opt out" : "Opt back in"}
+        {pending ? "Saving…" : optedIn ? "Opt out" : full ? "Full" : "Opt back in"}
       </button>
     </span>
   );
@@ -161,6 +173,7 @@ export function ElementScopePanel({
   members,
   inCount: totalIn,
   guestListHidden = false,
+  fullSpots = null,
 }: {
   tripId: string;
   elementId: string;
@@ -172,6 +185,8 @@ export function ElementScopePanel({
   inCount?: number;
   /** The trip hides participants from each other: this viewer only sees their own row. */
   guestListHidden?: boolean;
+  /** Waitlists are off and all these spots are taken: nobody else can come in. */
+  fullSpots?: number | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -254,7 +269,7 @@ export function ElementScopePanel({
     <div className="mt-3 rounded-lg border border-brand-line p-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-black dark:text-zinc-50">Who&apos;s invited</span>
-        <span className="text-[11px] text-brand-muted">{inCount} in</span>
+        <span className="text-[11px] text-brand-muted">{fullSpots !== null ? `Full · ${inCount} of ${fullSpots}` : `${inCount} in`}</span>
       </div>
       {guestListHidden && (
         <p className="mt-1 text-[11px] text-brand-muted">The guest list is hidden by the organizer.</p>
@@ -285,7 +300,8 @@ export function ElementScopePanel({
           </span>
           <button
             type="button"
-            disabled={pending}
+            disabled={pending || (!selected.optedIn && fullSpots !== null)}
+            title={!selected.optedIn && fullSpots !== null ? "Every spot is taken — take someone out first" : undefined}
             onClick={() => toggle(selected.userId, !selected.optedIn)}
             className={`h-7 flex-none px-2.5 text-[11px] ${btnSecondary}`}
           >

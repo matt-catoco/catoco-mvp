@@ -10,7 +10,8 @@ export type TripPermissions = {
   submissionDeadlineDays: number;
   fundingDeadlineDays: number;
   /** Newcomers can join past the trip's max (elements with limited spots go to the first to commit). */
-  allowOverMax: boolean;
+  /** Elements can have more people invited than spots; the extras are waitlisted (founder, 2026-10-19). Off: an element for 4 only ever has 4 in. */
+  allowElementWaitlist: boolean;
   /** Participants see the invite link too. */
   allowParticipantInvites: boolean;
   /** Group size, everyone travelling (organizer included). null = no limit. */
@@ -44,7 +45,7 @@ export const DEFAULT_TRIP_PERMISSIONS: TripPermissions = {
   allowParticipantSubgroups: false,
   submissionDeadlineDays: 7,
   fundingDeadlineDays: 14,
-  allowOverMax: false,
+  allowElementWaitlist: true,
   allowParticipantInvites: false,
   minParticipants: null,
   maxParticipants: null,

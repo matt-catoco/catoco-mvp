@@ -807,7 +807,7 @@ export async function updateTripPermissions(
     allowParticipantSubgroups: boolean;
     submissionDeadlineDays: number;
     fundingDeadlineDays: number;
-    allowOverMax: boolean;
+    allowElementWaitlist: boolean;
     allowParticipantInvites: boolean;
     minParticipants: number | null;
     maxParticipants: number | null;
@@ -830,7 +830,8 @@ export async function updateTripPermissions(
     p_allow_participant_subgroups: input.allowParticipantElements && input.allowParticipantSubgroups,
     p_submission_deadline_days: Math.round(input.submissionDeadlineDays),
     p_funding_deadline_days: Math.round(input.fundingDeadlineDays),
-    p_allow_over_max: input.allowOverMax,
+    // Retired switch: the trip maximum is a plain cap now (2026-10-19).
+    p_allow_over_max: false,
     p_allow_participant_invites: input.allowParticipantInvites,
   });
   if (error) return { error: toUserFacingError(error) };
@@ -860,6 +861,7 @@ export async function updateTripPermissions(
     p_allow_checkout_cushion: input.checkoutCushion,
     p_notify_price_drift: input.notifyPriceDrift,
     p_view_element_participants: input.viewElementParticipants,
+    p_allow_element_waitlist: input.allowElementWaitlist,
   });
   if (advancedError) return { error: toUserFacingError(advancedError) };
   revalidatePath(`/trips/${tripId}`);

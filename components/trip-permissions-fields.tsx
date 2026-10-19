@@ -159,22 +159,19 @@ export function TripPermissionsFields({
             ))}
           </span>
           <span className="text-xs text-brand-muted">
-            Everyone travelling, you included. Leave blank for no limit. The minimum is a guide; the maximum caps the invite link.
-            Spots on an element (a dinner for 6) are separate: invite more people than it has room for and the extras are waitlisted.
+            Everyone travelling, you included. Leave blank for no limit. The minimum is a guide; once the maximum is reached, the invite link says the trip is full.
           </span>
         </div>
-        {v.maxParticipants !== null && (
-          <Toggle
-            checked={v.allowOverMax}
-            onChange={(x) => onChange({ ...v, allowOverMax: x })}
-            title={`Allow more than ${v.maxParticipants} to join`}
-            detail={
-              v.allowOverMax
-                ? `The invite link stays open past ${v.maxParticipants}. Anything with limited spots (like a ski house for 8) goes to the first to commit; the rest are waitlisted.`
-                : `Once ${v.maxParticipants} people (you included) have joined, the invite link says the trip is full.`
-            }
-          />
-        )}
+        <Toggle
+          checked={v.allowElementWaitlist}
+          onChange={(x) => onChange({ ...v, allowElementWaitlist: x })}
+          title="Elements can have a waitlist"
+          detail={
+            v.allowElementWaitlist
+              ? "You can invite more people to an element than it has spots (a ski house for 8). The first to commit get a place; the rest are waitlisted."
+              : "An element only ever has as many people in as it has spots. A dinner for 4 is 4 people, with no waitlist."
+          }
+        />
       </section>
 
       <section className="flex flex-col gap-3 border-t border-black/[.08] pt-4 dark:border-white/[.1]">
