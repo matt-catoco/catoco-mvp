@@ -24,10 +24,9 @@ export const NEEDS_REVIEW: readonly string[] = [
   "pledge.termsPayNow",
   "pledge.termsWindow",
   "pledge.termsPayLater",
-  "pledge.termsDropout",
   "pledge.termsMoney",
   "pledge.agree",
-  "pledgeOrg.gapCoverConfirm",
+  "pledgeOrg.gapRecalcHint",
   "booking.payPledge",
   "booking.shortfall",
 ];

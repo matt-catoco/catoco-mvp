@@ -15,7 +15,6 @@ import {
   addPayoutMethod,
   confirmPledgePayments,
   openPayWindow,
-  proceedWithShortfall,
   removePayoutMethod,
   removeUnpaidAndRecalculate,
   reportPledgePaid,
@@ -252,9 +251,8 @@ function MemberView(p: PledgePanelProps) {
               ? fmt(t.pledge.termsPayNow, { organizer: p.collectorName })
               : p.windowHours != null
                 ? fmt(t.pledge.termsWindow, { hours: p.windowHours })
-                : fmt(t.pledge.termsPayLater, { organizer: p.collectorName })}
+                : t.pledge.termsPayLater}
           </li>
-          <li>{t.pledge.termsDropout}</li>
           <li>{fmt(t.pledge.termsMoney, { organizer: p.collectorName })}</li>
         </ul>
         {p.cushionAllowed && (
@@ -330,7 +328,7 @@ function MemberView(p: PledgePanelProps) {
           <span className="text-[12.5px] text-brand-muted">
             {p.showStatus || p.canManage
               ? fmt(t.pledge.waitingForGroup, { n: p.pledges.length, m: p.population, organizer: p.collectorName })
-              : fmt(t.pledge.waitingNoStatus, { organizer: p.collectorName })}
+              : t.pledge.waitingNoStatus}
           </span>
         </>
       ) : (
@@ -467,7 +465,6 @@ function OrganizerView(p: PledgePanelProps) {
   // One choice: "now" (pay right away), "none" (after everyone, no deadline) or hours.
   const timingValue = (timing: string, h: number | null) => (timing === "immediate" ? "now" : h == null ? "none" : String(h));
   const [timing, setTiming] = useState(timingValue(p.payTiming, p.windowHours));
-  const [confirmGap, setConfirmGap] = useState(false);
   const money = (n: number) => formatCurrency(n, p.currency);
   const closes = payWindowClosesAt(p.windowOpenedAt, p.windowHours);
   const closed = p.windowClosed;
@@ -616,39 +613,17 @@ function OrganizerView(p: PledgePanelProps) {
       {p.windowOpenedAt && (closed || p.windowHours == null) && gap > 0 && (
         <div className={`${box} border-amber-500/40 bg-amber-500/10`}>
           <b className="text-[13px] font-semibold text-foreground">{fmt(t.pledgeOrg.gapHeading, { gap: money(gap) })}</b>
-          {confirmGap ? (
-            <>
-              <span className="text-[12.5px] text-foreground">{fmt(t.pledgeOrg.gapCoverConfirm, { gap: money(gap) })}</span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={a.pending}
-                  onClick={() => a.run(() => proceedWithShortfall(p.tripId, p.elementId, p.fundingRequestId))}
-                  className={`px-3 py-1.5 text-xs ${btnPrimary}`}
-                >
-                  {t.pledgeOrg.continue}
-                </button>
-                <button type="button" onClick={() => setConfirmGap(false)} className={`px-3 py-1.5 text-xs ${btnSecondary}`}>
-                  {t.pledgeOrg.cancel}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setConfirmGap(true)} className={`px-3 py-1.5 text-xs ${btnPrimary}`}>
-                {t.pledgeOrg.gapCover}
-              </button>
-              {p.pledges.some((x) => x.paid < p.share) && (
-                <button
-                  type="button"
-                  disabled={a.pending}
-                  onClick={() => a.run(() => removeUnpaidAndRecalculate(p.tripId, p.elementId, p.fundingRequestId))}
-                  className={`px-3 py-1.5 text-xs ${btnSecondary}`}
-                >
-                  {t.pledgeOrg.gapRecalc}
-                </button>
-              )}
-            </div>
+          {/* A dropout follows the price-cushion rule: recalculate, and anyone
+              pushed above their cushion pledges again. */}
+          {p.pledges.some((x) => x.paid < p.share) && (
+            <button
+              type="button"
+              disabled={a.pending}
+              onClick={() => a.run(() => removeUnpaidAndRecalculate(p.tripId, p.elementId, p.fundingRequestId))}
+              className={`self-start px-3 py-1.5 text-xs ${btnPrimary}`}
+            >
+              {t.pledgeOrg.gapRecalc}
+            </button>
           )}
           <span className="text-[12px] text-brand-muted">{t.pledgeOrg.gapRecalcHint}</span>
         </div>
