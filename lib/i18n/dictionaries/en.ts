@@ -8,9 +8,9 @@ export const en = {
     saving: "Saving…",
   },
   collection: {
-    heading: "How will the group pay?",
+    heading: "Choose a payment method",
     sub: "Choose once for {element}. You can change it until someone commits.",
-    chosenHeading: "How the group pays",
+    chosenHeading: "Payment method",
     change: "Change",
     keep: "Keep this",
     use: "Use this",

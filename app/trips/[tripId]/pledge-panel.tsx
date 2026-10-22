@@ -22,6 +22,7 @@ import {
   undoPledgePayment,
   withdrawPledge,
 } from "./pledge-actions";
+import { useTravelerGate } from "./traveler-details";
 
 export type PledgeRow = {
   participantId: string;
@@ -199,6 +200,8 @@ function MemberView(p: PledgePanelProps) {
   const t = useT();
   const locale = useLocale();
   const a = useAction();
+  // Same as the card path: traveler / lead-guest details first, then pledge.
+  const travelerGate = useTravelerGate();
   const [agreed, setAgreed] = useState(false);
   const me = p.pledges.find((x) => x.participantId === p.currentUserId);
   const money = (n: number) => formatCurrency(n, p.currency);
@@ -226,7 +229,7 @@ function MemberView(p: PledgePanelProps) {
         <button
           type="button"
           disabled={!agreed || a.pending}
-          onClick={() => a.run(() => acceptPledge(p.tripId, p.elementId, p.fundingRequestId))}
+          onClick={() => travelerGate.gate(() => a.run(() => acceptPledge(p.tripId, p.elementId, p.fundingRequestId)))}
           className={`self-start px-4 py-2 text-sm ${btnCommit}`}
         >
           {a.pending ? t.common.saving : fmt(t.pledge.pledgeButton, { amount: money(p.share) })}

@@ -11,9 +11,9 @@ export const nl: Dictionary = {
     saving: "Opslaan…",
   },
   collection: {
-    heading: "Hoe betaalt de groep?",
+    heading: "Kies een betaalmethode",
     sub: "Kies één keer voor {element}. Je kunt het wijzigen tot iemand iets toezegt.",
-    chosenHeading: "Zo betaalt de groep",
+    chosenHeading: "Betaalmethode",
     change: "Wijzigen",
     keep: "Zo laten",
     use: "Kies deze",
