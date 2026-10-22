@@ -20,7 +20,8 @@ import { COMPANY } from "../company";
 
 export const site = {
   name: "Catoco",
-  tagline: "Plan it together. Vote together. Fund it together. Go.",
+  // The one tagline: the home hero, page title and every footer read this (founder, 2026-10-22).
+  tagline: "Plan it together. Fund it together. Go.",
   contactEmail: "support@catoco.co",
   nav: [
     { href: "/tutorials", label: "How it works" },

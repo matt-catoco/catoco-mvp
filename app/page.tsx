@@ -4,6 +4,7 @@ import styles from "./page.module.css";
 import { TallyEmbedScript } from "./tally-embed-script";
 import { LogoMark } from "@/components/logo-mark";
 import { legalLine } from "@/content/company";
+import { site } from "@/content/pages/en";
 import { ElementGrid } from "@/components/trip-home/element-grid";
 import type { TileAlerts } from "@/components/trip-home/element-tile";
 import { DOT_CLASSES } from "@/components/trip-home/status-legend";
@@ -184,7 +185,7 @@ const COMMIT_PEOPLE = [
 // needs to change.
 
 export const metadata: Metadata = {
-  title: "Catoco — Plan it together. Fund it together. Go.",
+  title: `Catoco — ${site.tagline}`,
   description:
     "Catoco turns your group chat's next trip idea into a real, funded, booked trip — everyone votes on the details, everyone chips in, and no one gets stuck holding the bill.",
 };
@@ -254,7 +255,7 @@ export default async function Home() {
               Beta opening soon
             </span>
             <h1 className={styles.heroH1}>
-              Plan it together. Fund it together. Go.
+              {site.tagline}
             </h1>
             <p className={styles.heroSub}>
               From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
@@ -615,7 +616,8 @@ export default async function Home() {
               <a href="mailto:hello@catoco.co">hello@catoco.co</a>
             </div>
           </div>
-          <p className={styles.footCopy}>© 2026 Catoco.</p>
+          <p className={styles.footCopy}>{site.tagline}</p>
+          <p className={styles.footCopy} style={{ marginTop: 6 }}>© 2026 Catoco.</p>
           <p className={styles.footCopy} style={{ marginTop: 6 }}>{legalLine.en}</p>
         </div>
       </footer>
