@@ -45,7 +45,6 @@ export const nl: Dictionary = {
   },
   pledge: {
     termsHeading: "Voordat je toezegt",
-    termsShare: "Jouw deel: {amount}",
     cushionHeading: "Bescherming tegen prijswijzigingen",
     cushionHint: "Prijzen kunnen veranderen voordat er geboekt wordt. Kies hoeveel meer je wilt toezeggen. Je betaalt altijd alleen de echte prijs.",
     cushionNone: "Niets extra",

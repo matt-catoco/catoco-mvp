@@ -239,13 +239,14 @@ function MemberView(p: PledgePanelProps) {
       <div className={box}>
         <b className="font-[family-name:var(--font-display)] text-[15px] font-bold text-foreground">{t.pledge.termsHeading}</b>
         <ul className="ml-4 list-disc text-[12.5px] leading-relaxed text-brand-muted">
-          <li className="text-foreground">{fmt(t.pledge.termsShare, { amount: money(p.share) })}</li>
           <li className="text-foreground">
             {cap > p.share
               ? fmt(t.pledge.termsCushion, { amount: money(p.share), cap: money(cap) })
               : fmt(t.pledge.termsNoCushion, { amount: money(p.share) })}
+            <ul className="ml-4 list-[circle] text-brand-muted">
+              <li>{t.pledge.termsOutside}</li>
+            </ul>
           </li>
-          <li>{t.pledge.termsOutside}</li>
           <li>
             {p.payTiming === "immediate"
               ? fmt(t.pledge.termsPayNow, { organizer: p.collectorName })

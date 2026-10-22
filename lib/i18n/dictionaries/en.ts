@@ -42,7 +42,6 @@ export const en = {
   },
   pledge: {
     termsHeading: "Before you pledge",
-    termsShare: "Your share: {amount}",
     cushionHeading: "Protect against price changes",
     cushionHint: "Prices can move before booking. Choose how much more you're willing to pledge. You only ever pay the actual price.",
     cushionNone: "No extra",
