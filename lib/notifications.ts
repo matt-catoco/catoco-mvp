@@ -21,7 +21,8 @@ export type NotificationKind =
   | "shares_recalculated"
   | "price_drift"
   | "deadline_missed"
-  | "recommit_requested";
+  | "recommit_requested"
+  | "funding_failed";
 
 /**
  * The one send path for all four core-loop triggers. Checks eligibility
@@ -468,7 +469,7 @@ export async function notifyDeadlineMissed(opts: {
         <li>Check the price is still right, and update it if it has changed.</li>
         <li>Set a new deadline. We&#39;ll then email everyone to ${pledge ? "pledge again" : "recommit"}, with the new date and their share.</li>
       </ol>
-      <p>If it&#39;s no longer possible, resolve it as not viable on the element page instead.</p>
+      <p>If it&#39;s no longer possible, choose <strong>Resolve — no longer viable</strong> on the element page to call it off. We&#39;ll email the group either way.</p>
       <p><a href="${url}">Decide what&#39;s next</a></p>
     `;
     const subjectId = stableUuid(`deadline_missed:${opts.fundingRequestId}:${r.missedDeadline ?? ""}`);
@@ -506,18 +507,7 @@ export async function notifyRecommitRequested(opts: {
   try {
     const r = await loadRound(opts.supabase, opts.fundingRequestId);
     if (!r || !r.deadline) return;
-    const { data: links } = await opts.supabase
-      .from("funding_request_elements")
-      .select("element_id")
-      .eq("funding_request_id", opts.fundingRequestId);
-    const { data: people } = await opts.supabase
-      .from("element_participants")
-      .select("participant_id")
-      .in("element_id", ((links ?? []) as { element_id: string }[]).map((l) => l.element_id))
-      .eq("opted_in", true);
-    const recipients = [...new Set(((people ?? []) as { participant_id: string }[]).map((p) => p.participant_id))].filter(
-      (id) => id !== opts.actorId,
-    );
+    const recipients = (await roundParticipants(opts.supabase, opts.fundingRequestId)).filter((id) => id !== opts.actorId);
 
     const pledge = r.mode === "peer_pledge";
     const withFee = (n: number) => n + (pledge ? 0 : platformFee(n, r.feePercent));
@@ -574,4 +564,72 @@ export async function handleMissedDeadlines(origin: string): Promise<number> {
     });
   }
   return rows.length;
+}
+
+/** Everyone in a round (opted in on any of its elements). Read before it's called off. */
+export async function roundParticipants(supabase: SupabaseClient, fundingRequestId: string): Promise<string[]> {
+  const { data: links } = await supabase
+    .from("funding_request_elements")
+    .select("element_id")
+    .eq("funding_request_id", fundingRequestId);
+  const { data: people } = await supabase
+    .from("element_participants")
+    .select("participant_id")
+    .in("element_id", ((links ?? []) as { element_id: string }[]).map((l) => l.element_id))
+    .eq("opted_in", true);
+  return [...new Set(((people ?? []) as { participant_id: string }[]).map((p) => p.participant_id))];
+}
+
+/**
+ * Deadline missed, other branch (founder, 2026-10-22): the organizer resolved
+ * the round as not viable, so this choice is called off. The group is told,
+ * with what happens next: the runner-up option becomes the pick (and gets
+ * its own funding round), or the element reopens for new ideas.
+ * `recipients` are read before the call-off. Service-role client.
+ * Best-effort; never throws.
+ */
+export async function notifyRoundCalledOff(opts: {
+  supabase: SupabaseClient;
+  fundingRequestId: string;
+  recipients: string[];
+  actorId: string;
+  origin: string;
+}): Promise<void> {
+  try {
+    const r = await loadRound(opts.supabase, opts.fundingRequestId);
+    if (!r) return;
+    const { data: el } = await opts.supabase.from("trip_elements").select("state, locked_option_id").eq("id", r.elementId).maybeSingle();
+    const runnerUp = Boolean(el?.locked_option_id) && el?.state !== "open";
+    const pledge = r.mode === "peer_pledge";
+    const label = escapeHtml(r.elementLabel);
+    const tripName = escapeHtml(r.tripName);
+    const url = `${opts.origin}/trips/${r.tripId}/elements/${r.elementId}`;
+    const html = `
+      <p>The organizer has called off the current choice for <strong>${label}</strong> on <strong>${tripName}</strong>: not everyone was in by the deadline and it can&#39;t go ahead as it was.</p>
+      <p>${pledge ? "Your pledge no longer applies, and nobody needs to pay anything for it." : "Nobody was charged, and your commitment no longer applies."}</p>
+      <p>${
+        runnerUp
+          ? `The runner-up option is now the pick, and it has its own funding round. Take a look and ${pledge ? "pledge" : "commit"} if you&#39;re in.`
+          : "The element is open again, so the group can add and vote on new options."
+      }</p>
+      <p><a href="${url}">See what&#39;s next</a></p>
+    `;
+    const subjectId = stableUuid(`called_off:${opts.fundingRequestId}`);
+    for (const userId of opts.recipients.filter((id) => id !== opts.actorId)) {
+      const { data: email } = await opts.supabase.rpc("get_user_email", { p_user_id: userId });
+      if (!email) continue;
+      await sendCoreLoopEmail({
+        supabase: opts.supabase,
+        userId,
+        email: email as string,
+        kind: "funding_failed",
+        subjectId,
+        subject: `Called off: ${r.elementLabel} — ${r.tripName}`,
+        html,
+        origin: opts.origin,
+      });
+    }
+  } catch (err) {
+    console.error(`notifyRoundCalledOff failed (${opts.fundingRequestId}):`, err);
+  }
 }

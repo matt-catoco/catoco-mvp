@@ -27,7 +27,7 @@ import {
 } from "@/lib/vendor-search/hotelbeds";
 import { pickUnsplashPhoto, placeQueries, type UnsplashPick } from "@/lib/unsplash";
 import { fetchOptionDetails } from "@/lib/option-details-fetch";
-import { notifyRecommitRequested, sendCoreLoopEmail } from "@/lib/notifications";
+import { notifyRecommitRequested, notifyRoundCalledOff, roundParticipants, sendCoreLoopEmail } from "@/lib/notifications";
 import { createServiceClient } from "@/lib/supabase/service";
 import { travelerDetailsOwed } from "@/lib/traveler-details";
 import { toUserFacingError } from "@/lib/action-errors";
@@ -742,11 +742,34 @@ export async function resolveFundingOutcome(
   stillViable: boolean,
 ): Promise<ResolveFundingOutcomeResult> {
   const supabase = await createClient();
+  // Calling it off: note who was in first, the round is superseded after.
+  const calledOffRecipients = stillViable ? [] : await roundParticipants(createServiceClient(), fundingRequestId);
   const { error } = await supabase.rpc("resolve_funding_outcome", {
     p_funding_request_id: fundingRequestId,
     p_still_viable: stillViable,
   });
   if (error) return { error: toUserFacingError(error) };
+
+  const { data: after } = await createServiceClient()
+    .from("funding_requests")
+    .select("status")
+    .eq("id", fundingRequestId)
+    .maybeSingle();
+  if (!stillViable && after?.status === "superseded") {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const h = await headers();
+    const host = h.get("host");
+    const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+    await notifyRoundCalledOff({
+      supabase: createServiceClient(),
+      fundingRequestId,
+      recipients: calledOffRecipients,
+      actorId: user?.id ?? "",
+      origin: host ? `${proto}://${host}` : "https://catoco.co",
+    });
+  }
 
   // Trigger #2 (funding ready to purchase): re-select rather than trusting
   // stillViable alone — resolve_funding_outcome() also independently checks
