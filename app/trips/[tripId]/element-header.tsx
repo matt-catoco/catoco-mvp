@@ -126,7 +126,7 @@ export function ElementHeader({
   if (nudge && nudge.count > 0)
     items.push({
       key: "nudge",
-      text: `Nudge those who haven't ${({ commit: "committed", vote: "voted", submit: "submitted" } as Record<string, string>)[nudge.phaseLabel] ?? "acted"}`,
+      text: `Nudge those who haven't ${({ commit: "committed", vote: "voted", submit: "submitted", pledge: "pledged", pay: "paid", pledgeOrPay: "pledged or paid" } as Record<string, string>)[nudge.phaseLabel] ?? "acted"}`,
       run: () =>
         startNudge(async () => {
           const res = await nudgeElement(tripId, elementId);

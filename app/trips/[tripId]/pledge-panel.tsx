@@ -14,10 +14,11 @@ import {
   acceptPledge,
   addPayoutMethod,
   confirmPledgePayments,
-  openPayWindow,
+  markPledgeRefunded,
   removePayoutMethod,
   removeUnpaidAndRecalculate,
   reportPledgePaid,
+  requestPledgeRefund,
   setPledgeSettings,
   setPledgeStatusVisibility,
   undoPledgePayment,
@@ -69,6 +70,12 @@ export type PledgePanelProps = {
   pledges: PledgeRow[];
   /** organizers: people in the element who haven't pledged */
   notPledged: { userId: string; displayName: string }[];
+  /** what I've paid here (counts even after my pledge was released) */
+  myPaid: number;
+  /** I asked for my money back (paid, then pushed above my cushion) */
+  myRefundRequested: boolean;
+  /** organizers: open refund requests */
+  refundRequests: { userId: string; displayName: string; amount: number }[];
   /** members can see who has pledged and paid (organizer's switch, per element) */
   showStatus: boolean;
   /** the trip lets people add a price cushion */
@@ -230,12 +237,38 @@ function MemberView(p: PledgePanelProps) {
   const closes = payWindowClosesAt(p.windowOpenedAt, p.windowHours);
   const dateText = closes?.toLocaleString(locale === "nl" ? "nl-NL" : "en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
+  if (p.myRefundRequested) {
+    return (
+      <p className="rounded-xl border border-brand-line px-3.5 py-2.5 text-[13px] text-foreground">
+        {fmt(t.pledge.refundRequested, { organizer: p.collectorName, amount: money(p.myPaid) })}
+      </p>
+    );
+  }
   if (!p.myInElement) return null;
 
   if (!me) {
     if (p.mySpotsFull) return <p className="text-[12.5px] text-brand-muted">{t.pledge.waitlisted}</p>;
+    // Paid already, then the price went above my cushion: pledge the difference or get a refund.
+    const released = p.myPaid > 0;
+    const difference = Math.max(0, Math.round((p.share - p.myPaid) * 100) / 100);
     return (
       <div className={box}>
+        {released && (
+          <div className="flex flex-col gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5">
+            <b className="text-[13px] font-semibold text-foreground">{t.pledge.releasedHeading}</b>
+            <span className="text-[12.5px] text-foreground">
+              {fmt(t.pledge.releasedBody, { share: money(p.share), paid: money(p.myPaid) })}
+            </span>
+            <button
+              type="button"
+              disabled={a.pending}
+              onClick={() => a.run(() => requestPledgeRefund(p.tripId, p.elementId, p.fundingRequestId))}
+              className={`self-start text-xs text-brand-muted underline ${focusRing}`}
+            >
+              {t.pledge.requestRefund}
+            </button>
+          </div>
+        )}
         <b className="font-[family-name:var(--font-display)] text-[15px] font-bold text-foreground">{t.pledge.termsHeading}</b>
         <ul className="ml-4 list-disc text-[12.5px] leading-relaxed text-brand-muted">
           <li className="text-foreground">
@@ -304,7 +337,11 @@ function MemberView(p: PledgePanelProps) {
           onClick={() => travelerGate.gate(() => a.run(() => acceptPledge(p.tripId, p.elementId, p.fundingRequestId, cushion)))}
           className={`self-start px-4 py-2 text-sm ${btnCommit}`}
         >
-          {a.pending ? t.common.saving : fmt(t.pledge.pledgeButton, { amount: money(p.share) })}
+          {a.pending
+            ? t.common.saving
+            : released
+              ? fmt(t.pledge.pledgeDifference, { amount: money(difference) })
+              : fmt(t.pledge.pledgeButton, { amount: money(p.share) })}
         </button>
         {a.error && <p role="alert" className="text-[12.5px] text-red-500">{a.error}</p>}
       </div>
@@ -535,14 +572,7 @@ function OrganizerView(p: PledgePanelProps) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <b className="text-[13px] font-semibold text-foreground">{t.pledgeOrg.rosterHeading}</b>
           {!p.windowOpenedAt ? (
-            <button
-              type="button"
-              disabled={a.pending || p.pledges.length === 0}
-              onClick={() => a.run(() => openPayWindow(p.tripId, p.elementId, p.fundingRequestId))}
-              className={`px-3 py-1.5 text-xs ${btnSecondary}`}
-            >
-              {t.pledgeOrg.openWindow}
-            </button>
+            <span className="text-[12px] text-brand-muted">{t.pledgeOrg.windowNotOpen}</span>
           ) : (
             <span className="text-[12px] text-brand-muted">{closed ? t.pledgeOrg.windowClosed : dateText ? fmt(t.pledgeOrg.windowOpen, { date: dateText }) : t.pledgeOrg.windowOpenNoDeadline}</span>
           )}
@@ -608,6 +638,29 @@ function OrganizerView(p: PledgePanelProps) {
           </button>
         )}
       </div>
+
+      {p.refundRequests.length > 0 && (
+        <div className={`${box} border-amber-500/40 bg-amber-500/10`}>
+          <b className="text-[13px] font-semibold text-foreground">{t.pledgeOrg.refundsHeading}</b>
+          <span className="text-[12px] text-brand-muted">{t.pledgeOrg.refundsHint}</span>
+          <ul className="flex flex-col divide-y divide-brand-line text-[12.5px]">
+            {p.refundRequests.map((r) => (
+              <li key={r.userId} className="flex flex-wrap items-center gap-2 py-1.5">
+                <span className="min-w-0 flex-1 truncate font-medium text-foreground">{r.displayName}</span>
+                <span className="text-foreground">{money(r.amount)}</span>
+                <button
+                  type="button"
+                  disabled={a.pending}
+                  onClick={() => a.run(() => markPledgeRefunded(p.tripId, p.elementId, p.fundingRequestId, r.userId))}
+                  className={`px-2.5 py-1 text-[11.5px] ${btnPrimary}`}
+                >
+                  {t.pledgeOrg.markRefunded}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* With no deadline the organizer can settle the gap whenever they decide to. */}
       {p.windowOpenedAt && (closed || p.windowHours == null) && gap > 0 && (

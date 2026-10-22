@@ -15,6 +15,8 @@ const PHASE_ASK = {
   submission: "add an option",
   voting: "vote",
   funding: "commit your share",
+  pledge: "pledge your share",
+  pay: "pay your share (the payment details are on the element page)",
 } as Record<string, string>;
 
 /**

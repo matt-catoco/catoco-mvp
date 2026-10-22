@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { notifyRefundRequested } from "@/lib/notifications";
 import { toUserFacingError } from "@/lib/action-errors";
 import { isValidIban, normalizeIban, PLEDGE_TERMS_VERSION } from "@/lib/pledge";
 import { getLocale } from "@/lib/i18n/server";
@@ -109,8 +112,36 @@ export async function setPledgeSettings(
   );
 }
 
-export async function proceedWithShortfall(tripId: string, elementId: string, fundingRequestId: string): Promise<Result> {
-  return rpc("proceed_with_shortfall", { p_funding_request_id: fundingRequestId }, tripId, elementId);
+/** Member: paid, then pushed above their cushion — leave and ask the organizer for the money back. */
+export async function requestPledgeRefund(tripId: string, elementId: string, fundingRequestId: string): Promise<Result> {
+  const supabase = await createClient();
+  const { data: amount, error } = await supabase.rpc("request_pledge_refund", { p_funding_request_id: fundingRequestId });
+  if (error) return { error: toUserFacingError(error) };
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const h = await headers();
+  const host = h.get("host");
+  const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+  await notifyRefundRequested({
+    supabase: createServiceClient(),
+    fundingRequestId,
+    requesterId: user?.id ?? "",
+    amount: Number(amount ?? 0),
+    origin: host ? `${proto}://${host}` : "https://catoco.co",
+  });
+  revalidate(tripId, elementId);
+  return {};
+}
+
+/** Organizer: they've refunded this person outside Catoco. */
+export async function markPledgeRefunded(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  participantId: string,
+): Promise<Result> {
+  return rpc("mark_pledge_refunded", { p_funding_request_id: fundingRequestId, p_participant_id: participantId }, tripId, elementId);
 }
 
 export async function removeUnpaidAndRecalculate(tripId: string, elementId: string, fundingRequestId: string): Promise<Result> {

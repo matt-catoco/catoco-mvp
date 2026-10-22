@@ -293,7 +293,14 @@ export default async function ElementDetailPage({
       }[])
     : [];
 
-  const nudgePhase = nudgeTargets[0] ? ({ submission: "submit", voting: "vote", funding: "commit" } as Record<string, string>)[nudgeTargets[0].phase] ?? "act" : "act";
+  // Pledge requests mix "pledge" and "pay" targets once payments are open.
+  const nudgePhases = new Set(nudgeTargets.map((t) => t.phase));
+  const nudgePhase =
+    nudgePhases.has("pledge") && nudgePhases.has("pay")
+      ? "pledgeOrPay"
+      : nudgeTargets[0]
+        ? ({ submission: "submit", voting: "vote", funding: "commit", pledge: "pledge", pay: "pay" } as Record<string, string>)[nudgeTargets[0].phase] ?? "act"
+        : "act";
 
   let body: ReactNode;
 
@@ -459,6 +466,14 @@ export default async function ElementDetailPage({
               .eq("funding_request_id", fundingRow.id)
               .is("refunded_at", null),
           ]);
+        // Refund requests (paid, then pushed above their cushion). RLS: your own, or all for organizers.
+        const { data: refundRows } = await supabase
+          .from("funding_pledges")
+          .select("participant_id")
+          .eq("funding_request_id", fundingRow.id)
+          .not("refund_requested_at", "is", null)
+          .is("refunded_at", null);
+        const refundIds = new Set(((refundRows ?? []) as { participant_id: string }[]).map((r) => r.participant_id));
         const paidBy = new Map<string, number>();
         for (const c of (paidRows ?? []) as { contributor_id: string; amount: number }[]) {
           paidBy.set(c.contributor_id, (paidBy.get(c.contributor_id) ?? 0) + Number(c.amount));
@@ -514,6 +529,11 @@ export default async function ElementDetailPage({
           population: Number(population ?? 0),
           pledges,
           showStatus: Boolean(fundingRow.show_pledge_status),
+          myPaid: Math.round((paidBy.get(user.id) ?? 0) * 100) / 100,
+          myRefundRequested: refundIds.has(user.id),
+          refundRequests: canManage
+            ? [...refundIds].map((id) => ({ userId: id, displayName: nameOf(id), amount: Math.round((paidBy.get(id) ?? 0) * 100) / 100 }))
+            : [],
           cushionAllowed: checkoutCushion,
           recommendedCushion: recommendedCushion(
             element.cushion_kind ?? cushionTrip?.price_cushion_kind,

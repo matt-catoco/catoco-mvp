@@ -24,7 +24,8 @@ export type NotificationKind =
   | "price_drift"
   | "deadline_missed"
   | "recommit_requested"
-  | "funding_failed";
+  | "funding_failed"
+  | "refund_requested";
 
 /**
  * The one send path for all four core-loop triggers. Checks eligibility
@@ -645,5 +646,51 @@ export async function notifyRoundCalledOff(opts: {
     }
   } catch (err) {
     console.error(`notifyRoundCalledOff failed (${opts.fundingRequestId}):`, err);
+  }
+}
+
+/**
+ * A member who had paid was pushed above their price cushion and asked for
+ * their money back (founder, 2026-10-22). Tells the person holding the money
+ * (the purchaser) and the organizer. Service-role client. Best-effort.
+ */
+export async function notifyRefundRequested(opts: {
+  supabase: SupabaseClient;
+  fundingRequestId: string;
+  requesterId: string;
+  amount: number;
+  origin: string;
+}): Promise<void> {
+  try {
+    const r = await loadRound(opts.supabase, opts.fundingRequestId);
+    if (!r) return;
+    const [{ data: fr }, { data: who }] = await Promise.all([
+      opts.supabase.from("funding_requests").select("purchaser_id").eq("id", opts.fundingRequestId).maybeSingle(),
+      opts.supabase.from("profiles").select("display_name").eq("id", opts.requesterId).maybeSingle(),
+    ]);
+    const name = escapeHtml((who as { display_name?: string } | null)?.display_name?.trim() || "A member");
+    const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: r.currency }).format(opts.amount);
+    const url = `${opts.origin}/trips/${r.tripId}/elements/${r.elementId}`;
+    const recipients = [...new Set([fr?.purchaser_id as string | null, r.organizerId].filter((x): x is string => Boolean(x)))];
+    for (const userId of recipients) {
+      const { data: email } = await opts.supabase.rpc("get_user_email", { p_user_id: userId });
+      if (!email) continue;
+      await sendCoreLoopEmail({
+        supabase: opts.supabase,
+        userId,
+        email: email as string,
+        kind: "refund_requested",
+        subjectId: stableUuid(`refund:${opts.fundingRequestId}:${opts.requesterId}:${opts.amount}`),
+        subject: `Refund requested: ${r.elementLabel} — ${r.tripName}`,
+        html: `
+          <p>${name} has asked for a refund of <strong>${escapeHtml(money)}</strong> for <strong>${escapeHtml(r.elementLabel)}</strong> on <strong>${escapeHtml(r.tripName)}</strong>. The price went above their cushion, so they&#39;ve left this element.</p>
+          <p>Refund them the same way they paid you, then mark it as refunded on the element page.</p>
+          <p><a href="${url}">Open the element</a></p>
+        `,
+        origin: opts.origin,
+      });
+    }
+  } catch (err) {
+    console.error(`notifyRefundRequested failed (${opts.fundingRequestId}):`, err);
   }
 }
