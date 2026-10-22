@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/trip-elements";
-import { capAmount, epcQrPayload, formatIban, gapAmount, payWindowClosesAt } from "@/lib/pledge";
+import { epcQrPayload, formatIban, gapAmount, payWindowClosesAt } from "@/lib/pledge";
 import { fmt } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { btnCommit, btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
@@ -16,7 +16,6 @@ import {
   openPayWindow,
   proceedWithShortfall,
   removePayoutMethod,
-  removeUnpaidAndRecalculate,
   reportPledgePaid,
   setPledgeSettings,
   undoPledgePayment,
@@ -51,8 +50,10 @@ export type PledgePanelProps = {
   currency: string;
   share: number;
   required: number;
-  capPercent: number;
-  windowHours: number;
+  /** immediate: each person pays as soon as they pledge */
+  payTiming: "immediate" | "after_all";
+  /** null = no deadline */
+  windowHours: number | null;
   windowOpenedAt: string | null;
   /** the pay window has closed (decided server-side at render) */
   windowClosed: boolean;
@@ -217,8 +218,14 @@ function MemberView(p: PledgePanelProps) {
         <b className="font-[family-name:var(--font-display)] text-[15px] font-bold text-foreground">{t.pledge.termsHeading}</b>
         <ul className="ml-4 list-disc text-[12.5px] leading-relaxed text-brand-muted">
           <li className="text-foreground">{fmt(t.pledge.termsShare, { amount: money(p.share) })}</li>
-          <li>{fmt(t.pledge.termsCap, { cap: money(capAmount(p.share, p.capPercent)) })}</li>
-          <li>{fmt(t.pledge.termsWindow, { hours: p.windowHours })}</li>
+          <li>{t.pledge.termsFixed}</li>
+          <li>
+            {p.payTiming === "immediate"
+              ? fmt(t.pledge.termsPayNow, { organizer: p.collectorName })
+              : p.windowHours != null
+                ? fmt(t.pledge.termsWindow, { hours: p.windowHours })
+                : fmt(t.pledge.termsPayLater, { organizer: p.collectorName })}
+          </li>
           <li>{t.pledge.termsDropout}</li>
           <li>{fmt(t.pledge.termsMoney, { organizer: p.collectorName })}</li>
         </ul>
@@ -385,15 +392,15 @@ function OrganizerView(p: PledgePanelProps) {
   const locale = useLocale();
   const a = useAction();
   const [selected, setSelected] = useState<string[]>([]);
-  const [cap, setCap] = useState(p.capPercent);
-  const [hours, setHours] = useState(p.windowHours);
+  // One choice: "now" (pay right away), "none" (after everyone, no deadline) or hours.
+  const timingValue = (timing: string, h: number | null) => (timing === "immediate" ? "now" : h == null ? "none" : String(h));
+  const [timing, setTiming] = useState(timingValue(p.payTiming, p.windowHours));
   const [confirmGap, setConfirmGap] = useState(false);
   const money = (n: number) => formatCurrency(n, p.currency);
   const closes = payWindowClosesAt(p.windowOpenedAt, p.windowHours);
   const closed = p.windowClosed;
   const dateText = closes?.toLocaleString(locale === "nl" ? "nl-NL" : "en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   const gap = gapAmount(p.required, p.pledges.map((x) => x.paid));
-  const unpaid = p.pledges.filter((x) => x.paid < p.share);
   const statusLabel = (s: PledgeRow["status"]) =>
     s === "confirmed" ? t.pledgeOrg.stConfirmed : s === "reported_paid" ? t.pledgeOrg.stReported : t.pledgeOrg.stPledged;
 
@@ -405,36 +412,39 @@ function OrganizerView(p: PledgePanelProps) {
         <b className="text-[13px] font-semibold text-foreground">{t.pledgeOrg.settingsHeading}</b>
         <div className="flex flex-wrap items-end gap-3 text-[12.5px]">
           <label className="flex flex-col gap-1">
-            <span className={labelClass}>{t.pledgeOrg.capLabel}</span>
-            <select id="pledge-cap" className={`${field} w-28`} value={cap} disabled={p.pledges.length > 0} onChange={(e) => setCap(Number(e.target.value))}>
-              {[0, 5, 10, 15, 20, 25].map((v) => (
-                <option key={v} value={v}>
-                  {v}%
+            <span className={labelClass}>{t.pledgeOrg.timingLabel}</span>
+            <select id="pledge-timing" className={`${field} w-72 max-w-full`} value={timing} disabled={p.pledges.length > 0} onChange={(e) => setTiming(e.target.value)}>
+              <option value="now">{t.pledgeOrg.timingImmediate}</option>
+              <option value="none">{t.pledgeOrg.timingNoDeadline}</option>
+              {[24, 48, 72].map((v) => (
+                <option key={v} value={String(v)}>
+                  {fmt(t.pledgeOrg.timingHours, { n: v })}
                 </option>
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1">
-            <span className={labelClass}>{t.pledgeOrg.windowLabel}</span>
-            <select id="pledge-window" className={`${field} w-32`} value={hours} disabled={Boolean(p.windowOpenedAt)} onChange={(e) => setHours(Number(e.target.value))}>
-              {[24, 36, 48, 60, 72].map((v) => (
-                <option key={v} value={v}>
-                  {fmt(t.pledgeOrg.hours, { n: v })}
-                </option>
-              ))}
-            </select>
-          </label>
-          {(cap !== p.capPercent || hours !== p.windowHours) && (
+          {timing !== timingValue(p.payTiming, p.windowHours) && (
             <button
               type="button"
               disabled={a.pending}
-              onClick={() => a.run(() => setPledgeSettings(p.tripId, p.elementId, p.fundingRequestId, cap, hours))}
+              onClick={() =>
+                a.run(() =>
+                  setPledgeSettings(
+                    p.tripId,
+                    p.elementId,
+                    p.fundingRequestId,
+                    timing === "now" ? "immediate" : "after_all",
+                    timing === "now" || timing === "none" ? null : Number(timing),
+                  ),
+                )
+              }
               className={`h-9 px-3 text-xs ${btnPrimary}`}
             >
               {t.pledgeOrg.saveSettings}
             </button>
           )}
         </div>
+        <span className="text-[12px] text-brand-muted">{t.pledgeOrg.sharesFixed}</span>
         {p.pledges.length > 0 && <span className="text-[12px] text-brand-muted">{t.pledgeOrg.settingsLocked}</span>}
       </div>
 
@@ -451,7 +461,7 @@ function OrganizerView(p: PledgePanelProps) {
               {t.pledgeOrg.openWindow}
             </button>
           ) : (
-            <span className="text-[12px] text-brand-muted">{closed ? t.pledgeOrg.windowClosed : fmt(t.pledgeOrg.windowOpen, { date: dateText ?? "" })}</span>
+            <span className="text-[12px] text-brand-muted">{closed ? t.pledgeOrg.windowClosed : dateText ? fmt(t.pledgeOrg.windowOpen, { date: dateText }) : t.pledgeOrg.windowOpenNoDeadline}</span>
           )}
         </div>
         <ul className="flex flex-col divide-y divide-brand-line text-[12.5px]">
@@ -516,7 +526,8 @@ function OrganizerView(p: PledgePanelProps) {
         )}
       </div>
 
-      {p.windowOpenedAt && closed && gap > 0 && (
+      {/* With no deadline the organizer can settle the gap whenever they decide to. */}
+      {p.windowOpenedAt && (closed || p.windowHours == null) && gap > 0 && (
         <div className={`${box} border-amber-500/40 bg-amber-500/10`}>
           <b className="text-[13px] font-semibold text-foreground">{fmt(t.pledgeOrg.gapHeading, { gap: money(gap) })}</b>
           {confirmGap ? (
@@ -541,20 +552,9 @@ function OrganizerView(p: PledgePanelProps) {
               <button type="button" onClick={() => setConfirmGap(true)} className={`px-3 py-1.5 text-xs ${btnPrimary}`}>
                 {t.pledgeOrg.gapCover}
               </button>
-              {unpaid.length > 0 && (
-                <button
-                  type="button"
-                  disabled={a.pending}
-                  onClick={() => a.run(() => removeUnpaidAndRecalculate(p.tripId, p.elementId, p.fundingRequestId))}
-                  className={`px-3 py-1.5 text-xs ${btnSecondary}`}
-                  title={t.pledgeOrg.gapRecalcHint}
-                >
-                  {t.pledgeOrg.gapRecalc}
-                </button>
-              )}
             </div>
           )}
-          <span className="text-[12px] text-brand-muted">{t.pledgeOrg.gapRecalcHint}</span>
+          <span className="text-[12px] text-brand-muted">{t.pledgeOrg.gapHint}</span>
         </div>
       )}
       {a.error && <p role="alert" className="text-[12.5px] text-red-500">{a.error}</p>}

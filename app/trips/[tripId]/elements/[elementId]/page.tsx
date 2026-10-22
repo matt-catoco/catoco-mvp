@@ -96,8 +96,8 @@ type FundingRow = {
   platform_fee_percent: number | null;
   collection_mode: string;
   collection_mode_chosen_at: string | null;
-  pledge_cap_percent: number;
-  pay_window_hours: number;
+  pay_timing: "immediate" | "after_all";
+  pay_window_hours: number | null;
   pay_window_opened_at: string | null;
   shortfall_amount: number | null;
 };
@@ -321,7 +321,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, platform_fee_percent, collection_mode, collection_mode_chosen_at, pledge_cap_percent, pay_window_hours, pay_window_opened_at, shortfall_amount, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, platform_fee_percent, collection_mode, collection_mode_chosen_at, pay_timing, pay_window_hours, pay_window_opened_at, shortfall_amount, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -498,10 +498,10 @@ export default async function ElementDetailPage({
           currency: fundingRow.currency ?? String(optionValue.currency ?? "EUR"),
           share: Number(fundingRow.individual_amount ?? fundingRow.required_amount),
           required: Number(fundingRow.required_amount),
-          capPercent: Number(fundingRow.pledge_cap_percent),
+          payTiming: fundingRow.pay_timing,
           windowHours: fundingRow.pay_window_hours,
           windowOpenedAt: fundingRow.pay_window_opened_at,
-          windowClosed: fundingRow.pay_window_opened_at
+          windowClosed: fundingRow.pay_window_opened_at && fundingRow.pay_window_hours != null
             ? new Date(fundingRow.pay_window_opened_at).getTime() + fundingRow.pay_window_hours * 3_600_000 <= new Date().getTime()
             : false,
           canManage: Boolean(canManage),

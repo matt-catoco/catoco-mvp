@@ -3,7 +3,8 @@
 // cap and the Book gate. Covered by lib/pledge.test.ts.
 
 /** Shown on the accepted-terms record; bump when the terms text changes. */
-export const PLEDGE_TERMS_VERSION = "pledge-v1";
+// v2 (2026-10-22): no cushion — the share can't rise; pay timing is the organizer's choice.
+export const PLEDGE_TERMS_VERSION = "pledge-v2";
 
 /** "nl91 abna 0417 1643 00" → "NL91ABNA0417164300" */
 export function normalizeIban(raw: string): string {
@@ -83,8 +84,8 @@ export function gapAmount(required: number, paid: number[]): number {
   return Math.max(0, Math.round((required - paid.reduce((a, b) => a + b, 0)) * 100) / 100);
 }
 
-/** When the pay window closes, or null while it hasn't opened. */
-export function payWindowClosesAt(openedAt: string | null, hours: number): Date | null {
-  if (!openedAt) return null;
+/** When the pay window closes, or null while it hasn't opened or has no deadline. */
+export function payWindowClosesAt(openedAt: string | null, hours: number | null): Date | null {
+  if (!openedAt || hours == null) return null;
   return new Date(new Date(openedAt).getTime() + hours * 3_600_000);
 }

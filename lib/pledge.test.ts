@@ -60,5 +60,6 @@ describe("pay window", () => {
   it("closes after the set hours", () => {
     expect(payWindowClosesAt("2027-09-01T10:00:00.000Z", 48)?.toISOString()).toBe("2027-09-03T10:00:00.000Z");
     expect(payWindowClosesAt(null, 48)).toBeNull();
+    expect(payWindowClosesAt("2027-09-01T10:00:00.000Z", null)).toBeNull();
   });
 });

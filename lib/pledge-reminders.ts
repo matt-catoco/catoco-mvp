@@ -27,7 +27,7 @@ type WindowRow = {
   individual_amount: number;
   currency: string | null;
   pay_window_opened_at: string;
-  pay_window_hours: number;
+  pay_window_hours: number | null;
   trips: { name: string } | { name: string }[] | null;
   funding_request_elements: { element_id: string }[];
 };
@@ -41,11 +41,14 @@ export async function sendPayWindowReminders(origin: string): Promise<{ sent: nu
     .eq("status", "collecting")
     .eq("collection_mode", "peer_pledge")
     .not("pay_window_opened_at", "is", null)
+    // No deadline (or pay right away): nothing to count down to.
+    .not("pay_window_hours", "is", null)
     .returns<WindowRow[]>();
 
   let sent = 0;
   for (const fr of data ?? []) {
     const opened = new Date(fr.pay_window_opened_at).getTime();
+    if (fr.pay_window_hours == null) continue;
     const closes = opened + fr.pay_window_hours * 3_600_000;
     if (now >= closes) continue;
     const stage: "mid" | "end" | null =

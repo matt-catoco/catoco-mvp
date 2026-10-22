@@ -72,12 +72,16 @@ export async function setPledgeSettings(
   tripId: string,
   elementId: string,
   fundingRequestId: string,
-  capPercent: number,
-  windowHours: number,
+  payTiming: "immediate" | "after_all",
+  windowHours: number | null,
 ): Promise<Result> {
   return rpc(
     "set_pledge_settings",
-    { p_funding_request_id: fundingRequestId, p_cap_percent: capPercent, p_window_hours: Math.round(windowHours) },
+    {
+      p_funding_request_id: fundingRequestId,
+      p_pay_timing: payTiming,
+      p_window_hours: payTiming === "immediate" || windowHours == null ? null : Math.round(windowHours),
+    },
     tripId,
     elementId,
   );
