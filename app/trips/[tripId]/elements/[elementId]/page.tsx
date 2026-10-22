@@ -97,6 +97,7 @@ type FundingRow = {
   collection_mode: string;
   collection_mode_chosen_at: string | null;
   pay_timing: "immediate" | "after_all";
+  show_pledge_status: boolean;
   pay_window_hours: number | null;
   pay_window_opened_at: string | null;
   shortfall_amount: number | null;
@@ -321,7 +322,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, platform_fee_percent, collection_mode, collection_mode_chosen_at, pay_timing, pay_window_hours, pay_window_opened_at, shortfall_amount, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, platform_fee_percent, collection_mode, collection_mode_chosen_at, pay_timing, show_pledge_status, pay_window_hours, pay_window_opened_at, shortfall_amount, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -445,7 +446,7 @@ export default async function ElementDetailPage({
           await Promise.all([
             supabase
               .from("funding_pledges")
-              .select("participant_id, status, reference_code")
+              .select("participant_id, status, reference_code, cap_amount")
               .eq("funding_request_id", fundingRow.id)
               .neq("status", "withdrawn")
               .order("accepted_at"),
@@ -466,12 +467,15 @@ export default async function ElementDetailPage({
           const r = rosterById.get(id);
           return id === user.id ? "You" : r?.display_name?.trim() || (r?.is_organizer ? "Organizer" : "Member");
         };
-        const pledges = ((pledgeRows ?? []) as { participant_id: string; status: string; reference_code: string }[]).map((p) => ({
+        const pledges = (
+          (pledgeRows ?? []) as { participant_id: string; status: string; reference_code: string; cap_amount: number }[]
+        ).map((p) => ({
           participantId: p.participant_id,
           displayName: nameOf(p.participant_id),
           status: p.status as "pledged" | "reported_paid" | "confirmed",
           paid: Math.round((paidBy.get(p.participant_id) ?? 0) * 100) / 100,
           reference: p.reference_code,
+          capAmount: Number(p.cap_amount),
         }));
         const pledgedIds = new Set(pledges.map((p) => p.participantId));
         // Uploaded QR images live in a private bucket: short-lived signed URLs.
@@ -509,7 +513,14 @@ export default async function ElementDetailPage({
           collectorName: purchaserName === "You" ? (rosterById.get(user.id)?.display_name?.trim() || "you") : purchaserName,
           population: Number(population ?? 0),
           pledges,
-          notPledged: canManage
+          showStatus: Boolean(fundingRow.show_pledge_status),
+          cushionAllowed: checkoutCushion,
+          recommendedCushion: recommendedCushion(
+            element.cushion_kind ?? cushionTrip?.price_cushion_kind,
+            element.cushion_kind ? element.cushion_value : cushionTrip?.price_cushion_value,
+          ),
+          // Organizers always; members only when the organizer shows the group's status.
+          notPledged: canManage || fundingRow.show_pledge_status
             ? scopedParticipants.filter((s) => !pledgedIds.has(s.userId)).map((s) => ({ userId: s.userId, displayName: s.displayName }))
             : [],
           myInElement: scopedParticipants.some((s) => s.userId === user.id),

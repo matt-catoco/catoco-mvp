@@ -9,6 +9,7 @@ import { epcQrPayload, formatIban, gapAmount, payWindowClosesAt } from "@/lib/pl
 import { fmt } from "@/lib/i18n/config";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { btnCommit, btnPrimary, btnSecondary, fieldClass, labelClass } from "@/lib/ui";
+import { cushionCap, cushionOptions, type CushionChoice } from "@/lib/cushion";
 import {
   acceptPledge,
   addPayoutMethod,
@@ -16,8 +17,10 @@ import {
   openPayWindow,
   proceedWithShortfall,
   removePayoutMethod,
+  removeUnpaidAndRecalculate,
   reportPledgePaid,
   setPledgeSettings,
+  setPledgeStatusVisibility,
   undoPledgePayment,
   withdrawPledge,
 } from "./pledge-actions";
@@ -29,6 +32,8 @@ export type PledgeRow = {
   status: "pledged" | "reported_paid" | "confirmed";
   paid: number;
   reference: string;
+  /** share + the member's price cushion, as pledged */
+  capAmount: number;
 };
 
 export type PayoutMethodView = {
@@ -65,6 +70,11 @@ export type PledgePanelProps = {
   pledges: PledgeRow[];
   /** organizers: people in the element who haven't pledged */
   notPledged: { userId: string; displayName: string }[];
+  /** members can see who has pledged and paid (organizer's switch, per element) */
+  showStatus: boolean;
+  /** the trip lets people add a price cushion */
+  cushionAllowed: boolean;
+  recommendedCushion: CushionChoice | null;
   myInElement: boolean;
   mySpotsFull: boolean;
   payoutMethods: PayoutMethodView[];
@@ -204,6 +214,18 @@ function MemberView(p: PledgePanelProps) {
   // Same as the card path: traveler / lead-guest details first, then pledge.
   const travelerGate = useTravelerGate();
   const [agreed, setAgreed] = useState(false);
+  // Price cushion, framed exactly like a card commitment's (mandate-panel).
+  const options = cushionOptions(p.recommendedCushion, (n) => formatCurrency(n, p.currency));
+  const [cushionKey, setCushionKey] = useState<string>((options.find((o) => o.recommended) ?? options[0]).key);
+  const [customAmount, setCustomAmount] = useState("");
+  const cushion: CushionChoice = !p.cushionAllowed
+    ? { kind: "none" }
+    : cushionKey === "custom"
+      ? Number(customAmount) > 0
+        ? { kind: "amount", value: Number(customAmount) }
+        : { kind: "none" }
+      : (options.find((o) => o.key === cushionKey)?.choice ?? { kind: "none" });
+  const cap = cushionCap(p.share, cushion);
   const me = p.pledges.find((x) => x.participantId === p.currentUserId);
   const money = (n: number) => formatCurrency(n, p.currency);
   const closes = payWindowClosesAt(p.windowOpenedAt, p.windowHours);
@@ -218,7 +240,12 @@ function MemberView(p: PledgePanelProps) {
         <b className="font-[family-name:var(--font-display)] text-[15px] font-bold text-foreground">{t.pledge.termsHeading}</b>
         <ul className="ml-4 list-disc text-[12.5px] leading-relaxed text-brand-muted">
           <li className="text-foreground">{fmt(t.pledge.termsShare, { amount: money(p.share) })}</li>
-          <li>{t.pledge.termsFixed}</li>
+          <li className="text-foreground">
+            {cap > p.share
+              ? fmt(t.pledge.termsCushion, { amount: money(p.share), cap: money(cap) })
+              : fmt(t.pledge.termsNoCushion, { amount: money(p.share) })}
+          </li>
+          <li>{t.pledge.termsOutside}</li>
           <li>
             {p.payTiming === "immediate"
               ? fmt(t.pledge.termsPayNow, { organizer: p.collectorName })
@@ -229,6 +256,45 @@ function MemberView(p: PledgePanelProps) {
           <li>{t.pledge.termsDropout}</li>
           <li>{fmt(t.pledge.termsMoney, { organizer: p.collectorName })}</li>
         </ul>
+        {p.cushionAllowed && (
+          <fieldset className="flex flex-col gap-2 rounded-xl border border-brand-line px-3 py-2.5">
+            <legend className="sr-only">{t.pledge.cushionHeading}</legend>
+            <b aria-hidden className="text-[13px] font-semibold text-foreground">{t.pledge.cushionHeading}</b>
+            <span className="text-[12px] leading-relaxed text-brand-muted">{t.pledge.cushionHint}</span>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t.pledge.cushionHeading}>
+              {[...options, { key: "custom", label: t.pledge.cushionCustom, choice: { kind: "none" } as CushionChoice, recommended: false }].map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={cushionKey === o.key}
+                  onClick={() => setCushionKey(o.key)}
+                  className={`flex min-h-[36px] min-w-[64px] flex-1 flex-col items-center justify-center rounded-xl border-[1.5px] px-2 py-1 text-[13px] font-semibold transition-colors ${focusRing} ${
+                    cushionKey === o.key ? "border-brand-accent bg-brand-teal-wash text-brand-accent" : "border-brand-line text-foreground hover:border-brand-accent"
+                  }`}
+                >
+                  {o.key === "none" ? t.pledge.cushionNone : o.label}
+                  {o.recommended && <span className="text-[10.5px] font-medium text-brand-accent">{t.pledge.cushionRecommended}</span>}
+                </button>
+              ))}
+            </div>
+            {cushionKey === "custom" && (
+              <label className="flex flex-col gap-1 text-[12.5px] font-semibold text-foreground">
+                {fmt(t.pledge.cushionCustomLabel, { currency: p.currency })}
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={p.share}
+                  step="1"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className={field}
+                />
+              </label>
+            )}
+          </fieldset>
+        )}
         <label className="flex items-center gap-2 text-[12.5px] text-foreground">
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="accent-[var(--brand-accent)]" />
           {t.pledge.agree}
@@ -236,7 +302,7 @@ function MemberView(p: PledgePanelProps) {
         <button
           type="button"
           disabled={!agreed || a.pending}
-          onClick={() => travelerGate.gate(() => a.run(() => acceptPledge(p.tripId, p.elementId, p.fundingRequestId)))}
+          onClick={() => travelerGate.gate(() => a.run(() => acceptPledge(p.tripId, p.elementId, p.fundingRequestId, cushion)))}
           className={`self-start px-4 py-2 text-sm ${btnCommit}`}
         >
           {a.pending ? t.common.saving : fmt(t.pledge.pledgeButton, { amount: money(p.share) })}
@@ -257,8 +323,13 @@ function MemberView(p: PledgePanelProps) {
       {!windowOpen ? (
         <>
           <span className="text-[13px] text-foreground">{fmt(t.pledge.pledged, { amount: money(me.paid > 0 ? owed : p.share) })}</span>
+          {me.capAmount > p.share && (
+            <span className="text-[12.5px] text-brand-muted">{fmt(t.pledge.pledgedCap, { cap: money(me.capAmount) })}</span>
+          )}
           <span className="text-[12.5px] text-brand-muted">
-            {fmt(t.pledge.waitingForGroup, { n: p.pledges.length, m: p.population, organizer: p.collectorName })}
+            {p.showStatus || p.canManage
+              ? fmt(t.pledge.waitingForGroup, { n: p.pledges.length, m: p.population, organizer: p.collectorName })
+              : fmt(t.pledge.waitingNoStatus, { organizer: p.collectorName })}
           </span>
         </>
       ) : (
@@ -406,6 +477,7 @@ function OrganizerView(p: PledgePanelProps) {
 
   return (
     <div className="flex flex-col gap-3">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-muted">{t.pledgeOrg.organizerOnly}</span>
       {p.collectorId === p.currentUserId && <PayoutSetup {...p} />}
 
       <div className={box}>
@@ -444,6 +516,19 @@ function OrganizerView(p: PledgePanelProps) {
             </button>
           )}
         </div>
+        <label className="flex items-center gap-2 text-[12.5px] text-foreground">
+          <input
+            type="checkbox"
+            checked={p.showStatus}
+            disabled={a.pending}
+            onChange={(e) => {
+              const show = e.target.checked;
+              a.run(() => setPledgeStatusVisibility(p.tripId, p.elementId, p.fundingRequestId, show));
+            }}
+            className="accent-[var(--brand-accent)]"
+          />
+          {t.pledgeOrg.showStatus}
+        </label>
         <span className="text-[12px] text-brand-muted">{t.pledgeOrg.sharesFixed}</span>
         {p.pledges.length > 0 && <span className="text-[12px] text-brand-muted">{t.pledgeOrg.settingsLocked}</span>}
       </div>
@@ -552,9 +637,19 @@ function OrganizerView(p: PledgePanelProps) {
               <button type="button" onClick={() => setConfirmGap(true)} className={`px-3 py-1.5 text-xs ${btnPrimary}`}>
                 {t.pledgeOrg.gapCover}
               </button>
+              {p.pledges.some((x) => x.paid < p.share) && (
+                <button
+                  type="button"
+                  disabled={a.pending}
+                  onClick={() => a.run(() => removeUnpaidAndRecalculate(p.tripId, p.elementId, p.fundingRequestId))}
+                  className={`px-3 py-1.5 text-xs ${btnSecondary}`}
+                >
+                  {t.pledgeOrg.gapRecalc}
+                </button>
+              )}
             </div>
           )}
-          <span className="text-[12px] text-brand-muted">{t.pledgeOrg.gapHint}</span>
+          <span className="text-[12px] text-brand-muted">{t.pledgeOrg.gapRecalcHint}</span>
         </div>
       )}
       {a.error && <p role="alert" className="text-[12.5px] text-red-500">{a.error}</p>}
@@ -567,10 +662,38 @@ function OrganizerView(p: PledgePanelProps) {
  * terms and pay the organizer directly; the organizer confirms payments
  * here. Catoco never touches the money.
  */
+/** Members (not organizers, who get the full roster): who has pledged and paid, when shown. */
+function GroupStatus(p: PledgePanelProps) {
+  const t = useT();
+  if (!p.myInElement || p.pledges.length + p.notPledged.length === 0) return null;
+  const label = (s: PledgeRow["status"]) =>
+    s === "confirmed" ? t.pledgeOrg.stConfirmed : s === "reported_paid" ? t.pledgeOrg.stReported : t.pledgeOrg.stPledged;
+  return (
+    <div className={box}>
+      <b className="text-[13px] font-semibold text-foreground">{t.pledge.groupHeading}</b>
+      <ul className="flex flex-col divide-y divide-brand-line text-[12.5px]">
+        {p.pledges.map((x) => (
+          <li key={x.participantId} className="flex items-center gap-2 py-1.5">
+            <span className="min-w-0 flex-1 truncate font-medium text-foreground">{x.displayName}</span>
+            <span className="text-brand-muted">{label(x.status)}</span>
+          </li>
+        ))}
+        {p.notPledged.map((x) => (
+          <li key={x.userId} className="flex items-center gap-2 py-1.5 text-brand-muted">
+            <span className="min-w-0 flex-1 truncate">{x.displayName}</span>
+            <span>{t.pledgeOrg.notPledged}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function PledgePanel(props: PledgePanelProps) {
   return (
     <div className="flex flex-col gap-3">
       <MemberView {...props} />
+      {props.showStatus && !props.canManage && <GroupStatus {...props} />}
       {props.canManage && <OrganizerView {...props} />}
     </div>
   );

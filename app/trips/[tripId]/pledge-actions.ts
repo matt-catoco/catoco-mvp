@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toUserFacingError } from "@/lib/action-errors";
 import { isValidIban, normalizeIban, PLEDGE_TERMS_VERSION } from "@/lib/pledge";
 import { getLocale } from "@/lib/i18n/server";
+import { cushionArgs, type CushionChoice } from "@/lib/cushion";
 
 // Pledge-only collection (three-prong Prompt 1). Every action is a thin
 // wrapper around an RPC that re-checks who may do what; nothing here moves
@@ -26,13 +27,34 @@ async function rpc(name: string, args: Record<string, unknown>, tripId: string, 
 }
 
 /** Member: accept the terms and pledge their share. Records the terms version and language shown. */
-export async function acceptPledge(tripId: string, elementId: string, fundingRequestId: string): Promise<Result> {
+export async function acceptPledge(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  cushion: CushionChoice = { kind: "none" },
+): Promise<Result> {
+  const { p_cushion_kind, p_cushion_value } = cushionArgs(cushion);
   return rpc(
     "accept_pledge",
-    { p_funding_request_id: fundingRequestId, p_terms_version: PLEDGE_TERMS_VERSION, p_locale: await getLocale() },
+    {
+      p_funding_request_id: fundingRequestId,
+      p_terms_version: PLEDGE_TERMS_VERSION,
+      p_locale: await getLocale(),
+      p_cushion_kind,
+      p_cushion_value,
+    },
     tripId,
     elementId,
   );
+}
+
+export async function setPledgeStatusVisibility(
+  tripId: string,
+  elementId: string,
+  fundingRequestId: string,
+  show: boolean,
+): Promise<Result> {
+  return rpc("set_pledge_status_visibility", { p_funding_request_id: fundingRequestId, p_show: show }, tripId, elementId);
 }
 
 export async function withdrawPledge(tripId: string, elementId: string, fundingRequestId: string): Promise<Result> {

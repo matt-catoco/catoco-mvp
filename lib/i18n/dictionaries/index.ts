@@ -19,7 +19,9 @@ export const NEEDS_REVIEW: readonly string[] = [
   "collection.modes.catoco_psp.risk",
   // The pledge terms are the conditional contract members accept.
   "pledge.termsShare",
-  "pledge.termsFixed",
+  "pledge.termsCushion",
+  "pledge.termsNoCushion",
+  "pledge.termsOutside",
   "pledge.termsPayNow",
   "pledge.termsWindow",
   "pledge.termsPayLater",
