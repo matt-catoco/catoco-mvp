@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { runFundingChargeJob } from "@/lib/stripe/charges";
 import { stripeConfigured } from "@/lib/stripe/server";
+import { sendPayWindowReminders } from "@/lib/pledge-reminders";
 
 /**
  * Deadline charge job (flow #4, authorize-then-capture). Vercel Cron hits
@@ -22,8 +23,15 @@ export async function GET(request: NextRequest) {
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // Pledge-only pay-window reminders (no Stripe involved), every hour.
+  let pledgeReminders = 0;
+  try {
+    pledgeReminders = (await sendPayWindowReminders(request.nextUrl.origin)).sent;
+  } catch (err) {
+    console.error("[funding-charges] pledge reminders failed", err);
+  }
   if (!stripeConfigured()) {
-    return NextResponse.json({ skipped: "stripe not configured in this environment" });
+    return NextResponse.json({ skipped: "stripe not configured in this environment", pledgeReminders });
   }
 
   try {

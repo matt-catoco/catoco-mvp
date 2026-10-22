@@ -2,8 +2,17 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SignOutButton } from "./sign-out-button";
+import { setLocale } from "@/app/locale-actions";
+import { LOCALE_COOKIE } from "@/lib/i18n/config";
+
+/** The saved language, else the browser's (same rule as the server, read client-side). */
+function currentLocale(): "en" | "nl" {
+  const saved = document.cookie.split("; ").find((c) => c.startsWith(`${LOCALE_COOKIE}=`))?.split("=")[1];
+  if (saved === "en" || saved === "nl") return saved;
+  return navigator.languages?.some((l) => l.toLowerCase().startsWith("nl")) ? "nl" : "en";
+}
 
 const focusRing =
   "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
@@ -47,6 +56,7 @@ export function AccountMenu({ name, email }: { name: string; email: string }) {
   const itemsRef = useRef<(HTMLElement | null)[]>([]);
   const menuId = useId();
   const pathname = usePathname();
+  const router = useRouter();
 
   // Close on navigation (adjust state while rendering, not in an effect).
   const [menuPath, setMenuPath] = useState(pathname);
@@ -145,10 +155,32 @@ export function AccountMenu({ name, email }: { name: string; email: string }) {
             </svg>
             Profile
           </Link>
+          {/* Language (2026-10-22): new screens are translated; the rest stays English for now. */}
+          <button
+            ref={(el) => {
+              itemsRef.current[1] = el;
+            }}
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className={itemClass}
+            onClick={async () => {
+              const next = currentLocale() === "nl" ? "en" : "nl";
+              await setLocale(next);
+              setOpen(false);
+              router.refresh();
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-none text-brand-muted" aria-hidden>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18" />
+            </svg>
+            {open && currentLocale() === "nl" ? "Switch to English" : "Nederlands"}
+          </button>
           <hr className="my-1.5 border-0 border-t border-brand-line" />
           <SignOutButton
             ref={(el) => {
-              itemsRef.current[1] = el;
+              itemsRef.current[2] = el;
             }}
             role="menuitem"
             tabIndex={-1}

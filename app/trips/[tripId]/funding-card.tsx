@@ -18,6 +18,11 @@ import { PriceCheck, type PriceInfo } from "./price-check";
 import { PaymentRoster, RefundEveryone, type PaymentRosterEntry } from "./payment-status";
 import { ReadyToBook } from "./ready-to-book";
 import { WithdrawalNotice, type WithdrawalInfo } from "./withdrawal-notice";
+import { CollectionModePicker } from "./collection-mode-picker";
+import { PledgePanel, type PledgePanelProps } from "./pledge-panel";
+import type { CollectionMode } from "@/lib/collection-modes";
+import { fmt } from "@/lib/i18n/config";
+import { useT } from "@/lib/i18n/client";
 import { Lightbox, useTravelerGate } from "./traveler-details";
 import { useElementPageUI } from "./element-header";
 import type { BookingDraft } from "./booking-record-form";
@@ -76,6 +81,19 @@ export type FundingPayments = {
 
 export type FundingRosterEntry = { userId: string; displayName: string };
 
+/** How this request collects (three-prong Prompt 0). */
+export type CollectionInfo = {
+  mode: CollectionMode;
+  /** the organizer has confirmed the mode */
+  chosen: boolean;
+  /** someone has committed (pledge, mandate or payment) — mode is fixed */
+  locked: boolean;
+  /** which modes this environment lets the organizer select */
+  enabled: Record<CollectionMode, boolean>;
+  /** pledge-only: what the organizer chose to cover themselves */
+  shortfallAmount: number | null;
+};
+
 /** §6: one row of the combined bundle view — every OTHER element sharing
  * this funding_request besides the one this card is rendered on. */
 export type BundleMemberInfo = {
@@ -106,6 +124,8 @@ export function FundingCard({
   currency = "USD",
   members = [],
   payments,
+  collection,
+  pledge,
   priceInfo,
   booking = null,
   elementLabel,
@@ -124,6 +144,10 @@ export function FundingCard({
    * prompts. */
   members?: BundleMemberInfo[];
   payments?: FundingPayments;
+  /** How this request collects (Prompt 0); absent = legacy behaviour. */
+  collection?: CollectionInfo;
+  /** Pledge-only data, when the mode is peer_pledge and chosen (Prompt 1). */
+  pledge?: PledgePanelProps;
   /** Price cushion: current price, cushion, recheck/update (locked elements). */
   priceInfo?: PriceInfo;
   /** Booking record pieces — present only for people who can record the booking. */
@@ -141,6 +165,7 @@ export function FundingCard({
   optionTitle?: string;
 }) {
   const router = useRouter();
+  const t = useT();
   // Functional purchaser access stays a separate, user-ID-based check —
   // unaffected by §12's visibility change (the "Purchaser: X" label and the
   // reassignment control move into the canManage-gated section below, but a
@@ -334,6 +359,21 @@ export function FundingCard({
         // Commit first, then where the group stands (hatched bar, "N of M
         // committed", one chip per person), then the organizer's controls.
         <div className="flex flex-col gap-3">
+          {/* Prompt 0: the organizer picks how the group pays (all three
+              shown; only enabled ones selectable). Before charging starts. */}
+          {collection && canManage && !funding.chargeStatus && (
+            <CollectionModePicker
+              tripId={tripId}
+              elementId={elementId}
+              fundingRequestId={funding.id}
+              elementLabel={elementLabel ?? optionTitle ?? ""}
+              mode={collection.mode}
+              chosen={collection.chosen}
+              locked={collection.locked}
+              enabled={collection.enabled}
+              feePercent={5}
+            />
+          )}
           {payments?.withdrawals && !funding.chargeStatus && (
             <WithdrawalNotice
               tripId={tripId}
@@ -343,7 +383,15 @@ export function FundingCard({
               info={payments.withdrawals}
             />
           )}
-          {payments ? (
+          {pledge ? (
+            <PledgePanel {...pledge} />
+          ) : collection && !collection.chosen ? (
+            canManage ? null : (
+              <p className="rounded-xl border border-brand-line px-3.5 py-2.5 text-[13px] text-brand-muted">
+                {fmt(t.collection.memberWaiting, { organizer: funding.purchaserName })}
+              </p>
+            )
+          ) : payments ? (
             <MandatePanel
               tripId={tripId}
               elementId={elementId}
@@ -713,6 +761,8 @@ export function FundingCard({
           showIncidentals={booking.showIncidentals}
           amountFromCard={booking.amountFromCard}
           travelers={booking.travelers}
+          collectionMode={collection?.mode}
+          shortfall={collection?.shortfallAmount ? formatCurrency(collection.shortfallAmount, currency) : null}
         />
       )}
 

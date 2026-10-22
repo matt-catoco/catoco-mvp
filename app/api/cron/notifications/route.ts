@@ -31,6 +31,7 @@ type FundingRow = {
   required_amount: number;
   funding_deadline: string | null;
   created_at: string;
+  collection_mode: string;
 };
 
 type NewFundingRow = {
@@ -177,18 +178,22 @@ export async function GET(request: NextRequest) {
   // last 24h is eligible yet, regardless of what its deadline says.
   const { data: fundingDue } = await supabase
     .from("funding_requests")
-    .select("id, trip_id, required_amount, funding_deadline, created_at")
+    .select("id, trip_id, required_amount, funding_deadline, created_at, collection_mode")
     .eq("status", "collecting")
+    // Nobody can commit until the organizer has chosen how to collect.
+    .not("collection_mode_chosen_at", "is", null)
     .lte("funding_deadline", windowEndIso)
     .lte("created_at", graceCutoffIso)
     .returns<FundingRow[]>();
 
   for (const fr of fundingDue ?? []) {
-    const [{ data: linkRows }, { data: contributions }, { data: trip }] = await Promise.all([
+    const [{ data: linkRows }, { data: contributions }, { data: trip }, { data: pledgeRows }] = await Promise.all([
       supabase.from("funding_request_elements").select("element_id").eq("funding_request_id", fr.id),
       supabase.from("funding_contributions").select("contributor_id, amount").eq("funding_request_id", fr.id),
       supabase.from("trips").select("name").eq("id", fr.trip_id).maybeSingle(),
+      supabase.from("funding_pledges").select("participant_id").eq("funding_request_id", fr.id).neq("status", "withdrawn"),
     ]);
+    const isPledge = fr.collection_mode === "peer_pledge";
     const elementIds = (linkRows ?? []).map((r) => r.element_id);
     if (elementIds.length === 0) continue;
 
@@ -205,7 +210,11 @@ export async function GET(request: NextRequest) {
       .in("element_id", elementIds)
       .eq("opted_in", true);
 
-    const alreadyContributed = new Set((contributions ?? []).map((c) => c.contributor_id));
+    // Pledge-only: a pledge counts as "in" (paying happens in the pay window).
+    const alreadyContributed = new Set([
+      ...(contributions ?? []).map((c) => c.contributor_id),
+      ...(isPledge ? (pledgeRows ?? []).map((p) => p.participant_id) : []),
+    ]);
     const collected = (contributions ?? []).reduce((sum, c) => sum + c.amount, 0);
     const stillNeeded = Math.max(0, fr.required_amount - collected);
 
@@ -225,7 +234,7 @@ export async function GET(request: NextRequest) {
         subject: `${primaryElement.label} needs ${stillNeeded.toFixed(2)} more — ${tripLabel}`,
         html: `
           <p><strong>${escapeHtml(primaryElement.label)}</strong> on <strong>${escapeHtml(tripLabel)}</strong> still needs ${stillNeeded.toFixed(2)} by ${deadline} to hit its funding goal.</p>
-          <p><a href="${origin}/trips/${fr.trip_id}/elements/${primaryElement.id}">Contribute</a></p>
+          <p><a href="${origin}/trips/${fr.trip_id}/elements/${primaryElement.id}">${isPledge ? "Pledge your share" : "Contribute"}</a></p>
         `,
       });
     }

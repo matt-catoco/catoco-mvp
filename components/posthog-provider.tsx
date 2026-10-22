@@ -78,6 +78,16 @@ function capturePageview() {
   posthog.capture("$pageview", { $current_url: sanitizeUrl(window.location.href) });
 }
 
+/**
+ * A named product event (e.g. collection_mode_selected). Only sent once the
+ * visitor has accepted analytics (PostHog isn't initialised before that).
+ * Properties must never carry personal data — kinds and modes only.
+ */
+export function trackEvent(name: string, props: Record<string, string | number | boolean> = {}) {
+  if (!initialised) return;
+  posthog.capture(name, props);
+}
+
 /** consent is null until the stored choice has been read (no banner flash). */
 const AnalyticsContext = createContext<{ enabled: boolean; consent: Consent | null; setConsent: (c: "granted" | "denied") => void }>({
   enabled: false,

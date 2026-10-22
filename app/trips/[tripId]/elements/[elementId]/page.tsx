@@ -25,7 +25,13 @@ import {
   type FundingRequestInfo,
   type BundleMemberInfo,
   type FundingPayments,
+  type CollectionInfo,
 } from "../../funding-card";
+import type { PledgePanelProps } from "../../pledge-panel";
+import { I18nProvider } from "@/lib/i18n/client";
+import { getLocale } from "@/lib/i18n/server";
+import { enabledCollectionModes } from "@/lib/collection-mode-flags";
+import { isCollectionMode } from "@/lib/collection-modes";
 import type { MyMandateInfo } from "../../mandate-panel";
 import type { PaymentRosterEntry, PaymentState } from "../../payment-status";
 import { stripeConfigured } from "@/lib/stripe/server";
@@ -88,6 +94,12 @@ type FundingRow = {
   previous_individual_amount: number | null;
   price_changed_at: string | null;
   platform_fee_percent: number | null;
+  collection_mode: string;
+  collection_mode_chosen_at: string | null;
+  pledge_cap_percent: number;
+  pay_window_hours: number;
+  pay_window_opened_at: string | null;
+  shortfall_amount: number | null;
 };
 
 type MandateRow = {
@@ -309,7 +321,7 @@ export default async function ElementDetailPage({
     const { data: fundingRow } = await supabase
       .from("funding_requests")
       .select(
-        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, platform_fee_percent, funding_request_elements!inner(element_id)",
+        "id, required_amount, individual_amount, status, funding_deadline, purchaser_id, actual_amount_paid, refunded_at, currency, charge_status, charge_failure_reason, refund_all_requested_at, previous_individual_amount, price_changed_at, platform_fee_percent, collection_mode, collection_mode_chosen_at, pledge_cap_percent, pay_window_hours, pay_window_opened_at, shortfall_amount, funding_request_elements!inner(element_id)",
       )
       .eq("funding_request_elements.element_id", element.id)
       .neq("status", "superseded")
@@ -349,6 +361,9 @@ export default async function ElementDetailPage({
     let bundleMembers: BundleMemberInfo[] = [];
     let payments: FundingPayments | undefined;
     let priceInfo: PriceInfo | undefined;
+    let collection: CollectionInfo | undefined;
+    let pledge: PledgePanelProps | undefined;
+    const locale = await getLocale();
     if (fundingRow) {
       const optionValue = (option?.value ?? {}) as Record<string, unknown>;
       const { data: cushionTrip } = await supabase
@@ -408,9 +423,113 @@ export default async function ElementDetailPage({
         chargeStatus: fundingRow.charge_status,
       };
 
+      // Collection mode (three-prong Prompt 0): which modes this environment
+      // lets the organizer SELECT; every mode is still shown.
+      const collectionMode = isCollectionMode(fundingRow.collection_mode) ? fundingRow.collection_mode : "catoco_psp";
+      const { data: hasCommitments } = await supabase.rpc("funding_request_has_commitments", {
+        p_funding_request_id: fundingRow.id,
+      });
+      collection = {
+        mode: collectionMode,
+        chosen: Boolean(fundingRow.collection_mode_chosen_at),
+        locked: Boolean(hasCommitments),
+        enabled: enabledCollectionModes(),
+        shortfallAmount: fundingRow.shortfall_amount,
+      };
+
+      // Pledge-only (Prompt 1): pledges, the collector's payout details, and
+      // who in the element hasn't pledged yet. RLS: pledges are visible to
+      // the request's members; payout methods come through a members-only RPC.
+      if (collectionMode === "peer_pledge" && fundingRow.collection_mode_chosen_at) {
+        const [{ data: pledgeRows }, { data: methodRows }, { data: population }, { data: mySpotsFull }, { data: paidRows }] =
+          await Promise.all([
+            supabase
+              .from("funding_pledges")
+              .select("participant_id, status, reference_code")
+              .eq("funding_request_id", fundingRow.id)
+              .neq("status", "withdrawn")
+              .order("accepted_at"),
+            supabase.rpc("get_pledge_payout_methods", { p_funding_request_id: fundingRow.id }),
+            supabase.rpc("funding_request_population_for", { p_funding_request_id: fundingRow.id }),
+            supabase.rpc("funding_request_spots_full", { p_funding_request_id: fundingRow.id, p_user_id: user.id }),
+            supabase
+              .from("funding_contributions")
+              .select("contributor_id, amount")
+              .eq("funding_request_id", fundingRow.id)
+              .is("refunded_at", null),
+          ]);
+        const paidBy = new Map<string, number>();
+        for (const c of (paidRows ?? []) as { contributor_id: string; amount: number }[]) {
+          paidBy.set(c.contributor_id, (paidBy.get(c.contributor_id) ?? 0) + Number(c.amount));
+        }
+        const nameOf = (id: string) => {
+          const r = rosterById.get(id);
+          return id === user.id ? "You" : r?.display_name?.trim() || (r?.is_organizer ? "Organizer" : "Member");
+        };
+        const pledges = ((pledgeRows ?? []) as { participant_id: string; status: string; reference_code: string }[]).map((p) => ({
+          participantId: p.participant_id,
+          displayName: nameOf(p.participant_id),
+          status: p.status as "pledged" | "reported_paid" | "confirmed",
+          paid: Math.round((paidBy.get(p.participant_id) ?? 0) * 100) / 100,
+          reference: p.reference_code,
+        }));
+        const pledgedIds = new Set(pledges.map((p) => p.participantId));
+        // Uploaded QR images live in a private bucket: short-lived signed URLs.
+        const methods = (methodRows ?? []) as {
+          id: string;
+          kind: "iban" | "link" | "qr";
+          label: string | null;
+          account_name: string | null;
+          iban: string | null;
+          url: string | null;
+          qr_path: string | null;
+        }[];
+        const qrPaths = methods.map((m) => m.qr_path).filter((x): x is string => Boolean(x));
+        const signed = qrPaths.length
+          ? (await createServiceClient().storage.from("payout-qr").createSignedUrls(qrPaths, 60 * 60)).data ?? []
+          : [];
+        const signedByPath = new Map(signed.map((s) => [s.path, s.signedUrl]));
+        const purchaserName = fundingRow.purchaser_id ? nameOf(fundingRow.purchaser_id) : "the organizer";
+        pledge = {
+          tripId,
+          elementId: element.id,
+          fundingRequestId: fundingRow.id,
+          currentUserId: user.id,
+          currency: fundingRow.currency ?? String(optionValue.currency ?? "EUR"),
+          share: Number(fundingRow.individual_amount ?? fundingRow.required_amount),
+          required: Number(fundingRow.required_amount),
+          capPercent: Number(fundingRow.pledge_cap_percent),
+          windowHours: fundingRow.pay_window_hours,
+          windowOpenedAt: fundingRow.pay_window_opened_at,
+          windowClosed: fundingRow.pay_window_opened_at
+            ? new Date(fundingRow.pay_window_opened_at).getTime() + fundingRow.pay_window_hours * 3_600_000 <= new Date().getTime()
+            : false,
+          canManage: Boolean(canManage),
+          collectorId: fundingRow.purchaser_id,
+          collectorName: purchaserName === "You" ? (rosterById.get(user.id)?.display_name?.trim() || "you") : purchaserName,
+          population: Number(population ?? 0),
+          pledges,
+          notPledged: canManage
+            ? scopedParticipants.filter((s) => !pledgedIds.has(s.userId)).map((s) => ({ userId: s.userId, displayName: s.displayName }))
+            : [],
+          myInElement: scopedParticipants.some((s) => s.userId === user.id),
+          mySpotsFull: Boolean(mySpotsFull),
+          payoutMethods: methods.map((m) => ({
+            id: m.id,
+            kind: m.kind,
+            label: m.label,
+            accountName: m.account_name,
+            iban: m.iban,
+            url: m.url,
+            qrUrl: m.qr_path ? (signedByPath.get(m.qr_path) ?? null) : null,
+          })),
+        };
+      }
+
       // Flow #4: mandate-based payments, only where Stripe (test mode) is
-      // configured — elsewhere the card keeps the manual Commit ledger.
-      if (stripeConfigured()) {
+      // configured AND this request collects through Catoco — elsewhere the
+      // card shows the pledge flow (or the manual ledger locally).
+      if (stripeConfigured() && collectionMode === "catoco_psp") {
         // RLS scopes these: the organizer reads every mandate on the
         // request, a participant only their own. Contributions are visible
         // to all members (existing policy).
@@ -927,6 +1046,7 @@ export default async function ElementDetailPage({
           )}
           {(!element.booked_at || (funding && payments)) &&
             (funding ? (
+              <I18nProvider locale={locale}>
               <MaybeTravelerGate
                 gate={
                   funding.status === "collecting" && travelerReq && myTraveler
@@ -955,6 +1075,8 @@ export default async function ElementDetailPage({
                 elementLabel={element.label}
                 optionTitle={lockedTitle ?? undefined}
                 payments={payments}
+                collection={collection}
+                pledge={pledge}
                 priceInfo={priceInfo}
                 booking={
                   canEditBooking
@@ -971,6 +1093,7 @@ export default async function ElementDetailPage({
                 }
               />
               </MaybeTravelerGate>
+              </I18nProvider>
             ) : (
               // Dates/Destination are never price-bearing, so `funding` is
               // always null for them too — that's not "locked but missing a
