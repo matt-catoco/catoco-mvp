@@ -4,6 +4,7 @@ import styles from "./page.module.css";
 import { TallyEmbedScript } from "./tally-embed-script";
 import { LogoMark } from "@/components/logo-mark";
 import { legalLine } from "@/content/company";
+import { infoLinkVisible } from "@/components/info/visibility";
 import { site } from "@/content/pages/en";
 import { ElementGrid } from "@/components/trip-home/element-grid";
 import type { TileAlerts } from "@/components/trip-home/element-tile";
@@ -613,6 +614,20 @@ export default async function Home() {
               <a href="#elements">The elements</a>
               <Link href="/about">About</Link>
               <Link href="/contact">Contact</Link>
+              {/* Draft pages: linked on staging so every page can be reviewed; hidden on catoco.co. */}
+              {[
+                { href: "/tutorials", label: "Tutorials" },
+                { href: "/faq", label: "Help" },
+                { href: "/terms", label: "Terms" },
+                { href: "/privacy", label: "Privacy" },
+                { href: "/site-map", label: "Site map" },
+              ]
+                .filter((l) => infoLinkVisible(l.href))
+                .map((l) => (
+                  <Link key={l.href} href={l.href}>
+                    {l.label}
+                  </Link>
+                ))}
               <a href="mailto:hello@catoco.co">hello@catoco.co</a>
             </div>
           </div>

@@ -41,6 +41,8 @@ export const site = {
       company: [
         { href: "/about", label: "About" },
         { href: "/contact", label: "Contact" },
+        // Staging only (hidden on catoco.co with the other draft pages).
+        { href: "/site-map", label: "Site map" },
       ],
       legal: [
         { href: "/terms", label: "Terms of service" },
