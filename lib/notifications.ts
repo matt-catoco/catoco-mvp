@@ -5,6 +5,8 @@ import { emailSendingEnabled, sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/html";
 import { platformFee } from "@/lib/platform-fee";
 import { createServiceClient } from "@/lib/supabase/service";
+import { optionTitle } from "@/components/option-summary";
+import type { ElementType } from "@/lib/trip-elements";
 
 // Cross-cutting: needs to be importable from a server action (page-load
 // invite trigger, funding-resolve trigger) and the cron route handler alike,
@@ -469,7 +471,7 @@ export async function notifyDeadlineMissed(opts: {
         <li>Check the price is still right, and update it if it has changed.</li>
         <li>Set a new deadline. We&#39;ll then email everyone to ${pledge ? "pledge again" : "recommit"}, with the new date and their share.</li>
       </ol>
-      <p>If it&#39;s no longer possible, choose <strong>Resolve — no longer viable</strong> on the element page to call it off. We&#39;ll email the group either way.</p>
+      <p>If it&#39;s no longer available, choose <strong>No longer available</strong> on the element page: it switches to the vote&#39;s runner-up, or reopens the element for new options if there isn&#39;t one. We&#39;ll email the group either way.</p>
       <p><a href="${url}">Decide what&#39;s next</a></p>
     `;
     const subjectId = stableUuid(`deadline_missed:${opts.fundingRequestId}:${r.missedDeadline ?? ""}`);
@@ -600,16 +602,26 @@ export async function notifyRoundCalledOff(opts: {
     if (!r) return;
     const { data: el } = await opts.supabase.from("trip_elements").select("state, locked_option_id").eq("id", r.elementId).maybeSingle();
     const runnerUp = Boolean(el?.locked_option_id) && el?.state !== "open";
+    let runnerUpTitle: string | null = null;
+    if (runnerUp) {
+      const { data: opt } = await opts.supabase
+        .from("element_options")
+        .select("value, trip_elements!inner(type)")
+        .eq("id", el!.locked_option_id as string)
+        .maybeSingle();
+      const type = opt ? ((Array.isArray(opt.trip_elements) ? opt.trip_elements[0] : opt.trip_elements) as { type: string } | null)?.type : null;
+      if (opt && type) runnerUpTitle = optionTitle(type as ElementType, (opt.value ?? {}) as Record<string, unknown>) || null;
+    }
     const pledge = r.mode === "peer_pledge";
     const label = escapeHtml(r.elementLabel);
     const tripName = escapeHtml(r.tripName);
     const url = `${opts.origin}/trips/${r.tripId}/elements/${r.elementId}`;
     const html = `
-      <p>The organizer has called off the current choice for <strong>${label}</strong> on <strong>${tripName}</strong>: not everyone was in by the deadline and it can&#39;t go ahead as it was.</p>
+      <p>The organizer has marked the current choice for <strong>${label}</strong> on <strong>${tripName}</strong> as no longer available, after not everyone was in by the deadline.</p>
       <p>${pledge ? "Your pledge no longer applies, and nobody needs to pay anything for it." : "Nobody was charged, and your commitment no longer applies."}</p>
       <p>${
         runnerUp
-          ? `The runner-up option is now the pick, and it has its own funding round. Take a look and ${pledge ? "pledge" : "commit"} if you&#39;re in.`
+          ? `The runner-up from your vote${runnerUpTitle ? `, <strong>${escapeHtml(runnerUpTitle)}</strong>,` : ""} is now the pick, with its own deadline and price. Take a look and ${pledge ? "pledge" : "commit"} if you&#39;re in.`
           : "The element is open again, so the group can add and vote on new options."
       }</p>
       <p><a href="${url}">See what&#39;s next</a></p>
@@ -624,7 +636,9 @@ export async function notifyRoundCalledOff(opts: {
         email: email as string,
         kind: "funding_failed",
         subjectId,
-        subject: `Called off: ${r.elementLabel} — ${r.tripName}`,
+        subject: runnerUp
+          ? `Switched to the runner-up: ${r.elementLabel} — ${r.tripName}`
+          : `No longer available: ${r.elementLabel} — ${r.tripName}`,
         html,
         origin: opts.origin,
       });

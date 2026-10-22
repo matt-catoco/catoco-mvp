@@ -130,6 +130,7 @@ export function FundingCard({
   booking = null,
   elementLabel,
   optionTitle,
+  runnerUpTitle = null,
 }: {
   tripId: string;
   elementId: string;
@@ -163,6 +164,8 @@ export function FundingCard({
   /** For the Commit modal's subtitle: "Accommodations · Casa Mare". */
   elementLabel?: string;
   optionTitle?: string;
+  /** After a missed deadline: the vote's runner-up that "no longer available" switches to (null = reopen). */
+  runnerUpTitle?: string | null;
 }) {
   const router = useRouter();
   const t = useT();
@@ -696,7 +699,7 @@ export function FundingCard({
                   <p className="text-xs text-brand-muted">
                     {isFullyFunded
                       ? "Deadline passed — you've hit the funding goal. Resolve to mark it ready to purchase."
-                      : "Deadline passed — resolve the outcome. If unfunded, is the locked choice still available at this price?"}
+                      : "Deadline passed and not everyone is in. Is this choice still available at this price?"}
                   </p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <button
@@ -710,12 +713,14 @@ export function FundingCard({
                             setResolveError(res.error);
                             return;
                           }
+                          // Still available: straight on to the new deadline (which emails the group).
+                          if (!isFullyFunded) setEditingDeadline(true);
                           router.refresh();
                         });
                       }}
                       className={`px-3 py-1.5 text-xs ${btnSecondary}`}
                     >
-                      {isFullyFunded ? "Resolve" : "Resolve — still viable"}
+                      {isFullyFunded ? "Resolve" : "Still available — set a new deadline"}
                     </button>
                     {!isFullyFunded && (
                       <button
@@ -739,7 +744,7 @@ export function FundingCard({
                         }}
                         className={`px-3 py-1.5 text-xs ${btnSecondary}`}
                       >
-                        Resolve — no longer viable
+                        {runnerUpTitle ? `No longer available — switch to runner-up: ${runnerUpTitle}` : "No longer available — reopen for new options"}
                       </button>
                     )}
                   </div>

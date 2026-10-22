@@ -922,6 +922,16 @@ export default async function ElementDetailPage({
       : undefined;
 
     const lockedTitle = option ? optionTitleOf(element.type, option.value as Record<string, unknown>) : null;
+    // Deadline passed: what "no longer available" falls back to — the vote's
+    // runner-up (cascade_element_unavailable), or null = the element reopens.
+    let runnerUpTitle: string | null = null;
+    if (canManage && funding?.deadline && new Date(funding.deadline).getTime() <= new Date().getTime()) {
+      const { data: runnerUpId } = await supabase.rpc("get_runner_up_option", { p_element_id: element.id });
+      if (runnerUpId) {
+        const { data: ru } = await supabase.from("element_options").select("value").eq("id", runnerUpId as string).maybeSingle();
+        if (ru) runnerUpTitle = optionTitleOf(element.type, ru.value as Record<string, unknown>);
+      }
+    }
     const collecting = funding?.status === "collecting";
     // "Waiting on you": you're in this element and haven't committed yet.
     const myMandateStatus = payments?.panel.myMandate?.status ?? "";
@@ -1085,6 +1095,7 @@ export default async function ElementDetailPage({
                 members={bundleMembers}
                 elementLabel={element.label}
                 optionTitle={lockedTitle ?? undefined}
+                runnerUpTitle={runnerUpTitle}
                 payments={payments}
                 collection={collection}
                 pledge={pledge}
