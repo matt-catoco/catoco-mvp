@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { COLLECTION_MODES, type CollectionMode } from "@/lib/collection-modes";
+import { PAYMENT_METHODS, type CollectionMode } from "@/lib/collection-modes";
 import { fmt } from "@/lib/i18n/config";
 import { useT } from "@/lib/i18n/client";
 import { trackEvent } from "@/components/posthog-provider";
@@ -13,7 +13,8 @@ const focusRing = "outline-none focus-visible:outline-2 focus-visible:outline-of
 
 /**
  * Organizer: how will the group pay (Prompt 0 + launch-scope amendment).
- * All three modes are always shown; a mode switched off in this environment
+ * Both payment methods are always shown (vendor_direct isn't one: it comes
+ * from requesting a quote when the element is added); a method switched off in this environment
  * carries a "Coming soon" badge, shows no cost detail, and only explains
  * itself when tapped — it never creates anything. Once someone has
  * committed, the choice is locked and only the summary shows.
@@ -100,8 +101,8 @@ export function CollectionModePicker({
         </h3>
         <p className="text-[13px] text-brand-muted">{fmt(t.collection.sub, { element: elementLabel })}</p>
       </div>
-      <div className="grid gap-2.5 sm:grid-cols-3">
-        {COLLECTION_MODES.map((m) => {
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        {PAYMENT_METHODS.map((m) => {
           const copy: { title: string; badge: string; body: string; cost?: string; risk?: string } = t.collection.modes[m];
           const on = enabled[m];
           const isCurrent = chosen && m === mode;

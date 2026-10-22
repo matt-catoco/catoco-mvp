@@ -141,6 +141,9 @@ export function AddElementForm({
     () => new Set(bundleContext?.customScope ?? [currentUserId]),
   );
   const [state, setState] = useState<"open" | "locked">("open");
+  // How options are found — decided here, before any voting or funding.
+  // Requesting quotes (supplier marketplace, Prompt 3) isn't built yet.
+  const [quoteNote, setQuoteNote] = useState(false);
   const [lockedValue, setLockedValue] = useState<Record<string, unknown>>(() =>
     withBundlePricing(applyTripContext("dates", emptyValueFor("dates"), tripContext), bundleContext),
   );
@@ -414,6 +417,31 @@ export function AddElementForm({
 
       {showSpots && <SpotsField value={spots} onChange={setSpots} />}
       {showSpots && tripContext?.checkoutCushion !== false && <CushionField value={cushion} onChange={setCushion} />}
+
+      {showSpots && (
+        <div className="flex flex-col gap-2">
+          <span className={`${labelClass} text-center`}>How will you find options?</span>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            <button type="button" className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${pillActiveTeal}`}>
+              Search and submit ideas
+            </button>
+            <button
+              type="button"
+              aria-disabled
+              onClick={() => setQuoteNote((v) => !v)}
+              className={`rounded-full border border-dashed px-3 py-1 text-xs font-medium transition-colors ${pillInactive}`}
+            >
+              Request a quote · Coming soon
+            </button>
+          </div>
+          {quoteNote && (
+            <p className="text-center text-xs text-brand-muted">
+              Soon you&apos;ll be able to send this element to Catoco&apos;s preferred supplier network and let them compete for
+              your booking. Their bids become the options to choose from, and everyone pays the winning supplier directly.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <span className={`${labelClass} text-center`}>State</span>

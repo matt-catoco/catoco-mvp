@@ -4,6 +4,13 @@
 
 export const COLLECTION_MODES = ["peer_pledge", "catoco_psp", "vendor_direct"] as const;
 export type CollectionMode = (typeof COLLECTION_MODES)[number];
+/**
+ * The two the organizer picks between at funding ("Payment method", founder
+ * 2026-10-22). vendor_direct isn't a payment choice: it follows from sending
+ * the element to the supplier marketplace (request a quote), which is decided
+ * when the element is added, long before funding.
+ */
+export const PAYMENT_METHODS = ["peer_pledge", "catoco_psp"] as const satisfies readonly CollectionMode[];
 export const isCollectionMode = (v: unknown): v is CollectionMode =>
   typeof v === "string" && (COLLECTION_MODES as readonly string[]).includes(v);
 
