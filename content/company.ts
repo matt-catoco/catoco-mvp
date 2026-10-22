@@ -10,7 +10,7 @@ export const COMPANY = {
   brand: "Catoco",
   kvk: "42189338",
   vat: "NL870106004B01",
-  managingDirector: "Matt Savit",
+  managingDirector: "Matthew Savit",
   email: "hello@catoco.co",
 } as const;
 
