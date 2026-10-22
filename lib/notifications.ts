@@ -19,7 +19,9 @@ export type NotificationKind =
   | "payment_retry_needed"
   | "nudge"
   | "shares_recalculated"
-  | "price_drift";
+  | "price_drift"
+  | "deadline_missed"
+  | "recommit_requested";
 
 /**
  * The one send path for all four core-loop triggers. Checks eligibility
@@ -372,4 +374,204 @@ export async function notifyPriceDrift(opts: {
   } catch (err) {
     console.error(`notifyPriceDrift failed (${opts.elementId}):`, err);
   }
+}
+
+/** A stable uuid for a dedupe key (notification_log subject). */
+function stableUuid(key: string): string {
+  const h = createHash("md5").update(key).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
+type RoundInfo = {
+  tripId: string;
+  tripName: string;
+  organizerId: string;
+  elementId: string;
+  elementLabel: string;
+  share: number;
+  missedShare: number | null;
+  feePercent: number;
+  currency: string;
+  deadline: string | null;
+  missedDeadline: string | null;
+  mode: string;
+};
+
+async function loadRound(supabase: SupabaseClient, fundingRequestId: string): Promise<RoundInfo | null> {
+  const { data: fr } = await supabase
+    .from("funding_requests")
+    .select(
+      "trip_id, individual_amount, missed_share, platform_fee_percent, currency, funding_deadline, missed_deadline, collection_mode, trips(name, organizer_id), funding_request_elements(element_id, trip_elements(label))",
+    )
+    .eq("id", fundingRequestId)
+    .maybeSingle();
+  if (!fr) return null;
+  const trip = (Array.isArray(fr.trips) ? fr.trips[0] : fr.trips) as { name: string; organizer_id: string } | null;
+  const first = (
+    (fr.funding_request_elements ?? []) as {
+      element_id: string;
+      trip_elements: { label: string } | { label: string }[] | null;
+    }[]
+  )[0];
+  if (!trip || !first) return null;
+  return {
+    tripId: fr.trip_id as string,
+    tripName: trip.name,
+    organizerId: trip.organizer_id,
+    elementId: first.element_id,
+    elementLabel: (Array.isArray(first.trip_elements) ? first.trip_elements[0]?.label : first.trip_elements?.label) ?? "your trip",
+    share: Number(fr.individual_amount),
+    missedShare: fr.missed_share != null ? Number(fr.missed_share) : null,
+    feePercent: Number(fr.platform_fee_percent ?? 0),
+    currency: (fr.currency as string) ?? "EUR",
+    deadline: fr.funding_deadline as string | null,
+    missedDeadline: fr.missed_deadline as string | null,
+    mode: fr.collection_mode as string,
+  };
+}
+
+const utcDate = (iso: string) =>
+  new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+
+/**
+ * Deadline missed, step 1 (founder, 2026-10-22): the round closed without
+ * everyone in, so commitments / unpaid pledges were released. The organizer
+ * and co-organizers choose what happens next; the group hears nothing until
+ * a new deadline is set (notifyRecommitRequested). Service-role client.
+ * Best-effort; never throws.
+ */
+export async function notifyDeadlineMissed(opts: {
+  supabase: SupabaseClient;
+  fundingRequestId: string;
+  inCount: number;
+  population: number;
+  origin: string;
+}): Promise<void> {
+  try {
+    const r = await loadRound(opts.supabase, opts.fundingRequestId);
+    if (!r) return;
+    const { data: coOrganizers } = await opts.supabase
+      .from("trip_participants")
+      .select("user_id")
+      .eq("trip_id", r.tripId)
+      .eq("role", "co_organizer");
+    const recipients = [...new Set([r.organizerId, ...((coOrganizers ?? []) as { user_id: string }[]).map((c) => c.user_id)])];
+    const pledge = r.mode === "peer_pledge";
+    const label = escapeHtml(r.elementLabel);
+    const tripName = escapeHtml(r.tripName);
+    const url = `${opts.origin}/trips/${r.tripId}/elements/${r.elementId}`;
+    const when = r.missedDeadline ? ` on ${escapeHtml(utcDate(r.missedDeadline))}` : "";
+    const html = `
+      <p>The ${pledge ? "pledge" : "funding"} deadline for <strong>${label}</strong> on <strong>${tripName}</strong> passed${when} with ${opts.inCount} of ${opts.population} people in.</p>
+      <p>${pledge ? "The unpaid pledges have been released." : "Nobody was charged, and everyone&#39;s commitment has been released."} Nothing goes to the group until you decide what&#39;s next:</p>
+      <ol>
+        <li>Check the price is still right, and update it if it has changed.</li>
+        <li>Set a new deadline. We&#39;ll then email everyone to ${pledge ? "pledge again" : "recommit"}, with the new date and their share.</li>
+      </ol>
+      <p>If it&#39;s no longer possible, resolve it as not viable on the element page instead.</p>
+      <p><a href="${url}">Decide what&#39;s next</a></p>
+    `;
+    const subjectId = stableUuid(`deadline_missed:${opts.fundingRequestId}:${r.missedDeadline ?? ""}`);
+    for (const userId of recipients) {
+      const { data: email } = await opts.supabase.rpc("get_user_email", { p_user_id: userId });
+      if (!email) continue;
+      await sendCoreLoopEmail({
+        supabase: opts.supabase,
+        userId,
+        email: email as string,
+        kind: "deadline_missed",
+        subjectId,
+        subject: `Deadline passed: ${r.elementLabel} needs a decision — ${r.tripName}`,
+        html,
+        origin: opts.origin,
+      });
+    }
+  } catch (err) {
+    console.error(`notifyDeadlineMissed failed (${opts.fundingRequestId}):`, err);
+  }
+}
+
+/**
+ * Deadline missed, step 2: the organizer set a new deadline. Everyone in
+ * the element (bar whoever set it) is asked to recommit / pledge again,
+ * with the new date and their share — and the old share if it moved.
+ * Service-role client. Best-effort; never throws.
+ */
+export async function notifyRecommitRequested(opts: {
+  supabase: SupabaseClient;
+  fundingRequestId: string;
+  actorId: string;
+  origin: string;
+}): Promise<void> {
+  try {
+    const r = await loadRound(opts.supabase, opts.fundingRequestId);
+    if (!r || !r.deadline) return;
+    const { data: links } = await opts.supabase
+      .from("funding_request_elements")
+      .select("element_id")
+      .eq("funding_request_id", opts.fundingRequestId);
+    const { data: people } = await opts.supabase
+      .from("element_participants")
+      .select("participant_id")
+      .in("element_id", ((links ?? []) as { element_id: string }[]).map((l) => l.element_id))
+      .eq("opted_in", true);
+    const recipients = [...new Set(((people ?? []) as { participant_id: string }[]).map((p) => p.participant_id))].filter(
+      (id) => id !== opts.actorId,
+    );
+
+    const pledge = r.mode === "peer_pledge";
+    const withFee = (n: number) => n + (pledge ? 0 : platformFee(n, r.feePercent));
+    const money = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: r.currency }).format(withFee(n));
+    const changed = r.missedShare != null && Math.abs(r.missedShare - r.share) >= 0.01;
+    const label = escapeHtml(r.elementLabel);
+    const tripName = escapeHtml(r.tripName);
+    const url = `${opts.origin}/trips/${r.tripId}/elements/${r.elementId}`;
+    const shareLine = changed
+      ? `Your share is now <strong>${escapeHtml(money(r.share))}</strong> (it was ${escapeHtml(money(r.missedShare!))}).`
+      : `Your share is <strong>${escapeHtml(money(r.share))}</strong>.`;
+    const html = `
+      <p>Not everyone was in by the last deadline for <strong>${label}</strong> on <strong>${tripName}</strong>, so ${pledge ? "the pledges were released" : "nobody was charged and every commitment was released"}.</p>
+      <p>There&#39;s a new deadline: <strong>${escapeHtml(utcDate(r.deadline))}</strong>. ${shareLine}${pledge ? "" : " Catoco fee included."}</p>
+      <p>Please ${pledge ? "pledge again" : "recommit"} by then to stay in.</p>
+      <p><a href="${url}">${pledge ? "Pledge again" : "Recommit"}</a></p>
+    `;
+    const subjectId = stableUuid(`recommit:${opts.fundingRequestId}:${r.deadline}`);
+    for (const userId of recipients) {
+      const { data: email } = await opts.supabase.rpc("get_user_email", { p_user_id: userId });
+      if (!email) continue;
+      await sendCoreLoopEmail({
+        supabase: opts.supabase,
+        userId,
+        email: email as string,
+        kind: "recommit_requested",
+        subjectId,
+        subject: `New deadline: please ${pledge ? "pledge again" : "recommit"} for ${r.elementLabel} — ${r.tripName}`,
+        html,
+        origin: opts.origin,
+      });
+    }
+  } catch (err) {
+    console.error(`notifyRecommitRequested failed (${opts.fundingRequestId}):`, err);
+  }
+}
+
+/** The hourly job: record rounds that just missed their deadline and tell the organizers. */
+export async function handleMissedDeadlines(origin: string): Promise<number> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("mark_missed_funding_deadlines");
+  if (error) {
+    console.error("mark_missed_funding_deadlines failed:", error.message);
+    return 0;
+  }
+  const rows = (data ?? []) as { funding_request_id: string; in_count: number; population: number }[];
+  for (const row of rows) {
+    await notifyDeadlineMissed({
+      supabase,
+      fundingRequestId: row.funding_request_id,
+      inCount: row.in_count,
+      population: row.population,
+      origin,
+    });
+  }
+  return rows.length;
 }

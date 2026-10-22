@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { runFundingChargeJob } from "@/lib/stripe/charges";
 import { stripeConfigured } from "@/lib/stripe/server";
 import { sendPayWindowReminders } from "@/lib/pledge-reminders";
+import { handleMissedDeadlines } from "@/lib/notifications";
 
 /**
  * Deadline charge job (flow #4, authorize-then-capture). Vercel Cron hits
@@ -31,13 +32,18 @@ export async function GET(request: NextRequest) {
     console.error("[funding-charges] pledge reminders failed", err);
   }
   if (!stripeConfigured()) {
-    return NextResponse.json({ skipped: "stripe not configured in this environment", pledgeReminders });
+    // Pledge rounds can still miss their deadline without Stripe.
+    const missedDeadlines = await handleMissedDeadlines(request.nextUrl.origin);
+    return NextResponse.json({ skipped: "stripe not configured in this environment", pledgeReminders, missedDeadlines });
   }
 
   try {
     const summary = await runFundingChargeJob(request.nextUrl.origin);
     if (summary.errors.length) console.error("[funding-charges] errors", summary.errors);
-    return NextResponse.json(summary);
+    // After the job: card rounds that just failed as "not fully committed"
+    // are picked up in the same run.
+    const missedDeadlines = await handleMissedDeadlines(request.nextUrl.origin);
+    return NextResponse.json({ ...summary, pledgeReminders, missedDeadlines });
   } catch (err) {
     console.error("[funding-charges] job failed", err);
     return NextResponse.json({ error: "job failed" }, { status: 500 });

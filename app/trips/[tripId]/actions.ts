@@ -27,7 +27,7 @@ import {
 } from "@/lib/vendor-search/hotelbeds";
 import { pickUnsplashPhoto, placeQueries, type UnsplashPick } from "@/lib/unsplash";
 import { fetchOptionDetails } from "@/lib/option-details-fetch";
-import { sendCoreLoopEmail } from "@/lib/notifications";
+import { notifyRecommitRequested, sendCoreLoopEmail } from "@/lib/notifications";
 import { createServiceClient } from "@/lib/supabase/service";
 import { travelerDetailsOwed } from "@/lib/traveler-details";
 import { toUserFacingError } from "@/lib/action-errors";
@@ -663,11 +663,35 @@ export async function setFundingDeadline(
   deadline: string,
 ): Promise<SetFundingDeadlineResult> {
   const supabase = await createClient();
+  // Was the last round missed? Then this new deadline restarts it and the
+  // group is asked to recommit / pledge again (founder, 2026-10-22).
+  const { data: before } = await supabase
+    .from("funding_requests")
+    .select("deadline_missed_at")
+    .eq("id", fundingRequestId)
+    .maybeSingle();
   const { error } = await supabase.rpc("set_funding_deadline", {
     p_funding_request_id: fundingRequestId,
     p_deadline: deadline,
   });
   if (error) return { error: toUserFacingError(error) };
+
+  if (before?.deadline_missed_at && new Date(deadline).getTime() > Date.now()) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const service = createServiceClient();
+    const h = await headers();
+    const host = h.get("host");
+    const proto = process.env.NODE_ENV === "development" ? "http" : "https";
+    await notifyRecommitRequested({
+      supabase: service,
+      fundingRequestId,
+      actorId: user?.id ?? "",
+      origin: host ? `${proto}://${host}` : "https://catoco.co",
+    });
+    await service.from("funding_requests").update({ deadline_missed_at: null }).eq("id", fundingRequestId);
+  }
 
   revalidatePath(`/trips/${tripId}`);
   revalidatePath(`/trips/${tripId}/elements/${elementId}`);
