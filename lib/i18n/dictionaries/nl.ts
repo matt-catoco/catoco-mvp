@@ -86,7 +86,7 @@ export const nl: Dictionary = {
     waitlisted: "Alle plekken zijn bezet, dus je staat hiervoor op de wachtlijst.",
   },
   pledgeOrg: {
-    setupHeading: "Waar moeten mensen jou betalen?",
+    setupHeading: "Hoe moeten mensen jou betalen?",
     setupHint: "Voeg er minstens één toe voordat de betalingen openen. Leden zien deze gegevens bij hun betaalverzoek.",
     addIban: "Bankrekening",
     accountName: "Naam rekeninghouder",

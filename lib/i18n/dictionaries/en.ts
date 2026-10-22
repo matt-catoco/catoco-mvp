@@ -83,7 +83,7 @@ export const en = {
     waitlisted: "Every spot is taken, so you're on the waitlist for this one.",
   },
   pledgeOrg: {
-    setupHeading: "Where should people pay you?",
+    setupHeading: "How should people pay you?",
     setupHint: "Add at least one before payments open. Members see these details on their payment request.",
     addIban: "Bank account",
     accountName: "Account holder name",
