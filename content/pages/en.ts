@@ -155,6 +155,7 @@ export const about = {
   rows: [
     { label: "Doing business as", value: COMPANY.brand },
     { label: "Legal entity", value: COMPANY.entity },
+    { label: "Address", value: COMPANY.address },
     { label: "KvK", value: COMPANY.kvk },
     { label: "VAT", value: COMPANY.vat },
     { label: "Contact", value: COMPANY.email },
@@ -351,7 +352,7 @@ export const terms = {
   sections: [
     {
       heading: "1. Who we are",
-      body: [`These terms apply to your use of Catoco, run by ${COMPANY.entity} (KvK ${COMPANY.kvk}) ("Catoco", "we"). By using Catoco you agree to them.`],
+      body: [`These terms apply to your use of Catoco, run by ${COMPANY.entity} (${COMPANY.address}, KvK ${COMPANY.kvk}) ("Catoco", "we"). By using Catoco you agree to them.`],
     },
     {
       heading: "2. What Catoco does",

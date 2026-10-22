@@ -12,9 +12,12 @@ export const COMPANY = {
   vat: "NL870106004B01",
   managingDirector: "Matthew Savit",
   email: "hello@catoco.co",
+  // Registered business address (EU e-commerce rules: a geographic address
+  // must be on the site). Founder, 2026-10-22.
+  address: "Keizersgracht 699C, 1017 DW Amsterdam, Netherlands",
 } as const;
 
 export const legalLine = {
-  en: `${COMPANY.entity}, doing business as ${COMPANY.brand} · KvK ${COMPANY.kvk} · VAT ${COMPANY.vat}`,
-  nl: `${COMPANY.entity} h.o.d.n. ${COMPANY.brand} · KvK ${COMPANY.kvk} · BTW ${COMPANY.vat}`,
+  en: `${COMPANY.entity}, doing business as ${COMPANY.brand} · ${COMPANY.address} · KvK ${COMPANY.kvk} · VAT ${COMPANY.vat}`,
+  nl: `${COMPANY.entity} h.o.d.n. ${COMPANY.brand} · ${COMPANY.address} · KvK ${COMPANY.kvk} · BTW ${COMPANY.vat}`,
 } as const;
