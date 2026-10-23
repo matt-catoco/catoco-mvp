@@ -199,6 +199,10 @@ export const contact = {
 // /for-suppliers early list (founder, 2026-10-23). Unlinked, noindex: reached
 // only from Matt's outreach. Must not promise a live marketplace, fees or
 // payment mechanics beyond this copy. Dutch: content/pages/nl.ts.
+// Matt 2026-10-23: "You pay Catoco nothing" confirmed (no fee or commission
+// from suppliers in the marketplace mode). "Paid directly by the group"
+// confirmed for now; it depends on three-prong prompt 3 and Stripe's answer,
+// so revisit this line if either changes the payment model.
 export const suppliers = {
   metaTitle: "For suppliers",
   eyebrow: "For suppliers",
@@ -206,9 +210,9 @@ export const suppliers = {
   intro:
     "Catoco helps friend groups choose and commit to a trip. Soon, groups will be able to ask providers like you for an offer: dates, number of people, budget, must-haves. You reply with your best price and terms.",
   points: [
-    "You pay Catoco nothing. [[Confirm: no commission or fee from suppliers.]]",
+    "You pay Catoco nothing.",
     "You set the price and terms. Groups compare real offers and choose.",
-    "If a group accepts, you are paid directly by the group. [[Confirm payment mechanics before publishing this line.]]",
+    "If a group accepts, you are paid directly by the group.",
     "Catoco works for the group, not for you, so we don't take commission from suppliers.",
   ],
   formHeading: "Be among the first.",
