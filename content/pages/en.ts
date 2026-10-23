@@ -200,9 +200,10 @@ export const contact = {
 // only from Matt's outreach. Must not promise a live marketplace, fees or
 // payment mechanics beyond this copy. Dutch: content/pages/nl.ts.
 // Matt 2026-10-23: "You pay Catoco nothing" confirmed (no fee or commission
-// from suppliers in the marketplace mode). "Paid directly by the group"
-// confirmed for now; it depends on three-prong prompt 3 and Stripe's answer,
-// so revisit this line if either changes the payment model.
+// from suppliers in the marketplace mode). The "paid directly by the group"
+// line was removed the same day: the marketplace may collect via iDEAL/Wero
+// into Catoco's account as the group's commercial agent (prompt 3, pending
+// the lawyer and Stripe). Say nothing about how suppliers are paid until then.
 export const suppliers = {
   metaTitle: "For suppliers",
   eyebrow: "For suppliers",
@@ -212,7 +213,6 @@ export const suppliers = {
   points: [
     "You pay Catoco nothing.",
     "You set the price and terms. Groups compare real offers and choose.",
-    "If a group accepts, you are paid directly by the group.",
     "Catoco works for the group, not for you, so we don't take commission from suppliers.",
   ],
   formHeading: "Be among the first.",

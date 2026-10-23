@@ -29,8 +29,8 @@ export type NotificationKind =
   | "recommit_requested"
   | "funding_failed"
   | "refund_requested"
-  // Prompt 4 kinds: allowed in the log and preferences, but not sent until
-  // Matt approves them (founder rule: new kinds need approval).
+  // Prompt 4 kinds: approved by Matt 2026-10-23, held until the app shell
+  // exists; wire them up and drop them from PENDING_APPROVAL_KINDS then.
   | "pledge_payment_requested"
   | "pledge_payment_confirmed"
   | "pay_window_closing";

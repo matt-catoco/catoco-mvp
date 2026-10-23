@@ -1,7 +1,7 @@
 Prompt: `/for-suppliers` early-list page
 Draft 2026-10-23. Standalone version of item 4 of the info-pages prompt (`website-stripe-review-copy.md`), pulled out so it can go to product dev on its own.
 
-**Status (2026-10-23):** built on staging (commit 39aa95b); migration `20261023060000_supplier_interest` applied to staging AND production (2026-10-23). Copy final in English: Matt confirmed "You pay Catoco nothing" (no supplier fee or commission in the marketplace mode) and "paid directly by the group" for now (depends on prompt 3 and Stripe). partnerships@catoco.co exists. Open: Dutch text (later), and the code release to production.
+**Status (2026-10-23):** built on staging (commit 39aa95b); migration `20261023060000_supplier_interest` applied to staging AND production (2026-10-23). Copy final in English: Matt confirmed "You pay Catoco nothing" (no supplier fee or commission in the marketplace mode) "Paid directly by the group" was then removed (the marketplace may collect into Catoco's account as the group's commercial agent; prompt 3). partnerships@catoco.co exists. Open: Dutch text (later), and the code release to production.
 
 Read first
 `AGENTS.md` and the Next.js docs in `node_modules/next/dist/docs/` (breaking changes: routes, server actions and metadata conventions may differ from what you know). Copy lives in `content/pages/en.ts`; layout in `app/(info)/layout.tsx`; visibility rule in `components/info/visibility.ts`; email in `lib/email.ts` (`sendEmail`, suppressed outside production unless `EMAIL_SENDING_ENABLED`). Follow the editing guide at the top of `en.ts` (`[[...]]` renders highlighted).

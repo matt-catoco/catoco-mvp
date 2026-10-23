@@ -80,6 +80,8 @@ Members pledge conditionally to the group. The organizer collects the money outs
 
 # Prompt 2: Prong 2, collect and hold with Stripe Connect Custom (organizer)
 
+**ON HOLD (Matt, 2026-10-23): wait altogether.** Too much friction for organizers; not the preferred option. If it resumes, the prompt must add a spec for onboarding organizers as connected sub-accounts entirely inside Catoco's own interface (embedded onboarding, no Stripe-hosted pages), and for managing participant → organizer payments and the payout that follows. The reserve policy (item 5) is still undecided; see the assessment of 2026-10-23.
+
 Status: draft for product dev, 2026-10-22. Depends on prompt 0. Ships behind `COLLECTION_MODE_PSP_ENABLED`, off in production until Stripe confirms eligibility and the lawyer answers are logged.
 
 ## Read first
@@ -116,6 +118,12 @@ When the organizer picks "Let Catoco collect and hold", create a Connect Custom 
 ---
 
 # Prompt 3: Prong 3, reverse marketplace with vendors on Stripe Connect Standard
+
+**Founder decisions (2026-10-23):**
+- AI may read supplier replies (overrides "Do not let AI services read supplier replies" below). Runs through the Anthropic API from the server, with the deterministic parser first and a human review queue for anything low-confidence; needs an API key, a data processing agreement and a privacy-policy line before production.
+- Payment model under review: the group pays by iDEAL/Wero into Catoco's account and Catoco pays the vendor, as the group's commercial agent, instead of direct charges on the vendor's Stripe Standard account (steps 5–6). Needs the lawyer (commercial-agent exclusion, PSD2) and Stripe (paying third parties out of the platform balance) before any build. Conflicts with prompt 5's "Catoco never pays a supplier with money it collected"; that rule would need an exception for this mode.
+- No fee or commission from suppliers in this mode. The /for-suppliers line "you are paid directly by the group" has been removed.
+- Waiting on `bid-marketplace-demo-spec.md`.
 
 Status: draft for product dev, 2026-10-22. Depends on prompt 0. Start with the no-money demo (steps 1 to 4); steps 5 to 7 sit behind `COLLECTION_MODE_VENDOR_ENABLED`.
 
@@ -156,7 +164,7 @@ The group posts a request for an element subtype (for example a hotel for 8 peop
 
 Status: draft for product dev, 2026-10-22. Independent of prompts 1 to 3 except for the payment-related kinds they introduce.
 
-**Built on staging 2026-10-23 (server side):** `push_devices`, `notification_preferences`, `claim_notification()` (migration `20261023070000_push_notifications`); channel rules + quiet hours in `lib/push/channels.ts`; provider interface in `lib/push/provider.ts` (no real provider until APNs/Firebase keys and the app shell exist; `PUSH_PROVIDER=log` for testing); `/api/push/devices` (register/unregister); per-kind settings on Profile, shown only once a device is registered. The three pledge kinds are in the schema but held (`PENDING_APPROVAL_KINDS`) until Matt approves; the marketplace kinds wait for prompt 3. `push_sent` is not sent to PostHog (server side would bypass the consent gate); `notification_log.channels` records it instead.
+**Built on staging 2026-10-23 (server side):** `push_devices`, `notification_preferences`, `claim_notification()` (migration `20261023070000_push_notifications`); channel rules + quiet hours in `lib/push/channels.ts`; provider interface in `lib/push/provider.ts` (no real provider until APNs/Firebase keys and the app shell exist; `PUSH_PROVIDER=log` for testing); `/api/push/devices` (register/unregister); per-kind settings on Profile, shown only once a device is registered. The three pledge kinds are approved by Matt (2026-10-23) but stay held (`PENDING_APPROVAL_KINDS`) until the app shell exists, then get wired up together; the marketplace kinds wait for prompt 3. `push_sent` is not sent to PostHog (server side would bypass the consent gate); `notification_log.channels` records it instead.
 
 ## Read first
 `AGENTS.md` and Next.js docs in `node_modules/next/dist/docs/`; `lib/notifications.ts` (kinds: invited, funding_ready, vote_needed, funding_needed, funding_deadline_set, payment_retry_needed, nudge, shares_recalculated, price_drift; `sendCoreLoopEmail`, `prepare_notification` RPC); `lib/email.ts`.
