@@ -169,7 +169,7 @@ export function SampleTrip() {
 
       <header className="mb-8">
         <p className="text-sm font-medium text-brand-teal-deep">Trip</p>
-        <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">Chelsea&apos;s 40th</h1>
+        <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">Your Sample Trip</h1>
         <p className="mt-2 text-brand-muted">Sevilla · 12–19 September · 5 travellers</p>
       </header>
 
