@@ -15,7 +15,7 @@ export const en = {
     keep: "Keep this",
     use: "Use this",
     selected: "Selected",
-    comingSoon: "Coming soon",
+    comingSoon: "Not available yet",
     comingSoonDetail: "This isn't available yet. For now, choose \"Collect it yourself\".",
     lockedNote: "People have committed, so the way to collect is set.",
     memberWaiting: "{organizer} is choosing how the group will pay. You can commit once that's set.",

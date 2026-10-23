@@ -18,7 +18,7 @@ export const nl: Dictionary = {
     keep: "Zo laten",
     use: "Kies deze",
     selected: "Gekozen",
-    comingSoon: "Binnenkort",
+    comingSoon: "Nog niet beschikbaar",
     comingSoonDetail: "Dit is nog niet beschikbaar. Kies voorlopig \"Zelf innen\".",
     lockedNote: "Er hebben al mensen toegezegd, dus de manier van innen staat vast.",
     memberWaiting: "{organizer} kiest hoe de groep betaalt. Je kunt toezeggen zodra dat is ingesteld.",

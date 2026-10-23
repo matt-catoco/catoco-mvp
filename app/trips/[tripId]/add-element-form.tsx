@@ -431,7 +431,7 @@ export function AddElementForm({
               onClick={() => setQuoteNote((v) => !v)}
               className={`rounded-full border border-dashed px-3 py-1 text-xs font-medium transition-colors ${pillInactive}`}
             >
-              Request a quote · Coming soon
+              Request a quote · Not available yet
             </button>
           </div>
           {quoteNote && (

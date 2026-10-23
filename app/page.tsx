@@ -225,7 +225,10 @@ export default async function Home() {
           </Link>
           <div className={styles.navLinks}>
             <a href="#how">How it works</a>
-            <a href="#elements">The elements</a>
+            <Link href="/sample-trip">Sample trip</Link>
+            <Link href="/about">About</Link>
+            <Link href="/faq">Help</Link>
+            <Link href="/contact">Contact</Link>
           </div>
           <div className={styles.navCtaWrap}>
             {user ? (
@@ -251,10 +254,6 @@ export default async function Home() {
       <section className={styles.hero}>
         <div className={`${styles.wrap} ${styles.heroGrid}`}>
           <div>
-            <span className={styles.eyebrow}>
-              <span className={styles.dot} />
-              Beta opening soon
-            </span>
             <h1 className={styles.heroH1}>
               {site.tagline}
             </h1>
@@ -262,15 +261,16 @@ export default async function Home() {
               From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
             </p>
             <div className={styles.heroActions}>
+              {/* Opens a pre-filled trip with no account needed (app/(info)/sample-trip). */}
+              <Link href="/sample-trip" className={`${styles.btn} ${styles.btnPrimary}`}>
+                Try a sample trip
+              </Link>
               <a
                 href="#signup"
                 data-tally-open="J94zBo"
-                className={`${styles.btn} ${styles.btnPrimary}`}
+                className={`${styles.btn} ${styles.btnGhost}`}
               >
                 Join the beta
-              </a>
-              <a href="#how" className={styles.linkQuiet}>
-                See how it works
               </a>
             </div>
           </div>
@@ -610,14 +610,16 @@ export default async function Home() {
               catoco
             </Link>
             <div className={styles.footLinks}>
-              <a href="#how">How it works</a>
-              <a href="#elements">The elements</a>
+              <Link href="/sample-trip">Sample trip</Link>
               <Link href="/about">About</Link>
               <Link href="/contact">Contact</Link>
+              <Link href="/faq">Help</Link>
+              <a href={site.linkedin.href} target="_blank" rel="noopener">
+                {site.linkedin.label}
+              </a>
               {/* Draft pages: linked on staging so every page can be reviewed; hidden on catoco.co. */}
               {[
                 { href: "/tutorials", label: "Tutorials" },
-                { href: "/faq", label: "Help" },
                 { href: "/terms", label: "Terms" },
                 { href: "/privacy", label: "Privacy" },
                 { href: "/site-map", label: "Site map" },

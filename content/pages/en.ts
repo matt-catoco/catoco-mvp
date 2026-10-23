@@ -24,16 +24,19 @@ export const site = {
   tagline: "Plan it together. Fund it together. Go.",
   contactEmail: "support@catoco.co",
   nav: [
-    { href: "/tutorials", label: "How it works" },
+    { href: "/sample-trip", label: "Sample trip" },
+    { href: "/about", label: "About" },
     { href: "/faq", label: "Help" },
     { href: "/contact", label: "Contact" },
   ],
+  linkedin: { href: "https://www.linkedin.com/in/mattsavit/", label: "LinkedIn" },
   footer: {
     product: "Product",
     company: "Company",
     legal: "Legal",
     links: {
       product: [
+        { href: "/sample-trip", label: "Try a sample trip" },
         { href: "/tutorials", label: "Video tutorials" },
         { href: "/faq", label: "Help and FAQ" },
         { href: "/sign-in", label: "Sign in" },
@@ -41,6 +44,7 @@ export const site = {
       company: [
         { href: "/about", label: "About" },
         { href: "/contact", label: "Contact" },
+        { href: "https://www.linkedin.com/in/mattsavit/", label: "LinkedIn", external: true },
         // Staging only (hidden on catoco.co with the other draft pages).
         { href: "/site-map", label: "Site map" },
       ],
@@ -151,16 +155,25 @@ export const about = {
       ],
     },
   ] as Section[],
-  detailsHeading: "Company details",
-  rows: [
-    { label: "Doing business as", value: COMPANY.brand },
-    { label: "Legal entity", value: COMPANY.entity },
-    { label: "Address", value: COMPANY.address },
-    { label: "KvK", value: COMPANY.kvk },
-    { label: "VAT", value: COMPANY.vat },
-    { label: "Contact", value: COMPANY.email },
-    { label: "Managing director", value: COMPANY.managingDirector },
-  ],
+  // The team, after the story (founder, 2026-10-23). Company details live in
+  // the footer legal line only. Dutch copy comes with the i18n pass. To grow
+  // it: add paragraphs to `bio`, more people to `people`, or advisers to
+  // `advisers` (the advisers list only renders when it isn't empty).
+  team: {
+    people: [
+      {
+        name: "Matt Savit",
+        role: "Founder",
+        photo: { src: "/team/matt-savit.png", alt: "Matt Savit", width: 640, height: 800 },
+        linkedin: { href: "https://www.linkedin.com/in/mattsavit/", label: "Matt Savit on LinkedIn" },
+        bio: [
+          "Matt enjoys planning, perhaps too much. His idea of spontaneity is swapping one pasta shape for another, and he's the type to start planning next year's holiday before this year's trip is over. Not everyone shares his enthusiasm, but he wanted his friends to be as invested in the plan as he was. So he built Catoco.",
+        ],
+      },
+    ],
+    advisersHeading: "Advisers",
+    advisers: [] as { name: string; role: string; href?: string }[],
+  },
 };
 
 export const contact = {
@@ -170,34 +183,14 @@ export const contact = {
   title: "Talk to a human",
   lede:
     "Questions, feedback, a bug, or just curious? Write to us and a real person will answer.",
-  // One address per reason (founder, 2026-10-15). Never show info@,
-  // finance@, legal@, billing@ or notifications@ publicly.
-  cards: [
-    {
-      title: "Help with a trip",
-      body: "For help with a trip, your account or a payment.",
-      action: "Email us",
-      email: "support@catoco.co",
-    },
-    {
-      title: "General questions and press",
-      body: "For general questions, press and anything else that does not fit here.",
-      action: "Email us",
-      email: "hello@catoco.co",
-    },
-    {
-      title: "Partnerships",
-      body: "For partnerships, vendors and affiliates.",
-      action: "Email us",
-      email: "partnerships@catoco.co",
-    },
-    {
-      title: "Privacy requests",
-      body: "To see, correct or delete your data. More in the privacy policy.",
-      action: "Email us",
-      email: "privacy@catoco.co",
-    },
-  ],
+  // One route (founder, 2026-10-23): a single address for everything, plus
+  // the registered address. Never show info@, finance@, legal@, billing@ or
+  // notifications@ publicly.
+  email: COMPANY.email,
+  emailLabel: "Email us",
+  emailNote: "For a trip, your account, a payment, press, partnerships or your data.",
+  addressHeading: "Address",
+  address: COMPANY.address,
   responseTime: "We'll reply just as soon as we can!",
   helpLine: "Looking for a quick answer first?",
   helpLink: { label: "Check the Help page", href: "/faq" },
@@ -218,89 +211,91 @@ export const faq = {
         { q: "Who is Catoco for?", a: "Friends, families and any group trying to get a trip out of the group chat and into reality. One person usually sets the Trip up and invites everyone else." },
         { q: "What is a Trip?", a: "A Trip is the shared home for your group's plans: the dates, the people and all the elements being decided." },
         { q: "What is an element?", a: "An element is one decision within your Trip, such as where to stay, where to eat or how to get from the airport. Each element has its own options, its own vote and its own status." },
-        { q: "Is Catoco free to use?", a: "[[Confirm pricing and fees, including whether the beta is free.]]" },
-        { q: "Is Catoco available yet?", a: "Catoco is in beta. You can join the beta from the homepage. [[Confirm current access and countries.]]" },
-        { q: "Which languages and currencies are supported?", a: "[[Confirm supported languages (English now, Dutch planned) and currencies.]]" },
+        { q: "Can I try it without an account?", a: "Yes. Open the sample trip from the homepage to step through planning, voting, funding and booking with example data. Nothing you do there is saved." },
+        { q: "Is Catoco free to use?", a: "Yes, Catoco is free during the beta. When your group pays the organizer directly, Catoco charges no fee." },
+        { q: "Is Catoco available yet?", a: "Catoco is in an invite-only beta. Join the beta from the homepage and we will let you know when your group's spot is ready. If someone invites you to their Trip, you can sign in straight away." },
+        { q: "Which languages and currencies are supported?", a: "Catoco is in English today, with Dutch on the way. Prices are shown in the currency of each option, most often euros." },
       ],
     },
     {
       heading: "Your account",
       items: [
         { q: "How do I sign in?", a: "Enter your email and we send you a sign-in link. There is no password to remember." },
-        { q: "I did not get my sign-in email. What now?", a: "Check your spam or promotions folder, make sure you typed the address correctly and request a new link. Each link works once. If it still does not arrive, contact support@catoco.co." },
-        { q: "My sign-in link says it has expired or was already used.", a: "Sign-in links are single use and time limited. Go back to the sign-in page and request a fresh one." },
-        { q: "Can I change my email address?", a: "[[Confirm whether and how a user can change their email.]]" },
-        { q: "How do I delete my account and data?", a: "Email support@catoco.co and ask. See the privacy policy for what we keep and why. [[Confirm the deletion process.]]" },
+        { q: "I did not get my sign-in email. What now?", a: "Check your spam or promotions folder, make sure you typed the address correctly and request a new link. Each link works once. If it still does not arrive, write to hello@catoco.co." },
+        { q: "My sign-in link says it has expired or was already used.", a: "Sign-in links are single use and time limited. Some email apps open links to scan them, which uses them up. Go back to the sign-in page and request a fresh one." },
+        { q: "Can I change my email address?", a: "Not from the app yet. Write to hello@catoco.co from your current address and we will change it for you." },
+        { q: "How do I delete my account and data?", a: "Write to hello@catoco.co from the address you sign in with. We will confirm once your account and data are deleted, and always within one month." },
       ],
     },
     {
       heading: "Creating a Trip",
       items: [
         { q: "How do I create a Trip?", a: "Sign in, choose to create a new Trip, then give it a name and dates. You can add elements straight away." },
-        { q: "How do I add elements?", a: "Open your Trip and add an element such as a stay, a meal or a transfer. Then add the options the group will choose between." },
-        { q: "Can I search for places and options?", a: "Yes. Some elements let you search for options. [[Confirm which element types support search and where results come from.]]" },
-        { q: "Can I change the dates or details later?", a: "[[Confirm what organizers can edit after creation and after funding starts.]]" },
-        { q: "How many people can join a Trip?", a: "[[Confirm group size limits.]]" },
+        { q: "How do I add elements?", a: "Open your Trip and add an element such as a stay, a meal or a transfer. Then add the options the group will choose between, or lock one in straight away if it is already decided." },
+        { q: "Can I search for places and options?", a: "Yes. Flights, stays and activities can be searched from our travel partners right inside the element. For anything else, paste a link or add the details yourself." },
+        { q: "Can I change the dates or details later?", a: "Yes. Organizers can edit the Trip and its elements at any time. Once people have pledged money to an element, a higher price only applies to someone if it fits within the price cushion they chose; otherwise they are asked to pledge again." },
+        { q: "How many people can join a Trip?", a: "There is no fixed limit. Organizers can set a minimum and maximum number of travellers, and each element can have its own number of spots." },
       ],
     },
     {
       heading: "Inviting your group",
       items: [
-        { q: "How do I invite people?", a: "Open your Trip, go to Participants and copy the invite link. Share it in your group chat." },
-        { q: "Does everyone need an account?", a: "[[Confirm: can people view a Trip before signing in, and what requires an account?]]" },
-        { q: "Who can see my Trip?", a: "People you invite can see it. [[Confirm visibility rules for people who are not members.]]" },
-        { q: "Can I remove someone from a Trip?", a: "[[Confirm organizer controls for removing participants.]]" },
-        { q: "What can participants do?", a: "[[Confirm default permissions and how an organizer changes them.]]" },
+        { q: "How do I invite people?", a: "Open your Trip, go to Participants and copy the invite link, or invite people by email. Share the link in your group chat." },
+        { q: "Does everyone need an account?", a: "Yes, to join a Trip. Opening the invite link and entering an email address is all it takes. Anyone can look around the sample trip without one." },
+        { q: "Who can see my Trip?", a: "Only the people on it. The organizer decides whether everyone can see the full guest list and who is on each element." },
+        { q: "Can I remove someone from a Trip?", a: "Yes. Organizers and co-organizers can remove people from Participants, as long as that person has no money in play on an element." },
+        { q: "What can participants do?", a: "Participants vote, suggest options and pledge their share. Organizers choose in the Trip settings whether participants can also add elements, set up smaller groups or invite others." },
       ],
     },
     {
       heading: "Voting and deciding",
       items: [
-        { q: "How does voting work?", a: "Each person ranks the options from favourite to least favourite and saves their ranking. Catoco tallies the group's pick automatically." },
-        { q: "Can I change my vote?", a: "[[Confirm whether votes can be changed while voting is open.]]" },
-        { q: "When does voting end?", a: "[[Confirm: deadline, organizer closes it, or when everyone has voted.]]" },
-        { q: "What happens if there is a tie?", a: "[[Confirm tie-break rule.]]" },
-        { q: "Who can lock in a choice?", a: "[[Confirm who can lock an element: organizer only, or the group by default.]]" },
+        { q: "How does voting work?", a: "Each person ranks the options from favourite to least favourite. The ranking saves as you go and Catoco tallies the group's pick automatically." },
+        { q: "Can I change my vote?", a: "Yes, as often as you like until voting closes." },
+        { q: "When does voting end?", a: "When the element's voting deadline passes. The top choice then locks in automatically, or the organizer can lock it sooner." },
+        { q: "What happens if there is a tie?", a: "The organizer is told and picks between the tied options." },
+        { q: "Who can lock in a choice?", a: "The vote locks it when the deadline passes. Organizers and co-organizers can lock a choice at any time." },
         { q: "What do the statuses mean?", a: "An element is open for voting, locked in, being funded, or booked and ready to go. The status is the same for everyone on the Trip." },
       ],
     },
     {
       heading: "Paying and funding",
       items: [
-        { q: "How does splitting the cost work?", a: "Once an element is locked, its cost is split across the people it is for. Each person commits their own share, and a bar shows how much of the total is funded." },
-        { q: "What does Commit do?", a: "Commit is how you confirm and pay your share of an element. [[Confirm exactly when the card is charged and what the person sees.]]" },
+        { q: "How does splitting the cost work?", a: "Once an element is locked, its cost is split across the people it is for. Each person pledges their own share, and a bar shows how much of the total is in." },
+        { q: "What does pledging do?", a: "A pledge is your promise to pay your share. Nobody pays until everyone on the element has pledged. Then you get a payment request from the person collecting the money." },
         { q: "Can an element be for only some of the group?", a: "Yes. The cost is split across the people the element is for, not necessarily the whole Trip." },
-        { q: "Which payment methods can I use?", a: "[[Confirm supported methods and currencies.]]" },
-        { q: "Is my card information safe?", a: "[[Confirm: card details are handled by the payment provider and are not stored by Catoco.]]" },
-        { q: "Does Catoco charge a fee?", a: "[[Fee model to be confirmed. State clearly what, if anything, Catoco charges.]]" },
-        { q: "What if someone does not pay?", a: "[[Non-payment policy to be confirmed and reviewed legally before launch.]]" },
-        { q: "Can I get a refund?", a: "[[Refund policy to be confirmed and reviewed legally before launch.]]" },
-        { q: "What happens if the funding target is not reached?", a: "[[Confirm what happens to committed money if an element is not fully funded.]]" },
+        { q: "How do I pay?", a: "During the beta you pay the person collecting for the element directly, by bank transfer, payment link or QR code. They confirm your payment in Catoco so everyone can see where things stand." },
+        { q: "Is my card information safe?", a: "Catoco does not take card payments in the beta, so your card details never pass through us." },
+        { q: "Does Catoco charge a fee?", a: "No. When your group pays the organizer directly, Catoco charges nothing." },
+        { q: "What is a price cushion?", a: "Prices can move before booking. When you pledge you can add a cushion, for example 10%, so your pledge still covers a small price rise. If the price goes above your cushion, your pledge is released and you choose whether to pledge again." },
+        { q: "What if someone does not pay or drops out?", a: "The organizer can remove anyone who has not paid and recalculate the shares. Anyone whose new share is above their price cushion is asked to pledge again, and what they already paid still counts." },
+        { q: "Can I get a refund?", a: "If you have paid and the price rises above your cushion, you can ask for a refund instead of pledging again. The person who collected your money refunds you directly and marks it in Catoco." },
+        { q: "What happens if the deadline passes before everyone is in?", a: "Nobody pays, and any unpaid pledges are released. The organizer either sets a new deadline, and everyone is asked to pledge again, or moves to the group's next choice." },
       ],
     },
     {
       heading: "Booking",
       items: [
-        { q: "Who books the trip?", a: "[[Clarify: does Catoco book for you, or does the organizer book and mark the element as booked?]]" },
+        { q: "Who books the trip?", a: "The person collecting for an element books it once everyone has paid, using the booking link on the element, and marks it as booked." },
         { q: "What does Booked mean?", a: "Booked means the element has been confirmed and is ready to go. Everyone on the Trip sees the same status." },
-        { q: "What if a booking changes or is cancelled?", a: "[[Confirm how changes and cancellations are handled and communicated.]]" },
+        { q: "What if a booking changes or is cancelled?", a: "The person who booked deals with the provider and updates the element in Catoco, so the group sees the change." },
       ],
     },
     {
       heading: "Privacy and security",
       items: [
-        { q: "What data does Catoco collect?", a: "Your email address, the Trips you create or join, and the details you add to them. See the privacy policy for the full picture." },
-        { q: "Do you sell my data?", a: "[[Confirm statement for the privacy policy.]]" },
-        { q: "How do I ask for my data or have it deleted?", a: "Email support@catoco.co. [[Confirm response time.]]" },
+        { q: "What data does Catoco collect?", a: "Your email address, the Trips you create or join, and the details you add to them. Traveler details needed for a booking are encrypted and deleted 90 days after the trip ends." },
+        { q: "Do you sell my data?", a: "No. We never sell your personal data." },
+        { q: "How do I ask for my data or have it deleted?", a: "Write to hello@catoco.co. We reply within one month, and usually much sooner." },
       ],
     },
     {
       heading: "Troubleshooting",
       items: [
-        { q: "A page looks out of date or a panel is missing.", a: "Reload the page. If something still looks wrong, tell us what you saw at support@catoco.co and include your Trip name." },
-        { q: "I am not getting notification emails.", a: "Check your spam folder first. [[Confirm how to manage or unsubscribe from notifications.]]" },
-        { q: "Which browsers are supported?", a: "[[Confirm supported browsers and mobile support.]]" },
-        { q: "I found a bug or have an idea.", a: "We would love to hear it. Write to support@catoco.co." },
+        { q: "A page looks out of date or a panel is missing.", a: "Reload the page. If something still looks wrong, tell us what you saw at hello@catoco.co and include your Trip name." },
+        { q: "I am not getting notification emails.", a: "Check your spam folder first. Every email has an unsubscribe link at the bottom; if you used it by mistake, write to us and we will turn emails back on." },
+        { q: "Which browsers are supported?", a: "The latest versions of Chrome, Safari, Firefox and Edge, on desktop and on phones." },
+        { q: "I found a bug or have an idea.", a: "We would love to hear it. Write to hello@catoco.co." },
       ],
     },
   ] as { heading: string; items: Faq[] }[],

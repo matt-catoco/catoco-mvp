@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "catoco-dev-prodlike",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VERCEL_ENV=production&& set VERCEL_GIT_COMMIT_REF=main&& npm run dev -- -p 3001"],
+      "port": 3001
     }
   ]
 }

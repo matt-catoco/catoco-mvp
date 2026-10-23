@@ -5,7 +5,9 @@
  * them even if it happens to be configured as a production-type deployment).
  */
 // Live everywhere, even where the rest of the info pages are hidden.
-const ALWAYS_PUBLIC = new Set(["/", "/about", "/contact", "/sign-in"]);
+// Help and the sample trip went live 2026-10-23; Terms and Privacy stay hidden
+// until their placeholders are filled in.
+const ALWAYS_PUBLIC = new Set(["/", "/about", "/contact", "/faq", "/sample-trip", "/sign-in"]);
 
 /** Whether this page is public on catoco.co (the rest are drafts shown on staging only). */
 export function liveOnProduction(href: string): boolean {

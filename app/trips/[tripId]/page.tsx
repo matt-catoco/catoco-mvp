@@ -188,7 +188,7 @@ export default async function TripLandingPage({
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
             Trip <code className="font-mono text-[0.9em]">{tripId}</code>
           </p>
-          <p className="mt-1 text-xs text-zinc-500">Trip details coming soon.</p>
+          <p className="mt-1 text-xs text-zinc-500">No trip details yet.</p>
         </div>
       </div>
     );

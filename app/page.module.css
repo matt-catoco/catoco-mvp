@@ -115,7 +115,7 @@
 .navLinks {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 24px;
 }
 .navLinks a {
   text-decoration: none;

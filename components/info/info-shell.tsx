@@ -48,7 +48,12 @@ export function InfoFooter() {
     { title: site.footer.legal, links: site.footer.links.legal },
   ]
     // Where most info pages are hidden (production), only link to live ones.
-    .map((col) => ({ ...col, links: col.links.filter((l) => infoLinkVisible(l.href)) }))
+    .map((col) => ({
+      ...col,
+      links: (col.links as { href: string; label: string; external?: boolean }[]).filter(
+        (l) => l.external || infoLinkVisible(l.href),
+      ),
+    }))
     .filter((col) => col.links.length > 0);
   return (
     <footer className="mt-24 border-t border-brand-line">
@@ -68,12 +73,20 @@ export function InfoFooter() {
             <ul className="mt-3 space-y-2">
               {col.links.map((l) => (
                 <li key={l.href}>
-                  <Link
-                    href={l.href}
-                    className="text-sm text-brand-muted hover:text-foreground"
-                  >
-                    {l.label}
-                  </Link>
+                  {l.external ? (
+                    <a
+                      href={l.href}
+                      target="_blank"
+                      rel="noopener"
+                      className="text-sm text-brand-muted hover:text-foreground"
+                    >
+                      {l.label}
+                    </a>
+                  ) : (
+                    <Link href={l.href} className="text-sm text-brand-muted hover:text-foreground">
+                      {l.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

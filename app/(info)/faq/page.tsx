@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { infoPagesHidden } from "@/components/info/visibility";
 import Link from "next/link";
-import { faq, site } from "@/content/pages/en";
-import { Banner, PageHeading, T } from "@/components/info/text";
+import { faq } from "@/content/pages/en";
+import { PageHeading, T } from "@/components/info/text";
 
+// LIVE on production (founder, 2026-10-23): no guard, indexable.
 export const metadata: Metadata = {
   title: faq.metaTitle,
   description: faq.metaDescription,
+  robots: { index: true, follow: true },
 };
 
 export default function FaqPage() {
-  // Hidden on production (see app/(info)/layout.tsx).
-  if (infoPagesHidden()) notFound();
   return (
     <article>
-      <Banner>{site.draftBanner}</Banner>
       <PageHeading eyebrow={faq.eyebrow} title={faq.title} lede={faq.lede} ledeLink={faq.ledeLink} />
       <div className="max-w-2xl space-y-12">
         {faq.groups.map((g) => (

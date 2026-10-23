@@ -16,6 +16,7 @@ type Entry = { href: string; label: string; note?: string; linkable?: boolean };
 
 const WEBSITE: Entry[] = [
   { href: "/", label: "Home" },
+  { href: "/sample-trip", label: "Sample trip (no account needed)" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
   { href: "/tutorials", label: "How it works (video tutorials)" },
