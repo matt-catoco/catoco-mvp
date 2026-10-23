@@ -275,7 +275,8 @@ export function FundingCard({
         />
       )
     ) : (
-      canManage &&
+      // Organizers and the purchaser (who holds the money) settle it up.
+      canAct &&
       isBlocking && (
         <div className="mt-3 border-t border-brand-line pt-3">
           <p className="text-xs text-brand-muted">

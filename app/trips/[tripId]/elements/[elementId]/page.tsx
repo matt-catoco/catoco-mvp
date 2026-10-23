@@ -509,6 +509,8 @@ export default async function ElementDetailPage({
           : [];
         const signedByPath = new Map(signed.map((s) => [s.path, s.signedUrl]));
         const purchaserName = fundingRow.purchaser_id ? nameOf(fundingRow.purchaser_id) : "the organizer";
+        // The purchaser manages the round's money like an organizer (pledge_require_organizer).
+        const managesPledge = Boolean(canManage) || fundingRow.purchaser_id === user.id;
         pledge = {
           tripId,
           elementId: element.id,
@@ -523,7 +525,7 @@ export default async function ElementDetailPage({
           windowClosed: fundingRow.pay_window_opened_at && fundingRow.pay_window_hours != null
             ? new Date(fundingRow.pay_window_opened_at).getTime() + fundingRow.pay_window_hours * 3_600_000 <= new Date().getTime()
             : false,
-          canManage: Boolean(canManage),
+          canManage: managesPledge,
           collectorId: fundingRow.purchaser_id,
           collectorName: purchaserName === "You" ? (rosterById.get(user.id)?.display_name?.trim() || "you") : purchaserName,
           population: Number(population ?? 0),
@@ -531,7 +533,7 @@ export default async function ElementDetailPage({
           showStatus: Boolean(fundingRow.show_pledge_status),
           myPaid: Math.round((paidBy.get(user.id) ?? 0) * 100) / 100,
           myRefundRequested: refundIds.has(user.id),
-          refundRequests: canManage
+          refundRequests: managesPledge
             ? [...refundIds].map((id) => ({ userId: id, displayName: nameOf(id), amount: Math.round((paidBy.get(id) ?? 0) * 100) / 100 }))
             : [],
           cushionAllowed: checkoutCushion,
@@ -540,7 +542,7 @@ export default async function ElementDetailPage({
             element.cushion_kind ? element.cushion_value : cushionTrip?.price_cushion_value,
           ),
           // Organizers always; members only when the organizer shows the group's status.
-          notPledged: canManage || fundingRow.show_pledge_status
+          notPledged: managesPledge || fundingRow.show_pledge_status
             ? scopedParticipants.filter((s) => !pledgedIds.has(s.userId)).map((s) => ({ userId: s.userId, displayName: s.displayName }))
             : [],
           myInElement: scopedParticipants.some((s) => s.userId === user.id),
