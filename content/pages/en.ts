@@ -196,6 +196,63 @@ export const contact = {
   helpLink: { label: "Check the Help page", href: "/faq" },
 };
 
+// /for-suppliers early list (founder, 2026-10-23). Unlinked, noindex: reached
+// only from Matt's outreach. Must not promise a live marketplace, fees or
+// payment mechanics beyond this copy. Dutch: content/pages/nl.ts.
+export const suppliers = {
+  metaTitle: "For suppliers",
+  eyebrow: "For suppliers",
+  title: "Get requests from groups that have already decided.",
+  intro:
+    "Catoco helps friend groups choose and commit to a trip. Soon, groups will be able to ask providers like you for an offer: dates, number of people, budget, must-haves. You reply with your best price and terms.",
+  points: [
+    "You pay Catoco nothing. [[Confirm: no commission or fee from suppliers.]]",
+    "You set the price and terms. Groups compare real offers and choose.",
+    "If a group accepts, you are paid directly by the group. [[Confirm payment mechanics before publishing this line.]]",
+    "Catoco works for the group, not for you, so we don't take commission from suppliers.",
+  ],
+  formHeading: "Be among the first.",
+  formIntro: "Tell us what you offer and where.",
+  fields: {
+    businessName: "Business name",
+    contactName: "Contact name",
+    email: "Email",
+    city: "City",
+    cityDefault: "Amsterdam",
+    offering: "What you offer",
+    offeringPlaceholder: "Choose one",
+    groupSize: "Typical group size (optional)",
+    groupSizeHint: "A number or a range, like 8 or 6-20",
+    website: "Website (optional)",
+    note: "Anything else (optional)",
+  },
+  offerings: {
+    hotel: "Hotel",
+    apartment: "Apartment",
+    restaurant: "Restaurant",
+    venue: "Venue",
+    transport: "Transport",
+    activity: "Activity",
+    other: "Other",
+  },
+  submit: "Join the early list",
+  submitting: "Sending…",
+  consent: "We'll only use this to contact you about group requests.",
+  privacyLead: "See our",
+  privacyLink: "privacy policy",
+  privacyFallback: "Questions about your data: privacy@catoco.co",
+  thanks: "Thanks, we'll be in touch when group requests open in your area.",
+  errors: {
+    required: "Please fill in the required fields.",
+    email: "That email address doesn't look right.",
+    website: "Websites need to start with http:// or https://.",
+    groupSize: "Group size should be a number or a range, like 8 or 6-20.",
+    tooLong: "One of the answers is too long.",
+    rateLimited: "Too many submissions from here. Please try again in an hour.",
+    generic: "Something went wrong. Please try again, or write to hello@catoco.co.",
+  },
+};
+
 export const faq = {
   metaTitle: "Help and FAQ",
   metaDescription: "Answers to common questions about planning and funding trips on Catoco.",
