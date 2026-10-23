@@ -786,7 +786,7 @@ export function VendorSearchModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] backdrop-blur-sm sm:p-4" onClick={onClose}>
       {/* mx-auto + fixed margin, not flex items-center — see add-element-modal.tsx's
           comment for why that combination clips overflowing content off-screen.
           Full-screen below sm: a real results list plus the traveler-breakdown

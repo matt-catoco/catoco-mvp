@@ -27,7 +27,7 @@ export async function SiteNav() {
     "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
   return (
-    <header className="border-b border-brand-line bg-background">
+    <header className="border-b border-brand-line bg-background pt-[env(safe-area-inset-top)]">
       <nav aria-label="Main" className="mx-auto flex h-[60px] w-full max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href="/"

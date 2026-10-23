@@ -80,7 +80,7 @@ export function AddElementModal({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
           onClick={close}
         >
           {/* mx-auto + a fixed top/bottom margin instead of flex items-center:

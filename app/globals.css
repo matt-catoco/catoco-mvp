@@ -62,6 +62,31 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), "Inter", Arial, Helvetica, sans-serif;
+  /* App-store prep (prompt A): with viewport-fit=cover the page reaches under
+     a notch and the home indicator, so keep content clear of them. The top
+     inset is handled by each header (they sit at the very top). */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Installed as an app: no rubber-band bounce or pull-to-refresh on the page
+   itself (it reads as a web page). Browsers keep their normal behaviour. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+/* Touch screens: small text links in headers and footers get a 44px tap
+   area without changing how they look with a mouse. */
+@media (pointer: coarse) {
+  .tap-target {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 /* Bricolage Grotesque for headings everywhere, app-wide — the cheap,
@@ -79,6 +104,9 @@ h3 {
    the actual scrolling root. */
 html {
   scroll-behavior: smooth;
+  /* Keep our type sizes when a phone rotates (no automatic text inflation). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* iOS Safari renders an EMPTY <input type="date"> at its own native minimum

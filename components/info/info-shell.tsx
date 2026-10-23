@@ -11,7 +11,7 @@ import { infoLinkVisible } from "@/components/info/visibility";
  */
 export function InfoHeader() {
   return (
-    <header className="border-b border-brand-line">
+    <header className="border-b border-brand-line pt-[env(safe-area-inset-top)]">
       <nav className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold">
           <span className="h-5 w-5">
@@ -24,14 +24,14 @@ export function InfoHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="hidden text-sm font-medium text-brand-muted hover:text-foreground sm:inline"
+              className="tap-target hidden text-sm font-medium text-brand-muted hover:text-foreground sm:inline"
             >
               {item.label}
             </Link>
           ))}
           <Link
             href="/sign-in"
-            className="rounded-full bg-brand-teal px-4 py-1.5 text-sm font-semibold text-[#0d2020] hover:bg-brand-teal-deep hover:text-white"
+            className="tap-target rounded-full bg-brand-teal px-4 py-1.5 text-sm font-semibold text-[#0d2020] hover:bg-brand-teal-deep hover:text-white"
           >
             Sign in
           </Link>
@@ -78,16 +78,16 @@ export function InfoFooter() {
                       href={l.href}
                       target="_blank"
                       rel="noopener"
-                      className="text-sm text-brand-muted hover:text-foreground"
+                      className="tap-target text-sm text-brand-muted hover:text-foreground"
                     >
                       {l.label}
                     </a>
                   ) : l.href.startsWith("mailto:") ? (
-                    <a href={l.href} className="text-sm text-brand-muted hover:text-foreground">
+                    <a href={l.href} className="tap-target text-sm text-brand-muted hover:text-foreground">
                       {l.label}
                     </a>
                   ) : (
-                    <Link href={l.href} className="text-sm text-brand-muted hover:text-foreground">
+                    <Link href={l.href} className="tap-target text-sm text-brand-muted hover:text-foreground">
                       {l.label}
                     </Link>
                   )}

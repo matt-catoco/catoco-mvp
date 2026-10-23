@@ -16,7 +16,7 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie choices"
-      className="fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-xl flex-col gap-3 rounded-2xl border-2 border-brand-line bg-background p-4 text-left text-xs shadow-lg sm:flex-row sm:items-center"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-xl flex-col gap-3 rounded-2xl border-2 border-brand-line bg-background p-4 text-left text-xs shadow-lg sm:flex-row sm:items-center"
     >
       <p className="flex-1 text-brand-muted">
         We&apos;d like to use analytics cookies (PostHog, hosted in the EU) to understand how Catoco is used. They&apos;re
