@@ -187,7 +187,9 @@ export const contact = {
   // notifications@ publicly.
   email: COMPANY.email,
   emailLabel: "Email us",
-  emailNote: "For a trip, your account, a payment, press, partnerships or your data.",
+  emailNote: "For a trip, your account, a payment, press or partnerships.",
+  privacyNote: "To see, correct or delete your data:",
+  privacyEmail: "privacy@catoco.co",
   addressHeading: "Address",
   address: COMPANY.address,
   responseTime: "We'll reply just as soon as we can!",
@@ -223,7 +225,7 @@ export const faq = {
         { q: "I did not get my sign-in email. What now?", a: "Check your spam or promotions folder, make sure you typed the address correctly and request a new link. Each link works once. If it still does not arrive, write to hello@catoco.co." },
         { q: "My sign-in link says it has expired or was already used.", a: "Sign-in links are single use and time limited. Some email apps open links to scan them, which uses them up. Go back to the sign-in page and request a fresh one." },
         { q: "Can I change my email address?", a: "Not from the app yet. Write to hello@catoco.co from your current address and we will change it for you." },
-        { q: "How do I delete my account and data?", a: "Write to hello@catoco.co from the address you sign in with. We will confirm once your account and data are deleted, and always within one month." },
+        { q: "How do I delete my account and data?", a: "Write to privacy@catoco.co from the address you sign in with. We will confirm once your account and data are deleted, and always within one month." },
       ],
     },
     {
@@ -285,7 +287,7 @@ export const faq = {
       items: [
         { q: "What data does Catoco collect?", a: "Your email address, the Trips you create or join, and the details you add to them. Traveler details needed for a booking are encrypted and deleted 90 days after the trip ends." },
         { q: "Do you sell my data?", a: "No. We never sell your personal data." },
-        { q: "How do I ask for my data or have it deleted?", a: "Write to hello@catoco.co. We reply within one month, and usually much sooner." },
+        { q: "How do I ask for my data or have it deleted?", a: "Write to privacy@catoco.co. We reply within one month, and usually much sooner." },
       ],
     },
     {
