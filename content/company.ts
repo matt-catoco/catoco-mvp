@@ -4,7 +4,7 @@
  * draft all read from here (founder, 2026-10-19). Never hard-code these
  * elsewhere. The English footer line reads "dba" (founder, 2026-10-23; the About
  * page row still spells out "Doing business as"), never "trading
- * name"); Dutch reads "h.o.d.n." and "BTW".
+ * name". Dutch reads "h.o.d.n." and "BTW".
  */
 export const COMPANY = {
   entity: "Catalyst to Commit B.V.",
