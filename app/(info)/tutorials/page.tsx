@@ -11,9 +11,12 @@ export const metadata: Metadata = {
   description: tutorials.metaDescription,
 };
 
+const TUTORIALS_HIDDEN = true;
+
 export default function TutorialsPage() {
-  // Hidden on production (see app/(info)/layout.tsx).
-  if (infoPagesHidden()) notFound();
+  // Hidden everywhere, staging included, until the videos are re-recorded (founder, 2026-10-23).
+  // To bring it back: set TUTORIALS_HIDDEN to false and re-add the footer and site-map links.
+  if (TUTORIALS_HIDDEN || infoPagesHidden()) notFound();
   return (
     <article>
       <Banner>{site.draftBanner}</Banner>

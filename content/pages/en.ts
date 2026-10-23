@@ -37,7 +37,6 @@ export const site = {
     links: {
       product: [
         { href: "/sample-trip", label: "Try a sample trip" },
-        { href: "/tutorials", label: "Video tutorials" },
         { href: "/faq", label: "Help and FAQ" },
         { href: "/sign-in", label: "Sign in" },
       ],

@@ -619,7 +619,6 @@ export default async function Home() {
               </a>
               {/* Draft pages: linked on staging so every page can be reviewed; hidden on catoco.co. */}
               {[
-                { href: "/tutorials", label: "Tutorials" },
                 { href: "/terms", label: "Terms" },
                 { href: "/privacy", label: "Privacy" },
                 { href: "/site-map", label: "Site map" },

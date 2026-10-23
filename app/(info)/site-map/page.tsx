@@ -19,7 +19,6 @@ const WEBSITE: Entry[] = [
   { href: "/sample-trip", label: "Sample trip (no account needed)" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
-  { href: "/tutorials", label: "How it works (video tutorials)" },
   { href: "/faq", label: "Help and FAQ" },
   { href: "/terms", label: "Terms of service" },
   { href: "/privacy", label: "Privacy policy" },
