@@ -338,7 +338,8 @@ export async function notifyPriceDrift(opts: {
       .from("trip_participants")
       .select("user_id")
       .eq("trip_id", el.trip_id)
-      .eq("role", "co_organizer");
+      .eq("role", "co_organizer")
+      .is("left_at", null);
     const recipients = [...new Set([trip.organizer_id, ...((coOrganizers ?? []) as { user_id: string }[]).map((c) => c.user_id)])];
 
     const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: opts.currency || "USD" }).format(n);
@@ -458,7 +459,8 @@ export async function notifyDeadlineMissed(opts: {
       .from("trip_participants")
       .select("user_id")
       .eq("trip_id", r.tripId)
-      .eq("role", "co_organizer");
+      .eq("role", "co_organizer")
+      .is("left_at", null);
     const recipients = [...new Set([r.organizerId, ...((coOrganizers ?? []) as { user_id: string }[]).map((c) => c.user_id)])];
     const pledge = r.mode === "peer_pledge";
     const label = escapeHtml(r.elementLabel);

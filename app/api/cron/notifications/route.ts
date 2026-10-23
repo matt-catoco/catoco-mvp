@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
   const { data: optionsDue } = await supabase
     .from("trip_elements")
     .select("id, trip_id, label, options_deadline, voting_deadline, trips(name)")
+    .is("deleted_at", null)
     .eq("state", "open")
     .gte("options_deadline", nowIso)
     .lte("options_deadline", windowEndIso)
@@ -123,6 +124,7 @@ export async function GET(request: NextRequest) {
   const { data: votingDue } = await supabase
     .from("trip_elements")
     .select("id, trip_id, label, options_deadline, voting_deadline, trips(name)")
+    .is("deleted_at", null)
     .eq("state", "open")
     .gte("voting_deadline", nowIso)
     .lte("voting_deadline", windowEndIso)
@@ -200,6 +202,7 @@ export async function GET(request: NextRequest) {
     const { data: elements } = await supabase
       .from("trip_elements")
       .select("id, label")
+      .is("deleted_at", null)
       .in("id", elementIds);
     const primaryElement = elements?.[0]; // bundled requests span several elements; name after the first
     if (!primaryElement) continue;
