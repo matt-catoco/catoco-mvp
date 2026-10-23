@@ -11,12 +11,12 @@ const ALWAYS_PUBLIC = new Set(["/", "/about", "/contact", "/faq", "/sample-trip"
 
 /** Whether this page is public on catoco.co (the rest are drafts shown on staging only). */
 export function liveOnProduction(href: string): boolean {
-  return ALWAYS_PUBLIC.has(href);
+  return ALWAYS_PUBLIC.has(href.split("#")[0] || "/");
 }
 
 /** Whether a link to this path should show here (hides links to hidden pages). */
 export function infoLinkVisible(href: string): boolean {
-  return ALWAYS_PUBLIC.has(href) || !infoPagesHidden();
+  return liveOnProduction(href) || !infoPagesHidden();
 }
 
 export function infoPagesHidden(): boolean {

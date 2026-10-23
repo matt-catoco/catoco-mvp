@@ -24,7 +24,7 @@ export const site = {
   tagline: "Plan it together. Fund it together. Go.",
   contactEmail: "support@catoco.co",
   nav: [
-    { href: "/sample-trip", label: "Sample trip" },
+    { href: "/#how", label: "How it works" },
     { href: "/about", label: "About" },
     { href: "/faq", label: "Help" },
     { href: "/contact", label: "Contact" },

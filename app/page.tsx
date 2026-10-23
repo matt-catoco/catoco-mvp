@@ -225,7 +225,6 @@ export default async function Home() {
           </Link>
           <div className={styles.navLinks}>
             <a href="#how">How it works</a>
-            <Link href="/sample-trip">Sample trip</Link>
             <Link href="/about">About</Link>
             <Link href="/faq">Help</Link>
             <Link href="/contact">Contact</Link>
@@ -367,6 +366,13 @@ export default async function Home() {
               <h3>Go</h3>
               <p>Funded means booked. Easy peasy.</p>
             </div>
+          </div>
+          {/* "How it works" in the header lands here; this takes them into the sample trip. */}
+          <div className={styles.howCta}>
+            <Link href="/sample-trip" className={`${styles.btn} ${styles.btnPrimary}`}>
+              View a sample trip
+            </Link>
+            <span>No account needed.</span>
           </div>
         </div>
       </section>

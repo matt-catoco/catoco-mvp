@@ -377,6 +377,17 @@
 }
 
 /* ---------- HOW IT WORKS ---------- */
+.howCta {
+  margin-top: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.howCta span {
+  font-size: 14px;
+  color: var(--muted);
+}
 .steps {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
