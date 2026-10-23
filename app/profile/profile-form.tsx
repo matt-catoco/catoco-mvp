@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AuthCard, AuthHeading, AuthText, authButton, authError, authField, authLabel } from "@/components/auth-ui";
@@ -9,7 +9,7 @@ import { AuthCard, AuthHeading, AuthText, authButton, authError, authField, auth
  * Same save path as onboarding/profile: a direct update under RLS
  * ("Users can update their own profile", auth.uid() = id) — no new server code.
  */
-export function ProfileForm({ initialName, email }: { initialName: string; email: string }) {
+export function ProfileForm({ initialName, email, children }: { initialName: string; email: string; children?: ReactNode }) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState(initialName);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -80,6 +80,7 @@ export function ProfileForm({ initialName, email }: { initialName: string; email
           {errorMsg}
         </p>
       )}
+      {children}
     </AuthCard>
   );
 }

@@ -3,6 +3,7 @@
 import { forwardRef, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { unregisterThisDevice } from "@/lib/push/client";
 
 /** Sign out. Used as a menu item in the account menu (role/className passed in). */
 export const SignOutButton = forwardRef<
@@ -14,6 +15,7 @@ export const SignOutButton = forwardRef<
 
   function handleSignOut() {
     startTransition(async () => {
+      await unregisterThisDevice(); // needs the session, so before signOut
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push("/");

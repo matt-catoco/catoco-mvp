@@ -2,6 +2,9 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emailSendingEnabled, sendEmail } from "@/lib/email";
+import { dictionaries } from "@/lib/i18n/dictionaries";
+import { chooseChannels, inQuietHours, pushLink, RECENT_DEVICE_DAYS, type ChannelPreference } from "@/lib/push/channels";
+import { getPushProvider, pushAllowedFor, type PushMessage } from "@/lib/push/provider";
 import { escapeHtml } from "@/lib/html";
 import { platformFee } from "@/lib/platform-fee";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -25,18 +28,28 @@ export type NotificationKind =
   | "deadline_missed"
   | "recommit_requested"
   | "funding_failed"
-  | "refund_requested";
+  | "refund_requested"
+  // Prompt 4 kinds: allowed in the log and preferences, but not sent until
+  // Matt approves them (founder rule: new kinds need approval).
+  | "pledge_payment_requested"
+  | "pledge_payment_confirmed"
+  | "pay_window_closing";
+
+export const PENDING_APPROVAL_KINDS: ReadonlySet<NotificationKind> = new Set<NotificationKind>([
+  "pledge_payment_requested",
+  "pledge_payment_confirmed",
+  "pay_window_closing",
+]);
 
 /**
- * The one send path for all four core-loop triggers. Checks eligibility
- * (opted in, not already sent for this exact user+kind+subject) and claims
- * it atomically via prepare_notification() -- a security-definer RPC, not a
- * direct table read/write, since trigger #2 notifies a different user than
- * whoever is acting (the organizer resolving funding on behalf of the
- * purchaser), which a plain RLS-scoped client write can't do safely. Appends
- * the unsubscribe footer and sends via lib/email.ts's existing Resend
- * integration. Best-effort throughout: a failure here should never throw
- * past the caller's own action succeeding.
+ * The one send path for every notification. Picks the channel(s) for this
+ * person and kind (lib/push/channels.ts: push when they have a recent
+ * device, else email; critical payment kinds on both; their per-kind
+ * preference wins), claims (user, kind, subject) once via
+ * claim_notification() so a re-run never double-sends, then sends. Email
+ * keeps its unsubscribe footer and the existing Resend path. Push carries a
+ * generic line and a deep link only. Service role throughout: the recipient
+ * is often not the person acting. Best-effort: never throws past the caller.
  */
 export async function sendCoreLoopEmail(opts: {
   supabase: SupabaseClient;
@@ -47,44 +60,107 @@ export async function sendCoreLoopEmail(opts: {
   subject: string;
   html: string;
   origin: string;
+  /** In-app path for push. Defaults to the first trip link in the html. */
+  link?: string;
 }): Promise<void> {
-  // Check before prepare_notification, not after — that RPC atomically
-  // claims the notification_log row for this user+kind+subject, so calling
-  // it while suppressed would mark a never-sent email as sent and block a
-  // real send later if sending gets turned back on for this environment.
-  if (!emailSendingEnabled()) {
-    console.log(
-      `[email suppressed, VERCEL_ENV=${process.env.VERCEL_ENV ?? "local"}] would have sent ${opts.kind}/${opts.subjectId} to ${opts.email}`,
-    );
+  if (PENDING_APPROVAL_KINDS.has(opts.kind)) {
+    console.log(`[notification held] ${opts.kind} is awaiting approval; not sent to ${opts.userId}`);
     return;
   }
   try {
-    // Service role only: prepare_notification returns the recipient's
-    // unsubscribe token, so signed-in users can't call it (2026-10-17).
-    const { data, error } = await createServiceClient().rpc("prepare_notification", {
+    const service = createServiceClient();
+    const recentSince = new Date(Date.now() - RECENT_DEVICE_DAYS * 86_400_000).toISOString();
+    const [{ data: profile }, { data: pref }, { data: devices }] = await Promise.all([
+      service.from("profiles").select("email_notifications_enabled, unsubscribe_token").eq("id", opts.userId).maybeSingle(),
+      service.from("notification_preferences").select("channel").eq("user_id", opts.userId).eq("kind", opts.kind).maybeSingle(),
+      service
+        .from("push_devices")
+        .select("token, platform, locale, time_zone, last_seen_at")
+        .eq("user_id", opts.userId)
+        .is("revoked_at", null)
+        .gte("last_seen_at", recentSince)
+        .order("last_seen_at", { ascending: false }),
+    ]);
+    // No profile row (handle_new_user() creates one on signup): fail safe.
+    if (!profile?.unsubscribe_token) return;
+
+    const active = (devices ?? []) as { token: string; platform: PushMessage["platform"]; locale: string; time_zone: string | null }[];
+    const channels = chooseChannels({
+      kind: opts.kind,
+      preference: ((pref?.channel as ChannelPreference | undefined) ?? null),
+      emailOptedIn: profile.email_notifications_enabled !== false,
+      hasDevice: active.length > 0,
+      emailAvailable: emailSendingEnabled(),
+      pushAvailable: pushAllowedFor(opts.email),
+      quietHours: active.length > 0 && inQuietHours(new Date(), active[0].time_zone),
+    });
+    if (!channels.email && !channels.push) {
+      // Don't claim: a suppressed send must not block a real one later
+      // (e.g. email turned back on for this environment).
+      if (!emailSendingEnabled()) {
+        console.log(
+          `[email suppressed, VERCEL_ENV=${process.env.VERCEL_ENV ?? "local"}] would have sent ${opts.kind}/${opts.subjectId} to ${opts.email}`,
+        );
+      }
+      return;
+    }
+
+    const sentOn = [channels.email && "email", channels.push && "push"].filter(Boolean) as string[];
+    const { data: claimed, error } = await service.rpc("claim_notification", {
       p_user_id: opts.userId,
       p_kind: opts.kind,
       p_subject_id: opts.subjectId,
+      p_channels: sentOn,
     });
     if (error) {
-      console.error(`prepare_notification failed (${opts.kind}/${opts.subjectId}):`, error.message);
+      console.error(`claim_notification failed (${opts.kind}/${opts.subjectId}):`, error.message);
       return;
     }
-    const row = (Array.isArray(data) ? data[0] : data) as
-      | { should_send: boolean; unsubscribe_token: string | null }
-      | undefined;
-    if (!row?.should_send || !row.unsubscribe_token) return;
+    if (!claimed) return;
 
-    const footer = `<p style="margin-top:24px;font-size:12px;color:#6b6b64;">
-      <a href="${opts.origin}/unsubscribe?u=${opts.userId}&t=${row.unsubscribe_token}">Unsubscribe from trip email reminders</a>
+    if (channels.email) {
+      const footer = `<p style="margin-top:24px;font-size:12px;color:#6b6b64;">
+      <a href="${opts.origin}/unsubscribe?u=${opts.userId}&t=${profile.unsubscribe_token}">Unsubscribe from trip email reminders</a>
     </p>`;
-
-    const res = await sendEmail({ to: opts.email, subject: opts.subject, html: opts.html + footer });
-    if (res.error) {
-      console.error(`sendEmail failed (${opts.kind}/${opts.subjectId}):`, res.error);
+      const res = await sendEmail({ to: opts.email, subject: opts.subject, html: opts.html + footer });
+      if (res.error) {
+        console.error(`sendEmail failed (${opts.kind}/${opts.subjectId}):`, res.error);
+      }
+    }
+    if (channels.push) {
+      await sendPush(opts.kind, active, opts.link ?? pushLink(opts.html, opts.origin));
     }
   } catch (err) {
     console.error(`sendCoreLoopEmail threw (${opts.kind}/${opts.subjectId}):`, err);
+  }
+}
+
+/**
+ * Push to each of a person's active devices, in the device's language.
+ * Generic text only. Tokens the provider reports dead are revoked.
+ */
+export async function sendPush(
+  kind: NotificationKind,
+  devices: { token: string; platform: PushMessage["platform"]; locale: string }[],
+  link: string,
+): Promise<void> {
+  const provider = getPushProvider();
+  if (!provider || devices.length === 0) return;
+  const target = `${link}${link.includes("?") ? "&" : "?"}n=${kind}`;
+  const messages: PushMessage[] = devices.map((d) => {
+    const t = dictionaries[d.locale === "nl" ? "nl" : "en"].push;
+    return { token: d.token, platform: d.platform, title: t.title, body: t.kinds[kind], link: target, kind };
+  });
+  const results = await provider.send(messages);
+  const dead = results.filter((r) => r.invalidToken).map((r) => r.token);
+  for (const r of results) {
+    if (!r.ok && !r.invalidToken) console.error(`push failed (${kind}, ${provider.name}):`, r.error);
+  }
+  if (dead.length > 0) {
+    await createServiceClient()
+      .from("push_devices")
+      .update({ revoked_at: new Date().toISOString(), revoked_reason: "invalid_token" })
+      .in("token", dead);
   }
 }
 

@@ -4,6 +4,7 @@ import "./globals.css";
 import { PostHogProvider } from "@/components/posthog-provider";
 import { CookieBanner } from "@/components/cookie-banner";
 import { ServiceWorker } from "@/components/service-worker";
+import { PushOpened } from "@/components/push-opened";
 
 // Brand type system (design-handoff/catoco-brand-toolkit.md), applied
 // platform-wide: Bricolage Grotesque for display/headings, Inter for
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
           <CookieBanner />
           <ServiceWorker />
+          <PushOpened />
         </PostHogProvider>
       </body>
     </html>

@@ -156,6 +156,8 @@ The group posts a request for an element subtype (for example a hotel for 8 peop
 
 Status: draft for product dev, 2026-10-22. Independent of prompts 1 to 3 except for the payment-related kinds they introduce.
 
+**Built on staging 2026-10-23 (server side):** `push_devices`, `notification_preferences`, `claim_notification()` (migration `20261023070000_push_notifications`); channel rules + quiet hours in `lib/push/channels.ts`; provider interface in `lib/push/provider.ts` (no real provider until APNs/Firebase keys and the app shell exist; `PUSH_PROVIDER=log` for testing); `/api/push/devices` (register/unregister); per-kind settings on Profile, shown only once a device is registered. The three pledge kinds are in the schema but held (`PENDING_APPROVAL_KINDS`) until Matt approves; the marketplace kinds wait for prompt 3. `push_sent` is not sent to PostHog (server side would bypass the consent gate); `notification_log.channels` records it instead.
+
 ## Read first
 `AGENTS.md` and Next.js docs in `node_modules/next/dist/docs/`; `lib/notifications.ts` (kinds: invited, funding_ready, vote_needed, funding_needed, funding_deadline_set, payment_retry_needed, nudge, shares_recalculated, price_drift; `sendCoreLoopEmail`, `prepare_notification` RPC); `lib/email.ts`.
 
