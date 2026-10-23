@@ -261,17 +261,17 @@ export default async function Home() {
               From &ldquo;we should go&rdquo; to &ldquo;we went.&rdquo;
             </p>
             <div className={styles.heroActions}>
-              {/* Opens a pre-filled trip with no account needed (app/(info)/sample-trip). */}
-              <Link href="/sample-trip" className={`${styles.btn} ${styles.btnPrimary}`}>
-                Try a sample trip
-              </Link>
               <a
                 href="#signup"
                 data-tally-open="J94zBo"
-                className={`${styles.btn} ${styles.btnGhost}`}
+                className={`${styles.btn} ${styles.btnPrimary}`}
               >
                 Join the beta
               </a>
+              {/* Takes the old "See how it works" slot: a pre-filled trip, no account needed (app/(info)/sample-trip). */}
+              <Link href="/sample-trip" className={`${styles.btn} ${styles.btnGhost}`}>
+                Try a sample trip
+              </Link>
             </div>
           </div>
           <div className={styles.tileStage}>
