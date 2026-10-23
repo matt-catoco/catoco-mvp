@@ -51,7 +51,7 @@ export function InfoFooter() {
     .map((col) => ({
       ...col,
       links: (col.links as { href: string; label: string; external?: boolean }[]).filter(
-        (l) => l.external || infoLinkVisible(l.href),
+        (l) => l.external || l.href.startsWith("mailto:") || infoLinkVisible(l.href),
       ),
     }))
     .filter((col) => col.links.length > 0);
@@ -80,6 +80,10 @@ export function InfoFooter() {
                       rel="noopener"
                       className="text-sm text-brand-muted hover:text-foreground"
                     >
+                      {l.label}
+                    </a>
+                  ) : l.href.startsWith("mailto:") ? (
+                    <a href={l.href} className="text-sm text-brand-muted hover:text-foreground">
                       {l.label}
                     </a>
                   ) : (

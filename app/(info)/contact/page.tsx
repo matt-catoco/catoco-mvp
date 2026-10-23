@@ -33,12 +33,6 @@ export default function ContactPage() {
           {contact.emailLabel}
         </a>
       </div>
-      <p className="mt-4 max-w-2xl text-sm text-brand-muted">
-        {contact.privacyNote}{" "}
-        <a href={`mailto:${contact.privacyEmail}`} className="font-medium text-brand-teal-deep hover:underline">
-          {contact.privacyEmail}
-        </a>
-      </p>
       <div className="mt-8 max-w-2xl">
         <h2 className="text-sm font-semibold">{contact.addressHeading}</h2>
         <p className="mt-1 text-sm text-brand-muted">{contact.address}</p>

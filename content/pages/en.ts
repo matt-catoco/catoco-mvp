@@ -44,6 +44,7 @@ export const site = {
         { href: "/about", label: "About" },
         { href: "/contact", label: "Contact" },
         { href: "https://www.linkedin.com/in/mattsavit/", label: "LinkedIn", external: true },
+        { href: "mailto:hello@catoco.co", label: "hello@catoco.co" },
         // Staging only (hidden on catoco.co with the other draft pages).
         { href: "/site-map", label: "Site map" },
       ],
@@ -187,9 +188,7 @@ export const contact = {
   // notifications@ publicly.
   email: COMPANY.email,
   emailLabel: "Email us",
-  emailNote: "For a trip, your account, a payment, press or partnerships.",
-  privacyNote: "To see, correct or delete your data:",
-  privacyEmail: "privacy@catoco.co",
+  emailNote: "Questions, feedback or anything else about Catoco.",
   addressHeading: "Address",
   address: COMPANY.address,
   responseTime: "We'll reply just as soon as we can!",
@@ -222,9 +221,9 @@ export const faq = {
       heading: "Your account",
       items: [
         { q: "How do I sign in?", a: "Enter your email and we send you a sign-in link. There is no password to remember." },
-        { q: "I did not get my sign-in email. What now?", a: "Check your spam or promotions folder, make sure you typed the address correctly and request a new link. Each link works once. If it still does not arrive, write to hello@catoco.co." },
+        { q: "I did not get my sign-in email. What now?", a: "Check your spam or promotions folder, make sure you typed the address correctly and request a new link. Each link works once. If it still does not arrive, write to support@catoco.co." },
         { q: "My sign-in link says it has expired or was already used.", a: "Sign-in links are single use and time limited. Some email apps open links to scan them, which uses them up. Go back to the sign-in page and request a fresh one." },
-        { q: "Can I change my email address?", a: "Not from the app yet. Write to hello@catoco.co from your current address and we will change it for you." },
+        { q: "Can I change my email address?", a: "Not from the app yet. Write to support@catoco.co from your current address and we will change it for you." },
         { q: "How do I delete my account and data?", a: "Write to privacy@catoco.co from the address you sign in with. We will confirm once your account and data are deleted, and always within one month." },
       ],
     },
@@ -293,15 +292,16 @@ export const faq = {
     {
       heading: "Troubleshooting",
       items: [
-        { q: "A page looks out of date or a panel is missing.", a: "Reload the page. If something still looks wrong, tell us what you saw at hello@catoco.co and include your Trip name." },
+        { q: "A page looks out of date or a panel is missing.", a: "Reload the page. If something still looks wrong, tell us what you saw at support@catoco.co and include your Trip name." },
         { q: "I am not getting notification emails.", a: "Check your spam folder first. Every email has an unsubscribe link at the bottom; if you used it by mistake, write to us and we will turn emails back on." },
         { q: "Which browsers are supported?", a: "The latest versions of Chrome, Safari, Firefox and Edge, on desktop and on phones." },
-        { q: "I found a bug or have an idea.", a: "We would love to hear it. Write to hello@catoco.co." },
+        { q: "I found a bug or have an idea.", a: "We would love to hear it. Write to support@catoco.co." },
       ],
     },
   ] as { heading: string; items: Faq[] }[],
-  stillStuck: "Still stuck?",
-  stillStuckLink: { label: "Contact us", href: "/contact" },
+  stillStuck: "Still stuck? Email",
+  supportEmail: "support@catoco.co",
+  stillStuckLink: { label: "contact us", href: "/contact" },
 };
 
 export const tutorials = {

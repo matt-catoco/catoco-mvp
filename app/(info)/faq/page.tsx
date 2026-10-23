@@ -41,6 +41,10 @@ export default function FaqPage() {
       </div>
       <p className="mt-12 text-sm text-brand-muted">
         {faq.stillStuck}{" "}
+        <a href={`mailto:${faq.supportEmail}`} className="font-medium text-brand-teal-deep hover:underline">
+          {faq.supportEmail}
+        </a>{" "}
+        or{" "}
         <Link href={faq.stillStuckLink.href} className="font-medium text-brand-teal-deep hover:underline">
           {faq.stillStuckLink.label}
         </Link>
